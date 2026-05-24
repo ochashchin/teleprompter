@@ -1,12 +1,19 @@
 package com.example.kotlinmultiplatform
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,124 +31,110 @@ import com.example.kotlinmultiplatform.ui.theme.AppTheme
 
 @Composable
 fun ToolBar(
+    modifier: Modifier = Modifier,
     title: String,
     onTrailingClick: () -> Unit = {},
     onLeadingClick: (() -> Unit)? = null,
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
-    fun percentToBias(percent: Float): Float = (percent * 2f) - 1f
-    Box(modifier = Modifier.fillMaxWidth()) {
-        BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth().height(64.dp)
-                .align(BiasAlignment(0f, percentToBias(0f)))
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(64.dp)
+    ) {
+        val titleFontSize = fontSize(28.dp)
+
+        Text(
+            modifier = Modifier.align(Alignment.Center),
+            text = title,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            fontSize = titleFontSize,
+            lineHeight = titleFontSize,
+            textAlign = TextAlign.Center
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp),
+            contentAlignment = Alignment.Center
         ) {
-            val W = maxWidth.value
-            Box(
+
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(W / 64f)
-                    .align(Alignment.TopCenter)
+                    .height(48.dp)
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.Center,
             ) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(W / 28f)
-                        .align(Alignment.Center),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val fontSize =
-                        with(LocalDensity.current) { maxHeight.toSp() * 0.82f }
-                    Text(
-                        text = title,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = fontSize,
-                        lineHeight = fontSize,
-                        textAlign = TextAlign.Start
+                if (leadingIcon != null) {
+                    IconButton(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .fillMaxHeight(),
+                        onClick = onLeadingClick ?: {}
+                    ) {
+                        leadingIcon()
+                    }
+                } else {
+                    Spacer(
+                        Modifier
+                            .aspectRatio(1f)
+                            .fillMaxHeight()
                     )
                 }
 
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(W / 48f)
-                        .align(Alignment.Center),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
+                Spacer(Modifier.weight(1f))
 
-                    Row(
+                if (trailingIcon != null) {
+                    IconButton(
                         modifier = Modifier
-                            .fillMaxHeight()
+                            .aspectRatio(1f)
+                            .fillMaxHeight(),
+                        onClick = onTrailingClick
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(16f / 48f)
-                                .fillMaxHeight()
-                        )
-
-                        if (leadingIcon != null) {
-                            IconButton(
-                                modifier = Modifier
-                                    .aspectRatio(1f / 1f)
-                                    .fillMaxHeight(),
-                                onClick = onLeadingClick ?: {},
-                            ) {
-                                leadingIcon()
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-
-                        if (trailingIcon != null) {
-                            IconButton(
-                                modifier = Modifier
-                                    .aspectRatio(1f / 1f)
-                                    .fillMaxHeight(),
-                                onClick = onTrailingClick ?: {},
-                            ) {
-                                trailingIcon()
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(16f / 48f)
-                                .fillMaxHeight()
-                        )
+                        trailingIcon()
                     }
+                } else {
+                    Spacer(
+                        Modifier
+                            .aspectRatio(1f)
+                            .fillMaxHeight()
+                    )
                 }
             }
         }
     }
 }
 
-@Preview(
-    name = "ToolBar – 412dp (design width)",
-    showBackground = true,
-    widthDp = 412,
-)
-@Composable
-private fun PreviewFull() {
-    AppTheme(darkTheme = false) {
-        ToolBar("Toolbar", { })
+    @Preview(
+        name = "ToolBar – 412dp (design width)",
+        showBackground = true,
+        widthDp = 412,
+    )
+    @Composable
+    private fun PreviewFull() {
+        AppTheme(darkTheme = false) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ToolBar(title = "Toolbar")
+            }
+        }
     }
-}
 
-@Preview(
-    name = "ToolBar – 320dp (compact)",
-    showBackground = true,
-    widthDp = 320,
-)
-@Composable
-private fun PreviewCompact() {
-    AppTheme(darkTheme = true) {
-        ToolBar("Toolbar", { })
+    @Preview(
+        name = "ToolBar – 320dp (compact)",
+        showBackground = true,
+        widthDp = 320,
+    )
+    @Composable
+    private fun PreviewCompact() {
+        AppTheme(darkTheme = true) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                ToolBar(title = "Toolbar")
+            }
+        }
     }
-}

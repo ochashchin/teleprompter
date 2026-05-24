@@ -41,7 +41,7 @@ fun NewTaskScreenStatic(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Body — fields + dialog overlay
+// Body — fields + dialog1 overlay
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -126,7 +126,7 @@ private fun PreviewFull() = NewTaskScreenPreview(darkTheme = false)
 @Composable
 private fun PreviewCompact() = NewTaskScreenPreview(darkTheme = true)
 
-@Preview(name = "NewTaskScreen – dialog visible", showBackground = true, widthDp = 412)
+@Preview(name = "NewTaskScreen – dialog1 visible", showBackground = true, widthDp = 412)
 @Composable
 private fun PreviewDialog() {
     AppTheme {

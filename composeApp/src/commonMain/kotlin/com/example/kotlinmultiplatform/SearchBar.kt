@@ -3,14 +3,17 @@ package com.example.kotlinmultiplatform
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
@@ -56,128 +59,125 @@ fun SearchBar(
         keyboardController?.show()
     }
 
-    fun percentToBias(percent: Float): Float = (percent * 2f) - 1f
-    Box(modifier = Modifier.fillMaxWidth()) {
-        BoxWithConstraints(
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp),
+        contentAlignment = Alignment.Center
+    ) {
+
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .align(BiasAlignment(0f, percentToBias(0f)))
+                .height(48.dp)
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.Center,
         ) {
-            val W = maxWidth.value
-            BoxWithConstraints(
+
+            IconButton(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(W / 64f)
-                    .align(Alignment.TopCenter)
+                    .aspectRatio(1f)
+                    .fillMaxHeight(),
+                onClick = onBack,
             ) {
-                BoxWithConstraints(
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(
+                modifier = Modifier
+                    .width(16.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.CenterStart
+            ) {
+
+                val fontSize = fontSize(24.dp)
+
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = fontSize,
+                        lineHeight = fontSize,
+                    ),
+                    cursorBrush = SolidColor(
+                        MaterialTheme.colorScheme.onSurface
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Search,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { keyboardController?.hide() }
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(W / 48f)
-                        .align(Alignment.Center)
+                        .focusRequester(focusRequester),
+
+                    decorationBox = { innerTextField ->
+
+                        Box(
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+
+                            if (query.isEmpty()) {
+                                Text(
+                                    text = hint,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = fontSize,
+                                    maxLines = 1,
+                                )
+                            }
+
+                            innerTextField()
+                        }
+                    }
+                )
+            }
+
+            Spacer(
+                modifier = Modifier
+                    .width(16.dp)
+            )
+
+            if (query.isNotEmpty()) {
+
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
                 ) {
-                    Row(
+
+                    IconButton(
                         modifier = Modifier
+                            .aspectRatio(1f)
                             .fillMaxHeight(),
-                        verticalAlignment = Alignment.CenterVertically,
+                        onClick = onClear,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(16f / 48f)
-                                .fillMaxHeight()
-                        )
-
-                        IconButton(
-                            modifier = Modifier
-                                .aspectRatio(1f / 1f)
-                                .fillMaxHeight(),
-                            onClick = onBack,
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        ) {
-                            BoxWithConstraints(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(maxWidth.value / 24f)
-                                    .align(Alignment.Center),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                val fontSize =
-                                    with(LocalDensity.current) { maxHeight.toSp() * 0.82f }
-
-                                BasicTextField(
-                                    value = query,
-                                    onValueChange = onQueryChange,
-                                    singleLine = true,
-                                    textStyle = TextStyle(
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontSize = fontSize,
-                                        lineHeight = fontSize,
-                                    ),
-                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-                                    keyboardOptions = KeyboardOptions(
-                                        imeAction = ImeAction.Search,
-                                    ),
-                                    keyboardActions = KeyboardActions(
-                                        onSearch = { keyboardController?.hide() }
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .focusRequester(focusRequester),
-                                    decorationBox = { innerTextField ->
-                                        Box(contentAlignment = Alignment.CenterStart) {
-                                            if (query.isEmpty()) {
-                                                Text(
-                                                    text = hint,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    fontSize = fontSize,
-                                                    maxLines = 1,
-                                                )
-                                            }
-                                            innerTextField()
-                                        }
-                                    }
-                                )
-                            }
-                        }
-
-                        AnimatedVisibility(
-                            visible = query.isNotEmpty(),
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                        ) {
-                            IconButton(
-                                modifier = Modifier
-                                    .aspectRatio(1f / 1f)
-                                    .fillMaxHeight(),
-                                onClick = onClear,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Clear",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(16f / 48f)
-                                .fillMaxHeight()
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Clear",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
+
+            } else {
+
+                Spacer(
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .fillMaxHeight()
+                )
             }
         }
     }

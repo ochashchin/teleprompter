@@ -39,7 +39,9 @@ fun FabBarLayout(
 
     Box(modifier = modifier.fillMaxSize()) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(115.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(115.dp)
                 .align(BiasAlignment(0f, percentToBias(1f)))
         ) {
             Box(
@@ -54,39 +56,30 @@ fun FabBarLayout(
                         .aspectRatio(216f / 80f)
                         .align(Alignment.CenterStart)
                 ) {
-                    var H by remember { mutableStateOf(0.dp) }
-                    BoxWithConstraints(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(216f / 24f)
-                            .align(Alignment.Center)
-                    ) {
-                        H = maxHeight
-                    }
-                    val fontSize = with(LocalDensity.current) { H.toSp() * 0.82f }
+                    val fontSize = fontSize(24.dp)
                     ExtendedFloatingActionButton(
-                        onClick        = onNewClick,
-                        modifier       = Modifier
+                        onClick = onNewClick,
+                        modifier = Modifier
                             .fillMaxHeight()
                             .padding(end = 40.dp)
                             .align(Alignment.CenterEnd),
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        shape          = RoundedCornerShape(25),
-                        icon           = {
+                        shape = RoundedCornerShape(25),
+                        icon = {
                             Icon(
-                                imageVector        = Icons.Rounded.Edit,
+                                imageVector = Icons.Rounded.Edit,
                                 contentDescription = null,
-                                tint               = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier       = Modifier
-                                    .size(H * 1.1f)
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier
+                                    .size(26.dp)
                             )
                         },
-                        text           = {
+                        text = {
                             Text(
-                                text       = text,
-                                fontSize   = fontSize,
+                                text = text,
+                                fontSize = fontSize,
                                 lineHeight = fontSize,
-                                color      = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         },
                     )

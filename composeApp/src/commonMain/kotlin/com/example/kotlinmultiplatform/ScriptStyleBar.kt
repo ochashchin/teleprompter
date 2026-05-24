@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -53,15 +55,11 @@ fun ScriptStyleBar(
     onFillColorClick: () -> Unit = {},
     onMoreClick: () -> Unit = {},
 ) {
-    var P by remember { mutableStateOf(0f) }
-    var H by remember { mutableStateOf(0.dp) }
-    var W by remember { mutableStateOf(0f) }
-
     Box(modifier = Modifier.fillMaxWidth()) {
+        var W = 0f
+        var P = 0f
         BoxWithConstraints(
             modifier = modifier
-                .imePadding()
-
                 .height(64.dp)
         ) {
             W = maxWidth.value
@@ -72,14 +70,6 @@ fun ScriptStyleBar(
                     .align(Alignment.TopCenter),
                 contentAlignment = Alignment.Center,
             ) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(W / 28f)
-                        .align(Alignment.Center),
-                    contentAlignment = Alignment.Center,
-                ) { H = maxHeight }
-
                 Row(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -141,7 +131,6 @@ fun ScriptStyleBar(
                         val count = (parentWidth / boxSize).toInt()
                             .coerceAtMost(maxBoxes)
 
-// icons + callbacks
                         val actions = listOf(
                             ScriptAction(
                                 icon = Icons.Rounded.FormatBold,
@@ -180,6 +169,7 @@ fun ScriptStyleBar(
 
                         Row(
                             modifier = Modifier
+                                .offset(y = 4.dp)
                                 .width(maxWidth)
                                 .height(maxHeight),
                             verticalAlignment = Alignment.CenterVertically,
