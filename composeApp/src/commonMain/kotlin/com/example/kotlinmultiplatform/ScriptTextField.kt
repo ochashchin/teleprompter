@@ -3,9 +3,7 @@ package com.example.kotlinmultiplatform
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +21,10 @@ import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -57,6 +60,7 @@ import com.example.kotlinmultiplatform.ui.theme.AppTheme
 fun ScriptTextField(
     state: TextFieldState,
     modifier: Modifier = Modifier,
+    isError: Boolean = false,
 ) {
 
     val fontSize = fontSize(28.dp)
@@ -103,6 +107,26 @@ fun ScriptTextField(
 
                     shape = fieldShape,
 
+                    isError = isError,
+
+                    trailingIcon = if (isError) {
+                        {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(top = 20.dp), // adjust as needed
+                                contentAlignment = Alignment.TopCenter
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Error,
+                                    contentDescription = "Script is required",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    } else null,
+
                     modifier = Modifier
                         .fillMaxSize(),
 
@@ -126,6 +150,8 @@ fun ScriptTextField(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        errorBorderColor = MaterialTheme.colorScheme.error,
+                        errorContainerColor = MaterialTheme.colorScheme.surface,
                     ),
                 )
             }

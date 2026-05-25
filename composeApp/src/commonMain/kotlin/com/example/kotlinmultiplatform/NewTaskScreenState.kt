@@ -8,8 +8,8 @@ import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
 
 // ── Keys ─────────────────────────────────────────────────────────────────────
-private const val KEY_TOPIC       = "new_task_draft_topic"
-private const val KEY_SCRIPT      = "new_task_draft_script"
+private const val KEY_TOPIC  = "new_task_draft_topic"
+private const val KEY_SCRIPT = "new_task_draft_script"
 
 // ── NewTaskScreenState ────────────────────────────────────────────────────────
 class NewTaskScreenState(
@@ -18,19 +18,15 @@ class NewTaskScreenState(
     private val settings: Settings,
 ) {
     /** True when either field has been edited by the user. */
-    val isDirty: Boolean
+    val isNotEmpty: Boolean
         get() = topicState.text.isNotEmpty() || scriptState.text.isNotEmpty()
 
-    /** True when a persisted draft exists (i.e. user was mid-edit and quit). */
+    /** True when a persisted draft exists. */
     val hasDraft: Boolean
         get() = settings.getStringOrNull(KEY_TOPIC) != null ||
                 settings.getStringOrNull(KEY_SCRIPT) != null
 
-    /**
-     * Persist the current field text as a draft.
-     * Call this when the user saves a task so the text is available to
-     * AppNavigation before clear() wipes it.
-     */
+    /** Persist the current field text as a draft. */
     fun save() {
         settings[KEY_TOPIC]  = topicState.text.toString()
         settings[KEY_SCRIPT] = scriptState.text.toString()
@@ -48,6 +44,20 @@ class NewTaskScreenState(
         settings.getStringOrNull(KEY_SCRIPT)?.let { v ->
             scriptState.edit { replace(0, length, v) }
         }
+    }
+
+    /**
+     * Prefill both fields with explicit values (e.g. from a tapped task-list
+     * item or when returning from the Display/Preview screen via Back).
+     * Clears any persisted draft so the freshly prefilled content is canonical.
+     */
+    fun prefill(topic: String, script: String) {
+        topicState.edit  { replace(0, length, topic)  }
+        scriptState.edit { replace(0, length, script) }
+        // Wipe draft so restore() won't overwrite these values if the
+        // destination triggers the LaunchedEffect again.
+        settings.remove(KEY_TOPIC)
+        settings.remove(KEY_SCRIPT)
     }
 
     /**

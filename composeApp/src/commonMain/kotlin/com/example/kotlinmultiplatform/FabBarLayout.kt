@@ -1,7 +1,6 @@
 package com.example.kotlinmultiplatform
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,14 +16,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
@@ -33,7 +27,8 @@ import com.example.kotlinmultiplatform.ui.theme.AppTheme
 fun FabBarLayout(
     modifier: Modifier = Modifier,
     text: String = "New",
-    onNewClick: () -> Unit = {},
+    onClick: () -> Unit = {},
+    icon: @Composable () -> Unit
 ) {
     fun percentToBias(percent: Float): Float = (percent * 2f) - 1f
 
@@ -58,22 +53,14 @@ fun FabBarLayout(
                 ) {
                     val fontSize = fontSize(24.dp)
                     ExtendedFloatingActionButton(
-                        onClick = onNewClick,
+                        onClick = onClick,
                         modifier = Modifier
                             .fillMaxHeight()
                             .padding(end = 40.dp)
                             .align(Alignment.CenterEnd),
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(25),
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Rounded.Edit,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier
-                                    .size(26.dp)
-                            )
-                        },
+                        icon = icon,
                         text = {
                             Text(
                                 text = text,
@@ -101,7 +88,16 @@ fun FabBarLayout(
 @Composable
 private fun PreviewFull() {
     AppTheme(darkTheme = false) {
-        FabBarLayout(modifier = Modifier.fillMaxWidth())
+        FabBarLayout(modifier = Modifier.fillMaxWidth(),
+            icon = {
+            Icon(
+                imageVector = Icons.Rounded.Edit,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier
+                    .size(26.dp)
+            )
+        })
     }
 }
 
@@ -113,6 +109,15 @@ private fun PreviewFull() {
 @Composable
 private fun PreviewCompact() {
     AppTheme(darkTheme = false) {
-        FabBarLayout(modifier = Modifier.fillMaxWidth())
+        FabBarLayout(modifier = Modifier.fillMaxWidth(),
+            icon = {
+                Icon(
+                    imageVector = Icons.Rounded.Edit,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier
+                        .size(26.dp)
+                )
+            })
     }
 }
