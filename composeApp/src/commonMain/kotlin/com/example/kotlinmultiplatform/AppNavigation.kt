@@ -34,10 +34,10 @@ import kotlinx.coroutines.launch
 
 sealed interface Destination {
     data object TaskList  : Destination
-    data class  Detail(val task: Task) : Destination
     data object NewDetail : Destination
-    /** Transient preview: navigated to from NewTask via "Next"; carries raw text. */
-    data class  Preview(val title: String, val script: String) : Destination
+    /** isPreview = true  → reached from NewTask via "Next" (transient preview)
+     *  isPreview = false → reached by tapping a task in the list              */
+    data class  Detail(val task: Task, val isPreview: Boolean = false) : Destination
 }
 
 // ── Settings keys ─────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     // (including Back→re-edit→Next cycles). Null for fresh creates.
     var editingTaskId by remember { mutableStateOf<Int?>(null) }
 
-    // True when NewDetail was reached by coming back from Preview (via Back).
+    // True when NewDetail was reached by coming back from Detail(isPreview=true) via Back.
     // In this mode the fields are prefilled but nothing has actually changed,
     // so the "unsaved changes" dialog must NOT be shown on Back.
     var isPreviewMode by remember { mutableStateOf(false) }
@@ -148,49 +148,31 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     val scope        = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-
-    // ── Back from Preview → return to NewTaskScreen with topic & script intact ─
-    // editingTaskId is NOT touched here — it was set once on item click and stays
-    // stable so the next Next press still targets the same record.
-    val onPreviewBack: (title: String, script: String) -> Unit =
-        { title, script ->
-
-            newTaskState.prefill(
-                topic = title,
-                script = script
-            )
-
-            isPreviewMode = true
-
-            destination = Destination.NewDetail
-        }
+    // ── Back from Detail(isPreview) → return to NewTaskScreen with topic & script intact ─
+    val onPreviewBack: (title: String, script: String) -> Unit = { title, script ->
+        newTaskState.prefill(topic = title, script = script)
+        isPreviewMode = true
+        destination   = Destination.NewDetail
+    }
 
     // ── Update an existing task in-place by id ────────────────────────────────
-    // Try to overwrite title/desc under the stored id. If the id is gone from
-    // Settings (edge case), delete any leftover keys and create a new record.
     fun updateOrRecreateTask(id: Int, newTitle: String, newDesc: String) {
         val ids      = loadIds(settings)
         val memIndex = allTasks.indexOfFirst { it.id == id }
 
         if (id in ids) {
-            // Happy path: id still exists — update in place, keep same id and shape.
-            // Read shape from Settings (already stored under keyIcon) so we don't
-            // depend on the in-memory list index being valid.
             val ordinal = settings.getIntOrNull(keyIcon(id)) ?: 0
             val shape   = LeadingShapeType.entries.getOrNull(ordinal) ?: LeadingShapeType.random()
             settings[keyTitle(id)] = newTitle
             settings[keyDesc(id)]  = newDesc
-            // Shape and id list are unchanged — no need to touch KEY_IDS or keyIcon.
             val updated = Task(id, newTitle, newDesc, shape)
             if (memIndex >= 0) allTasks[memIndex] = updated else allTasks.add(updated)
         } else {
-            // Fallback: id is gone — clean up any orphaned keys and create a new record.
             deleteTask(settings, id)
             val newId    = nextId++
             val newShape = LeadingShapeType.random()
             val position = if (memIndex >= 0) memIndex else allTasks.size
             writeTask(settings, newId, newTitle, newDesc, newShape)
-            // Insert new id at the original position in the ordered id list
             val mutableIds = ids.toMutableList()
             mutableIds.add(position.coerceAtMost(mutableIds.size), newId)
             saveIds(settings, mutableIds)
@@ -202,55 +184,63 @@ fun AppNavigation(modifier: Modifier = Modifier) {
 
     // ── Handle "Next" on NewTaskScreen ────────────────────────────────────────
     val onNextClick: () -> Unit = {
-
         val rawTitle = newTaskState.topicText.trim()
-        val script = newTaskState.scriptText.trim()
+        val script   = newTaskState.scriptText.trim()
 
         if (script.isNotEmpty()) {
-
-            // only for display
-            val displayTitle =
-                rawTitle.ifBlank { "Draft" }
-
+            val displayTitle = rawTitle.ifBlank { "Draft" }
             val id = editingTaskId
 
             if (id != null) {
-
-                val existing =
-                    allTasks.firstOrNull { it.id == id }
-
-                val titleChanged =
-                    existing == null ||
-                            displayTitle != existing.title
-
-                val scriptChanged =
-                    existing == null ||
-                            script != existing.description
-
-                if (titleChanged || scriptChanged) {
-                    updateOrRecreateTask(
-                        id,
-                        displayTitle,
-                        script
-                    )
-                }
+                val existing      = allTasks.firstOrNull { it.id == id }
+                val titleChanged  = existing == null || displayTitle != existing.title
+                val scriptChanged = existing == null || script != existing.description
+                if (titleChanged || scriptChanged) updateOrRecreateTask(id, displayTitle, script)
             }
 
             isPreviewMode = false
 
-            destination =
-                Destination.Preview(
-                    title = displayTitle,
-                    script = script
-                )
+            // Resolve (or create) the task to preview so Detail has a real Task object.
+            val previewTask =
+                if (editingTaskId != null) {
+                    allTasks.first { it.id == editingTaskId }
+                } else {
+                    val newId = nextId++
+
+                    val shape = LeadingShapeType.random()
+
+                    writeTask(
+                        settings,
+                        newId,
+                        displayTitle,
+                        script,
+                        shape
+                    )
+
+                    saveIds(settings, loadIds(settings) + newId)
+                    settings[KEY_NEXT_ID] = nextId
+
+                    editingTaskId = newId
+
+                    val task = Task(
+                        id = newId,
+                        title = displayTitle,
+                        description = script,
+                        leadingShape = shape
+                    )
+
+                    allTasks.add(task)
+
+                    task
+                }
+
+            destination = Destination.Detail(task = previewTask, isPreview = true)
         }
     }
 
     fun commitNewTask() {
-
         val rawTitle = newTaskState.topicText.trim()
-
-        val desc = newTaskState.scriptText.trim()
+        val desc     = newTaskState.scriptText.trim()
 
         if (rawTitle.isBlank() && desc.isBlank()) {
             editingTaskId = null
@@ -258,89 +248,50 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         }
 
         val finalTitle = rawTitle.ifBlank { "Draft" }
-
-        val id = editingTaskId
+        val id         = editingTaskId
 
         if (id != null) {
-
-            updateOrRecreateTask(
-                id = id,
-                newTitle = finalTitle,
-                newDesc = desc
-            )
-
+            updateOrRecreateTask(id = id, newTitle = finalTitle, newDesc = desc)
         } else {
-
             val newId = nextId++
-
             val shape = LeadingShapeType.random()
-
-            writeTask(
-                settings,
-                newId,
-                finalTitle,
-                desc,
-                shape
-            )
-
+            writeTask(settings, newId, finalTitle, desc, shape)
             saveIds(settings, loadIds(settings) + newId)
-
             settings[KEY_NEXT_ID] = nextId
-
-            allTasks.add(
-                Task(
-                    newId,
-                    finalTitle,
-                    desc,
-                    shape
-                )
-            )
+            allTasks.add(Task(newId, finalTitle, desc, shape))
         }
 
         editingTaskId = null
         isPreviewMode = false
-
         newTaskState.clear()
     }
 
-    // ── Commit new task: persist + add to in-memory list ─────────────────────
+    // ── Back from NewTaskScreen ───────────────────────────────────────────────
     val onNewTaskBack: () -> Unit = {
-
         focusManager.clearFocus(force = true)
 
         scope.launch {
-
             delay(500)
 
-            // Returned from Preview:
-            // save immediately and leave
             if (isPreviewMode) {
-
                 commitNewTask()
-
                 destination = Destination.TaskList
-
                 return@launch
             }
 
-            // Empty form
             if (!newTaskState.isNotEmpty) {
-
                 editingTaskId = null
                 newTaskState.clear()
-
                 destination = Destination.TaskList
-
                 return@launch
             }
 
-            // Editing an existing task but nothing actually changed — leave silently
             val editId = editingTaskId
             if (editId != null) {
-                val existing = allTasks.firstOrNull { it.id == editId }
-                val currentTitle = newTaskState.topicText.trim().ifBlank { "Draft" }
+                val existing      = allTasks.firstOrNull { it.id == editId }
+                val currentTitle  = newTaskState.topicText.trim().ifBlank { "Draft" }
                 val currentScript = newTaskState.scriptText.trim()
-                val unchanged = existing != null &&
+                val unchanged     = existing != null &&
                         currentTitle == existing.title &&
                         currentScript == existing.description
                 if (unchanged) {
@@ -351,7 +302,6 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 }
             }
 
-            // Regular editing
             showSaveDialog = true
         }
     }
@@ -367,8 +317,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         derivedStateOf {
             if (query.isBlank()) allTasks.toList()
             else allTasks.filter {
-                it.title.contains(query, true) ||
-                        it.description.contains(query, true)
+                it.title.contains(query, true) || it.description.contains(query, true)
             }
         }
     }
@@ -377,7 +326,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         destination   = destination,
         staticContent = { dest ->
             when (dest) {
-                is Destination.TaskList -> TaskScreenStatic(
+                is Destination.TaskList  -> TaskScreenStatic(
                     searchActive  = searchActive,
                     query         = query,
                     onQueryChange = { query = it },
@@ -385,29 +334,23 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onBack        = { searchActive = false; query = "" },
                     onSearchOpen  = { searchActive = true },
                 )
-                is Destination.Detail -> DisplayScreenStatic(
-                    onBack = { destination = Destination.TaskList },
+                is Destination.Detail    -> DisplayScreenStatic(
+                    onBack = if (dest.isPreview)
+                        { -> onPreviewBack(dest.task.title, dest.task.description) }
+                    else
+                        { -> destination = Destination.TaskList },
                 )
-                is Destination.NewDetail -> NewTaskScreenStatic(
-                    onBack = onNewTaskBack,
-                )
-                is Destination.Preview -> DisplayScreenStatic(
-                    onBack = { onPreviewBack(dest.title, dest.script) },
-                )
+                is Destination.NewDetail -> NewTaskScreenStatic(onBack = onNewTaskBack)
             }
         },
         dynamicContent = { dest ->
             when (dest) {
-                is Destination.TaskList -> TaskScreenBody(
+                is Destination.TaskList  -> TaskScreenBody(
                     visibleTasks = visibleTasks,
                     onDismiss    = { removeTask(it) },
-                    onItemClick = { task ->
+                    onItemClick  = { task ->
                         editingTaskId = task.id
-
-                        newTaskState.prefill(
-                            topic = task.title,
-                            script = task.description
-                        )
+                        newTaskState.prefill(topic = task.title, script = task.description)
                         destination = Destination.NewDetail
                     },
                     onNewClick   = {
@@ -416,12 +359,8 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     },
                     modifier     = Modifier.fillMaxSize(),
                 )
-                is Destination.Detail -> DisplayScreenBody(
+                is Destination.Detail    -> DisplayScreenBody(
                     task     = dest.task,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                is Destination.Preview -> DisplayScreenBody(
-                    task     = Task(0, dest.title, dest.script, LeadingShapeType.HEART),
                     modifier = Modifier.fillMaxSize(),
                 )
                 is Destination.NewDetail -> NewTaskScreenBody(
@@ -430,19 +369,16 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onNextClick     = onNextClick,
                     showSaveDialog  = showSaveDialog,
                     onDismissDialog = { showSaveDialog = false },
-                    onSave = {
+                    onSave          = {
                         showSaveDialog = false
                         commitNewTask()
                         destination = Destination.TaskList
                     },
-                    onDiscard = {
+                    onDiscard       = {
                         showSaveDialog = false
-
-                        editingTaskId = null
-                        isPreviewMode = false
-
+                        editingTaskId  = null
+                        isPreviewMode  = false
                         newTaskState.clear()
-
                         destination = Destination.TaskList
                     },
                     modifier        = Modifier.fillMaxSize(),
@@ -464,18 +400,20 @@ private fun ScreenLayout(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedContent(
-            targetState = destination,
+            targetState    = destination,
             transitionSpec = {
                 when {
-                    // Back from Preview to NewDetail: slide right-to-left (reverse)
-                    initialState is Destination.Preview && targetState is Destination.NewDetail ->
+                    // Back from Detail(isPreview) to NewDetail: slide right-to-left (reverse)
+                    initialState is Destination.Detail &&
+                            (initialState as Destination.Detail).isPreview &&
+                            targetState is Destination.NewDetail ->
                         slideInHorizontally(tween(350)) { -it } togetherWith
                                 slideOutHorizontally(tween(350)) { it }
                     // Back to TaskList: slide right-to-left
                     targetState is Destination.TaskList ->
                         slideInHorizontally(tween(350)) { -it } togetherWith
                                 slideOutHorizontally(tween(350)) { it }
-                    // Forward to Detail, NewDetail, Preview: slide left-to-right
+                    // Forward: slide left-to-right
                     else ->
                         slideInHorizontally(tween(350)) { it }  togetherWith
                                 slideOutHorizontally(tween(350)) { -it }
@@ -486,10 +424,10 @@ private fun ScreenLayout(
         ) { dest -> dynamicContent(dest) }
 
         AnimatedContent(
-            targetState = destination,
+            targetState    = destination,
             transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
-            label    = "staticLayer",
-            modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+            label          = "staticLayer",
+            modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
         ) { dest -> staticContent(dest) }
     }
 }

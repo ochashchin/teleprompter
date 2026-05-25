@@ -13,7 +13,7 @@ private const val KEY_SCRIPT = "new_task_draft_script"
 
 // ── NewTaskScreenState ────────────────────────────────────────────────────────
 class NewTaskScreenState(
-    val topicState:  TextFieldState,
+    val topicState: TextFieldState,
     val scriptState: TextFieldState,
     private val settings: Settings,
 ) {
@@ -77,9 +77,23 @@ class NewTaskScreenState(
 }
 
 @Composable
-fun rememberNewTaskScreenState(): NewTaskScreenState {
-    val topicState  = rememberTextFieldState()
+fun rememberNewTaskScreenState(
+    taskId: Int = -1
+): NewTaskScreenState {
+
+    val topicState = rememberTextFieldState()
     val scriptState = rememberTextFieldState()
-    val settings    = LocalSettings.current
-    return remember(settings) { NewTaskScreenState(topicState, scriptState, settings) }
+
+    val settings = LocalSettings.current
+
+    return remember(
+        taskId,
+        settings
+    ) {
+        NewTaskScreenState(
+            topicState = topicState,
+            scriptState = scriptState,
+            settings = settings
+        )
+    }
 }
