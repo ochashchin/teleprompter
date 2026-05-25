@@ -386,14 +386,12 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     onSearchOpen  = { searchActive = true },
                 )
                 is Destination.Detail -> DisplayScreenStatic(
-                    task   = dest.task,
                     onBack = { destination = Destination.TaskList },
                 )
                 is Destination.NewDetail -> NewTaskScreenStatic(
                     onBack = onNewTaskBack,
                 )
                 is Destination.Preview -> DisplayScreenStatic(
-                    task   = Task(0, dest.title, dest.script, LeadingShapeType.HEART),
                     onBack = { onPreviewBack(dest.title, dest.script) },
                 )
             }

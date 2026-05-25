@@ -10,11 +10,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -39,6 +43,7 @@ fun TopicTextField(
     state: TextFieldState,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
+    isError: Boolean = false,
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
 
@@ -95,6 +100,19 @@ fun TopicTextField(
                             fontSize = fontSize
                         )
                     },
+                    isError = isError,
+
+                    trailingIcon = if (isError) {
+                        {
+                            Icon(
+                                imageVector = Icons.Rounded.Error,
+                                contentDescription = "Topic is required",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else null,
+
                     lineLimits = TextFieldLineLimits.SingleLine,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,

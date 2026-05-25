@@ -84,6 +84,7 @@ fun NewTaskScreenBody(
             TopicTextField(
                 state          = state.topicState,
                 focusRequester = focusRequester,
+                isError     = scriptError,
             )
 
             ScriptStyleBar(
