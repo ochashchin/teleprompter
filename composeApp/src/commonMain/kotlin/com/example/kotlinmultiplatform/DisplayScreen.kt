@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -94,6 +92,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
     val displayState = rememberDisplayTaskState(task.id)
 
     val textSizeItem = DisplayTaskList.first { it.id == 1 }
+    val orientationItem = DisplayTaskList.first { it.id == 2 }
 
     var selectedSizeLabel by remember {
         mutableStateOf(
@@ -101,6 +100,15 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                 ?: textSizeItem.defaultOption
         )
     }
+
+    var selectedOrientationLabel by remember {
+        mutableStateOf(
+            displayState.selectedOption(orientationItem)
+                ?: orientationItem.defaultOption
+        )
+    }
+
+    val isHorizontal = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
 
     val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
 
@@ -111,7 +119,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
     )
 
     // TextFitCalculator result state
-    var fitResult by remember(task.id, selectedSizeLabel) { mutableStateOf<TextFitResult?>(null) }
+    var fitResult by remember(task.id, selectedSizeLabel, selectedOrientationLabel) { mutableStateOf<TextFitResult?>(null) }
 
     val previewPadding = 10.dp
 
@@ -138,24 +146,20 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                     fontSize   = textStyle.fontSize,
                     lineHeight = textStyle.lineHeight,
                     padding    = previewPadding,
+                    isHorizontal = isHorizontal,
                     modifier   = Modifier.fillMaxSize(),
                     onResult   = { fitResult = it },
                 )
 
                 fitResult?.let { r ->
-                    // Container for an individual page
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
-                        // The actual page text content
+                    Box(modifier = Modifier.fillMaxSize()) {
                         TextFitBox(
-                            pageText = r.pagesText[0],
+                            pageText       = r.pagesText[0],
                             linesPerParent = r.lineCountPerParent,
-                            textStyle = textStyle,
-                            padding = previewPadding,
-                            modifier = Modifier
-                                .fillMaxSize(),
+                            textStyle      = textStyle,
+                            padding        = previewPadding,
+                            isHorizontal     = isHorizontal,
+                            modifier       = Modifier.fillMaxSize(),
                         )
                     }
                 }
@@ -169,6 +173,9 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
             onSelectionChanged = { item, option ->
                 if (item.id == 1) {
                     selectedSizeLabel = option
+                }
+                if (item.id == 2) {
+                    selectedOrientationLabel = option
                 }
             }
         )
@@ -191,6 +198,7 @@ fun SegmentedListItem(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
+        onClick  = { menuExpanded = true },
         shape    = shape,
         color    = MaterialTheme.colorScheme.surface,
     ) {

@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.layout.layout
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -49,18 +51,6 @@ data class TextFitResult(
     val lineCountPerParent: Int,
     val parentCount: Int,
     val pagesText: List<String>,
-)
-
-// ─────────────────────────────────────────────
-// Result — massive size
-// ─────────────────────────────────────────────
-
-data class MassiveTextFitResult(
-    val longestWord: String,        // word that drove the font-size search
-    val fontSize: TextUnit,         // font size that fills the content area width
-    val lineHeight: TextUnit,       // = fontSize + 12dp expressed as sp
-    val parentCount: Int,           // one word per parent → word count
-    val words: List<String>,        // all words (split on " ")
 )
 
 // ─────────────────────────────────────────────
@@ -110,6 +100,7 @@ fun TextFitCalculator(
     fontSize: TextUnit,
     lineHeight: TextUnit,
     padding: Dp = 10.dp,
+    isHorizontal: Boolean = false,
     modifier: Modifier = Modifier,
     onResult: (TextFitResult) -> Unit,
 ) {
@@ -117,9 +108,7 @@ fun TextFitCalculator(
     val density = LocalDensity.current
     val style = TextStyle(fontSize = fontSize, lineHeight = lineHeight)
 
-    // Use BoxWithConstraints to read the incoming constraints/sizes
     BoxWithConstraints(modifier = modifier) {
-        // maxWidth and maxHeight are now available in this Scope as Dp values
 
         val contentWidthPx = with(density) {
             (maxWidth - (padding * 2)).roundToPx().coerceAtLeast(1)
@@ -129,19 +118,25 @@ fun TextFitCalculator(
             (maxHeight - (padding * 2)).roundToPx().coerceAtLeast(1)
         }
 
+        // Vertical mode: text runs rotated -90°, so line-width == physical height
+        // and page-height == physical width.
+        val calcWidthPx  = if (isHorizontal) contentHeightPx else contentWidthPx
+        val calcHeightPx = if (isHorizontal) contentWidthPx  else contentHeightPx
+
         val result = remember(
             text,
             fontSize,
             lineHeight,
             contentWidthPx,
-            contentHeightPx
+            contentHeightPx,
+            isHorizontal,
         ) {
             calculateTextFit(
-                textMeasurer = textMeasurer,
-                text = text,
-                style = style,
-                parentWidthPx = contentWidthPx,
-                parentHeightPx = contentHeightPx,
+                textMeasurer   = textMeasurer,
+                text           = text,
+                style          = style,
+                parentWidthPx  = calcWidthPx,
+                parentHeightPx = calcHeightPx,
             )
         }
 
@@ -159,12 +154,40 @@ fun TextFitBox(
     linesPerParent: Int,
     textStyle: TextStyle,
     padding: Dp = 10.dp,
+    isHorizontal: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .padding(padding)
-    ) {
+    // In vertical mode the composable occupies its normal slot in the layout but
+    // its content is rotated -90°. We achieve this by:
+    //   1. Rotating the Box -90° (visual only — layout bounds stay the same).
+    //   2. Using a custom `layout` modifier that reports swapped width/height so
+    //      the rotated content fills the parent correctly.
+    val rotatedModifier = if (isHorizontal) {
+        modifier
+            .layout { measurable, constraints ->
+                // Swap the incoming w/h so the rotated child is measured correctly.
+                val placeable = measurable.measure(
+                    constraints.copy(
+                        minWidth  = constraints.minHeight,
+                        maxWidth  = constraints.maxHeight,
+                        minHeight = constraints.minWidth,
+                        maxHeight = constraints.maxWidth,
+                    )
+                )
+                // Report swapped dimensions back to the parent.
+                layout(placeable.height, placeable.width) {
+                    placeable.place(
+                        x = -(placeable.width  - placeable.height) / 2,
+                        y = -(placeable.height - placeable.width)  / 2,
+                    )
+                }
+            }
+            .rotate(90f)
+    } else {
+        modifier
+    }
+
+    Box(modifier = rotatedModifier.padding(padding)) {
         Text(
             text     = pageText,
             style    = textStyle,
