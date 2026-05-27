@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,6 +22,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -77,20 +81,107 @@ fun DisplayScreenStatic(onBack: () -> Unit) {
     )
 }
 
-// ── SegmentedListItem ─────────────────────────────────────────────────────────
+private fun textSizeTriple(label: String?) =
+    NORMAL_SIZES.firstOrNull { it.first.equals(label, ignoreCase = true) }
+        ?: NORMAL_SIZES[1]   // fallback: "Normal"
 
+// ── DisplayScreenBody ─────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
-    val displayState = rememberDisplayTaskState(taskId = task.id)
-    SegmentedList(items = DisplayTaskList, displayState = displayState, modifier = modifier)
+
+    val displayState = rememberDisplayTaskState(task.id)
+
+    val textSizeItem = DisplayTaskList.first { it.id == 1 }
+
+    var selectedSizeLabel by remember {
+        mutableStateOf(
+            displayState.selectedOption(textSizeItem)
+                ?: textSizeItem.defaultOption
+        )
+    }
+
+    val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
+
+
+    val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
+        fontSize   = fontSize1(fontSizeDp),
+        lineHeight = fontSize1(lineHeightDp),
+    )
+
+    // TextFitCalculator result state
+    var fitResult by remember(task.id, selectedSizeLabel) { mutableStateOf<TextFitResult?>(null) }
+
+    val previewPadding = 10.dp
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        // ── Preview surface ──────────────────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .height(180.dp),
+            contentAlignment = Alignment.Center
+        ) {
+
+
+            Surface(
+                modifier = modifier,
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                TextFitCalculator(
+                    text       = task.description,
+                    fontSize   = textStyle.fontSize,
+                    lineHeight = textStyle.lineHeight,
+                    padding    = previewPadding,
+                    modifier   = Modifier.fillMaxSize(),
+                    onResult   = { fitResult = it },
+                )
+
+                fitResult?.let { r ->
+                    // Container for an individual page
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        // The actual page text content
+                        TextFitBox(
+                            pageText = r.pagesText[0],
+                            linesPerParent = r.lineCountPerParent,
+                            textStyle = textStyle,
+                            padding = previewPadding,
+                            modifier = Modifier
+                                .fillMaxSize(),
+                        )
+                    }
+                }
+            }
+        }
+        // ── Settings list ────────────────────────────────────────────────────
+        SegmentedList(
+            items = DisplayTaskList,
+            displayState = displayState,
+            modifier = modifier.padding(top = 8.dp),
+            onSelectionChanged = { item, option ->
+                if (item.id == 1) {
+                    selectedSizeLabel = option
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun SegmentedListItem(
-    item        : DisplayTaskItem,
+    item: DisplayTaskItem,
     displayState: DisplayTaskState,
-    shape       : Shape,
-    modifier    : Modifier = Modifier,
+    shape: Shape,
+    modifier: Modifier = Modifier,
+    onSelectionChanged: (DisplayTaskItem, String) -> Unit = { _, _ -> },
 ) {
     // null = user never selected anything
     var selectedOption by remember(displayState.taskId, item.id) { mutableStateOf(displayState.selectedOption(item)) }
@@ -171,16 +262,16 @@ fun SegmentedListItem(
                         modifier         = Modifier.fillMaxHeight().aspectRatio(48f / 28f),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Box {
+                        Box(modifier = Modifier.fillMaxHeight().aspectRatio(20f / 28f)) {
                             IconButton(
                                 onClick  = { menuExpanded = true },
-                                modifier = Modifier.fillMaxHeight().aspectRatio(20f / 28f),
+                                modifier = Modifier.fillMaxHeight().aspectRatio(1f),
                             ) {
                                 Icon(
                                     imageVector        = Icons.Rounded.MoreVert,
                                     contentDescription = "More options",
                                     tint               = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier           = Modifier.fillMaxHeight().aspectRatio(1f),
+                                    modifier           = Modifier.fillMaxSize(),
                                 )
                             }
 
@@ -190,10 +281,15 @@ fun SegmentedListItem(
                             ) {
                                 item.options.forEachIndexed { index, option ->
                                     DropdownMenuItem(
-                                        text    = { Text(text = option, fontSize = fontSize(20.dp)) },
+                                        text    = { Text(
+                                            text = option,
+                                            fontSize = fontSize(20.dp),
+                                            style = MaterialTheme.typography.bodyMedium
+                                        ) },
                                         onClick = {
                                             selectedOption = option
                                             displayState.setSelection(item = item, optionIndex = index)
+                                            onSelectionChanged(item, option)
                                             menuExpanded = false
                                         },
                                     )
@@ -211,9 +307,10 @@ fun SegmentedListItem(
 
 @Composable
 fun SegmentedList(
-    items       : List<DisplayTaskItem>,
+    items: List<DisplayTaskItem>,
     displayState: DisplayTaskState,
-    modifier    : Modifier = Modifier,
+    modifier: Modifier = Modifier,
+    onSelectionChanged: (DisplayTaskItem, String) -> Unit = { _, _ -> },
 ) {
     LazyColumn(
         modifier            = modifier.fillMaxSize(),
@@ -227,7 +324,12 @@ fun SegmentedList(
                 index == items.lastIndex -> RoundedCornerShape(topStart = 8.dp,  topEnd = 8.dp,  bottomStart = 28.dp, bottomEnd = 28.dp)
                 else                     -> RoundedCornerShape(8.dp)
             }
-            SegmentedListItem(item = item, displayState = displayState, shape = itemShape)
+            SegmentedListItem(
+                item = item,
+                displayState = displayState,
+                shape = itemShape,
+                onSelectionChanged = onSelectionChanged,
+            )
         }
     }
 }
@@ -235,22 +337,78 @@ fun SegmentedList(
 // ── DisplayTaskList data ───────────────────────────────────────────────────────
 
 val DisplayTaskList: List<DisplayTaskItem> = listOf(
-    DisplayTaskItem(1, Res.drawable.ic_text_size,   "Text Size",    "Small, normal, large, huge, massive, maximize", listOf("Small", "Normal", "Large", "Huge", "Massive", "Maximize"), "Normal"),
-    DisplayTaskItem(2, Res.drawable.ic_orientation, "Orientation",  "Vertical, horizontal",                          listOf("Vertical", "Horizontal"),                                  "Vertical"),
-    DisplayTaskItem(3, Res.drawable.ic_speed,       "Speed",        "Slow, normal, fast",                            listOf("Slow", "Normal", "Fast"),                                  "Slow"),
-    DisplayTaskItem(4, Res.drawable.ic_animation,   "Animation",    "None, slide, scroll",                           listOf("None", "Slide", "Scroll"),                                 "None"),
-    DisplayTaskItem(5, Res.drawable.ic_transition,  "Transition",   "None, fade, print",                             listOf("None", "Fade", "Print"),                                   "None"),
-    DisplayTaskItem(6, Res.drawable.ic_distortion,  "Distortion",   "0°, 45°, 70°",                                  listOf("0°", "45°", "70°"),                                        "0°"),
-    DisplayTaskItem(7, Res.drawable.ic_mirror,      "Mirror",       "Disabled, enabled",                             listOf("Disabled", "Enabled"),                                     "Disabled"),
-    DisplayTaskItem(8, Res.drawable.ic_overlay,     "Overlay",      "Disabled, enabled",                             listOf("Disabled", "Enabled"),                                     "Disabled"),
+    DisplayTaskItem(
+        1,
+        Res.drawable.ic_text_size,
+        "Text Size",
+        "Small, normal, large, huge, massive",
+        listOf("Small", "Normal", "Large", "Huge", "Massive"),
+        "Normal"
+    ),
+    DisplayTaskItem(
+        2,
+        Res.drawable.ic_orientation,
+        "Orientation",
+        "Vertical, horizontal",
+        listOf("Vertical", "Horizontal"),
+        "Vertical"
+    ),
+    DisplayTaskItem(
+        3,
+        Res.drawable.ic_speed,
+        "Speed",
+        "Slow, normal, fast",
+        listOf("Slow", "Normal", "Fast"),
+        "Slow"
+    ),
+    DisplayTaskItem(
+        4,
+        Res.drawable.ic_animation,
+        "Animation",
+        "Slide, scroll",
+        listOf("Slide", "Scroll"),
+        "Slide"
+    ),
+    DisplayTaskItem(
+        5,
+        Res.drawable.ic_transition,
+        "Transition",
+        "None, fade, print",
+        listOf("None", "Fade", "Print"),
+        "None"
+    ),
+    DisplayTaskItem(
+        6,
+        Res.drawable.ic_distortion,
+        "Distortion",
+        "0°, 45°, 70°",
+        listOf("0°", "45°", "70°"),
+        "0°"
+    ),
+    DisplayTaskItem(
+        7,
+        Res.drawable.ic_mirror,
+        "Mirror",
+        "Disabled, enabled",
+        listOf("Disabled", "Enabled"),
+        "Disabled"
+    ),
+    DisplayTaskItem(
+        8,
+        Res.drawable.ic_overlay,
+        "Overlay",
+        "Disabled, enabled",
+        listOf("Disabled", "Enabled"),
+        "Disabled"
+    ),
 )
 
 // ── dynamic — body only ───────────────────────────────────────────────────────
 
 // ── previews ──────────────────────────────────────────────────────────────────
 
-private val previewTask1 = Task(1, "Buy groceries",  "Milk, Eggs, Bread, Coffee",              LeadingShapeType.HEART)
-private val previewTask2 = Task(2, "KMP Project",    "Sync repository and update dependencies", LeadingShapeType.COOKIE_6)
+private val previewTask1 = Task(1, "Buy groceries",  "Milk, Eggs, Bread, Coffee. Pick up from the store on the way home. Don't forget almond milk.",              LeadingShapeType.HEART)
+private val previewTask2 = Task(2, "KMP Project",    "Sync repository and update dependencies. Run all tests before merging the feature branch.", LeadingShapeType.COOKIE_6)
 
 @Composable
 private fun DisplayScreenPreview(task: Task) {
@@ -262,10 +420,16 @@ private fun DisplayScreenPreview(task: Task) {
     }
 }
 
-@Preview(name = "DisplayScreen – 412dp", showBackground = true, widthDp = 412)
+@Preview(name = "DisplayScreen – 412dp light", showBackground = true, widthDp = 412)
 @Composable
 private fun PreviewFull() {
     AppTheme(darkTheme = false) { DisplayScreenPreview(previewTask1) }
+}
+
+@Preview(name = "DisplayScreen – 412dp dark", showBackground = true, widthDp = 412)
+@Composable
+private fun PreviewFullDark() {
+    AppTheme(darkTheme = true) { DisplayScreenPreview(previewTask1) }
 }
 
 @Preview(name = "DisplayScreen – 320dp (compact)", showBackground = true, widthDp = 320)
