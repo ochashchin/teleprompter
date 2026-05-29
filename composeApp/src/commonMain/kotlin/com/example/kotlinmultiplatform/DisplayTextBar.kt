@@ -1,5 +1,9 @@
 package com.example.kotlinmultiplatform
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -7,33 +11,55 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.layout
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.takeOrElse
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 // ─────────────────────────────────────────────
 // fontSize helper  (dp → sp, 1:1)
@@ -48,7 +74,7 @@ fun fontSize1(dpSize: Dp): TextUnit =
 // ─────────────────────────────────────────────
 
 data class TextFitResult(
-    val lineCountPerParent: Int,
+    val linesPerParent: Int,
     val parentCount: Int,
     val pagesText: List<String>,
 )
@@ -118,7 +144,7 @@ fun TextFitCalculator(
             (maxHeight - (padding * 2)).roundToPx().coerceAtLeast(1)
         }
 
-        // Vertical mode: text runs rotated -90°, so line-width == physical height
+        // Vertical mode: text runs rotated 90°, so line-width == physical height
         // and page-height == physical width.
         val calcWidthPx  = if (isHorizontal) contentHeightPx else contentWidthPx
         val calcHeightPx = if (isHorizontal) contentWidthPx  else contentHeightPx
@@ -140,7 +166,7 @@ fun TextFitCalculator(
             )
         }
 
-        SideEffect { onResult(result) }
+        onResult(result)
     }
 }
 
@@ -157,15 +183,9 @@ fun TextFitBox(
     isHorizontal: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    // In vertical mode the composable occupies its normal slot in the layout but
-    // its content is rotated -90°. We achieve this by:
-    //   1. Rotating the Box -90° (visual only — layout bounds stay the same).
-    //   2. Using a custom `layout` modifier that reports swapped width/height so
-    //      the rotated content fills the parent correctly.
     val rotatedModifier = if (isHorizontal) {
         modifier
             .layout { measurable, constraints ->
-                // Swap the incoming w/h so the rotated child is measured correctly.
                 val placeable = measurable.measure(
                     constraints.copy(
                         minWidth  = constraints.minHeight,
@@ -174,7 +194,6 @@ fun TextFitBox(
                         maxHeight = constraints.maxWidth,
                     )
                 )
-                // Report swapped dimensions back to the parent.
                 layout(placeable.height, placeable.width) {
                     placeable.place(
                         x = -(placeable.width  - placeable.height) / 2,
@@ -195,6 +214,219 @@ fun TextFitBox(
             overflow = TextOverflow.Clip,
             modifier = Modifier.fillMaxSize(),
         )
+    }
+}
+
+@Composable
+fun TextVerticalScrollBox(
+    totalDurationMs: Long,
+    text: String,
+    textStyle: TextStyle,
+    isHorizontal: Boolean,
+    padding: Dp = 10.dp,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .clipToBounds()
+    ) {
+        val containerHeightPx =
+            if (isHorizontal) constraints.maxWidth.toFloat() else constraints.maxHeight.toFloat()
+
+        var textHeightPx by remember { mutableFloatStateOf(0f) }
+        val offsetAnim = remember { Animatable(0f) }
+        var alpha by remember { mutableFloatStateOf(0f) }
+
+        LaunchedEffect(textHeightPx, totalDurationMs) {
+            if (textHeightPx <= 0f) return@LaunchedEffect
+
+            while (true) {
+                val start = containerHeightPx
+                val end = textHeightPx + containerHeightPx
+
+                offsetAnim.snapTo(start)
+                alpha = 1f
+
+                offsetAnim.animateTo(
+                    targetValue = -end,
+                    animationSpec = tween(
+                        durationMillis = totalDurationMs.toInt(),
+                        easing = LinearEasing
+                    )
+                )
+            }
+        }
+
+        DisposableEffect(text, isHorizontal, totalDurationMs) {
+            onDispose {
+                alpha = 0f
+            }
+        }
+
+        val rotatedModifier =
+            if (isHorizontal) {
+                Modifier
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(
+                            constraints.copy(
+                                minWidth = constraints.minHeight,
+                                maxWidth = constraints.maxHeight,
+                                minHeight = constraints.minWidth,
+                                maxHeight = constraints.maxWidth,
+                            )
+                        )
+                        layout(placeable.height, placeable.width) {
+                            placeable.place(
+                                x = -(placeable.width - placeable.height) / 2,
+                                y = -(placeable.height - placeable.width) / 2,
+                            )
+                        }
+                    }
+                    .rotate(90f)
+            } else {
+                Modifier
+            }
+
+        Box(
+            modifier = rotatedModifier
+                .padding(padding)
+                .fillMaxSize()
+                .graphicsLayer { this.alpha = alpha },
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Text(
+                text = text,
+                style = textStyle,
+                overflow = TextOverflow.Clip,
+                modifier = Modifier
+                    .wrapContentHeight(
+                        unbounded = true,
+                        align = Alignment.Top
+                    )
+                    .graphicsLayer {
+                        translationY = offsetAnim.value
+                    }
+                    .onGloballyPositioned { coordinates ->
+                        val measuredHeight = coordinates.size.height.toFloat()
+                        if (measuredHeight != textHeightPx) textHeightPx = measuredHeight
+                    }
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// TextHorizontalScrollBox
+// Box(clipToBounds) → Row(offset) → Spacer / page content / Spacer
+// Spacers equal parent size so content scrolls fully in from right, out left.
+// If parentCount >= 2, full text is rendered twice for a seamless loop.
+// In isHorizontal (rotated) mode the box is rotated 90° like TextFitBox.
+// ─────────────────────────────────────────────
+
+@Composable
+fun TextHorizontalScrollBox(
+    totalDurationMs: Long,
+    text: String,
+    textStyle: TextStyle,
+    isHorizontal: Boolean,
+    padding: Dp = 10.dp,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .clipToBounds()
+    ) {
+        val containerWidthPx =
+            if (isHorizontal) constraints.maxHeight.toFloat() else constraints.maxWidth.toFloat()
+
+        var textWidthPx by remember { mutableFloatStateOf(0f) }
+        val offsetAnim = remember { Animatable(0f) }
+        var alpha by remember { mutableFloatStateOf(0f) }
+
+        LaunchedEffect(textWidthPx, totalDurationMs) {
+
+            if (textWidthPx <= 0f) return@LaunchedEffect
+
+            while (true) {
+                val start = containerWidthPx
+                val end = textWidthPx + containerWidthPx
+
+                offsetAnim.snapTo(start)
+                alpha = 1f
+
+                offsetAnim.animateTo(
+                    targetValue = -end,
+                    animationSpec = tween(
+                        durationMillis = totalDurationMs.toInt(),
+                        easing = LinearEasing
+                    )
+                )
+            }
+        }
+
+        DisposableEffect(text, isHorizontal, totalDurationMs) {
+            onDispose {
+                alpha = 0f
+            }
+        }
+
+        val rotatedModifier =
+            if (isHorizontal) {
+                Modifier
+                    .layout { measurable, constraints ->
+
+                        val placeable = measurable.measure(
+                            constraints.copy(
+                                minWidth = constraints.minHeight,
+                                maxWidth = constraints.maxHeight,
+                                minHeight = constraints.minWidth,
+                                maxHeight = constraints.maxWidth,
+                            )
+                        )
+
+                        layout(
+                            placeable.height,
+                            placeable.width
+                        ) {
+                            placeable.place(
+                                x = -(placeable.width - placeable.height) / 2,
+                                y = -(placeable.height - placeable.width) / 2,
+                            )
+                        }
+                    }
+                    .rotate(90f)
+            } else {
+                Modifier
+            }
+
+        Box(
+            modifier = rotatedModifier
+                .padding(padding)
+                .fillMaxSize()
+                .graphicsLayer { this.alpha = alpha },
+            contentAlignment = Alignment.CenterStart
+        ) {
+
+            Text(
+                text = text,
+                maxLines = 1,
+                style = textStyle,
+                modifier = Modifier
+                    .wrapContentWidth(
+                        unbounded = true,
+                        align = Alignment.Start
+                    )
+                    .graphicsLayer {
+                        translationX = offsetAnim.value
+                    }
+                    .onGloballyPositioned { coordinates ->
+                        val measuredWidth = coordinates.size.width.toFloat()
+                        if (measuredWidth != textWidthPx) textWidthPx = measuredWidth
+                    }
+            )
+        }
     }
 }
 
@@ -273,7 +505,7 @@ private fun NormalSizeSection(
                         )
                         TextFitBox(
                             pageText       = pageText,
-                            linesPerParent = r.lineCountPerParent,
+                            linesPerParent = r.linesPerParent,
                             textStyle      = textStyle,
                             padding        = 10.dp,
                             modifier       = Modifier.width(180.dp).height(380.dp),
@@ -382,5 +614,50 @@ fun PreviewMassive() {
                 lineHeightDp = 68.dp
             )
         }
+    }
+}
+
+// ─────────────────────────────────────────────
+// Preview: TextVerticalScrollBox
+// ─────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "VerticalScroll – Normal")
+@Composable
+fun PreviewVerticalScrollBox() {
+    AppTheme {
+        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
+            fontSize   = fontSize1(24.dp),
+            lineHeight = fontSize1(27.dp),
+        )
+//        TextVerticalScrollBox(
+//            text      = PREVIEW_TEXT,
+//            textStyle = textStyle,
+//            wpm       = 130,
+//            modifier  = Modifier.fillMaxSize(),
+//        )
+    }
+}
+
+// ─────────────────────────────────────────────
+// Preview: TextHorizontalScrollBox
+// ─────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "HorizontalScroll – Normal")
+@Composable
+fun PreviewHorizontalScrollBox() {
+    AppTheme {
+        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
+            fontSize   = fontSize1(24.dp),
+            lineHeight = fontSize1(27.dp),
+        )
+//        TextHorizontalScrollBox(
+//            text         = PREVIEW_TEXT,
+//            textStyle    = textStyle,
+//            wpm          = 130,
+//            isHorizontal = false,
+//            modifier     = Modifier.fillMaxSize(),
+//        )
     }
 }

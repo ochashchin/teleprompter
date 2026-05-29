@@ -1,5 +1,8 @@
 package com.example.kotlinmultiplatform
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -42,6 +45,9 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.ic_animation
@@ -55,6 +61,7 @@ import kotlinmultiplatform.composeapp.generated.resources.ic_transition
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.runtime.getValue
 
 // ── data ──────────────────────────────────────────────────────────────────────
 
@@ -99,51 +106,113 @@ fun calculatePageDurationMs(pageText: String, wpm: Int): Long {
     return baseMs + pauseMs
 }
 
-// ── PreviewPlayer — raw alpha cross-fade through first 2 pages ────────────────
+// ── AnimationMode ─────────────────────────────────────────────────────────────
+
+enum class AnimationMode { Frame, Scroll, Inline }
+
+private fun animationModeOf(label: String?): AnimationMode = when {
+    label.equals("Scroll",  ignoreCase = true) -> AnimationMode.Scroll
+    label.equals("Inline",  ignoreCase = true) -> AnimationMode.Inline
+    else                                        -> AnimationMode.Frame
+}
+
+// ── PreviewPlayer — switches between Frame / Scroll / Inline ─────────────────
 
 @Composable
-fun PreviewPlayer(
-    pages: List<String>,
+fun PreviewPlayer(           // original unpaginated text — used by Scroll / Inline
     wpm: Int,
-    linesPerParent: Int,
-    textStyle: androidx.compose.ui.text.TextStyle,
-    padding: androidx.compose.ui.unit.Dp,
+    padding: Dp,
+    result: TextFitResult,
+    textStyle: TextStyle,
     isHorizontal: Boolean,
+    animationMode: AnimationMode = AnimationMode.Frame,
     modifier: Modifier = Modifier,
 ) {
-    // Limit preview to first 2 pages
-    val previewPages = remember(pages) { pages.take(2) }
-    val pageCount = previewPages.size
+    when (animationMode) {
 
-    var currentPage by remember(pages) { mutableIntStateOf(0) }
-    var alpha by remember { mutableFloatStateOf(1f) }
+        // ── Frame: raw alpha switch 0 → 1 → 0 between first 2 pages ──────────
+        AnimationMode.Frame -> {
+            val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
 
-    LaunchedEffect(previewPages, wpm) {
-        if (pageCount <= 1) return@LaunchedEffect
-        while (true) {
-            val holdMs = calculatePageDurationMs(previewPages[currentPage], wpm)
-                .coerceAtLeast(600L)
-            delay(holdMs)
-            // Raw alpha off
-            alpha = 0f
-            // Advance page
-            currentPage = (currentPage + 1) % pageCount
-            // Raw alpha on
-            alpha = 1f
+            var currentPage by remember(result.pagesText) { mutableIntStateOf(0) }
+
+            var alpha by remember { mutableFloatStateOf(1f) }
+
+            LaunchedEffect(previewPages, wpm) {
+                if (previewPages.size <= 1) return@LaunchedEffect
+                while (true) {
+                    val holdMs = calculatePageDurationMs(previewPages[currentPage], wpm)
+                        .coerceAtLeast(600L)
+                    delay(holdMs)
+                    alpha = 0f
+                    currentPage = (currentPage + 1) % previewPages.size
+                    alpha = 1f
+                }
+            }
+
+            Box(modifier = modifier) {
+                TextFitBox(
+                    pageText       = previewPages[currentPage],
+                    linesPerParent = result.linesPerParent,
+                    textStyle      = textStyle,
+                    padding        = padding,
+                    isHorizontal   = isHorizontal,
+                    modifier       = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { this.alpha = alpha },
+                )
+            }
         }
-    }
 
-    Box(modifier = modifier) {
-        TextFitBox(
-            pageText = previewPages[currentPage],
-            linesPerParent = linesPerParent,
-            textStyle = textStyle,
-            padding = padding,
-            isHorizontal = isHorizontal,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { this.alpha = alpha },
-        )
+        // ── Scroll: vertical auto-scroll — pass full original text so the
+        // measurer wraps at the real container width and sees all pages.
+        AnimationMode.Scroll -> {
+
+            val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
+            val page = calculatePageDurationMs(previewPages[0], wpm)
+
+            val totalDurationMs = previewPages.sumOf { page ->
+                calculatePageDurationMs(page, wpm)
+            } + (page)
+
+            Box(modifier = modifier) {
+                TextVerticalScrollBox(
+                    totalDurationMs = totalDurationMs,
+                    text = remember(previewPages) { previewPages.joinToString(separator = " ") },
+                    textStyle = textStyle,
+                    padding = padding,
+                    isHorizontal = isHorizontal,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+
+        // ── Inline: horizontal auto-scroll — same reasoning as Scroll.
+        AnimationMode.Inline -> {
+
+            val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
+            val page = calculatePageDurationMs(previewPages[0], wpm)
+
+            val totalDurationMs = previewPages.sumOf { page ->
+                calculatePageDurationMs(page, wpm)
+            } + (page)
+
+            Box(modifier = modifier) {
+                TextHorizontalScrollBox(
+                    totalDurationMs = totalDurationMs,
+                    text = remember(previewPages) {
+                        previewPages
+                            .joinToString(separator = " ")
+                            .replace("\r", "")
+                            .replace("\n", "")
+                    },
+                    textStyle = textStyle,
+                    padding = padding,
+                    isHorizontal = isHorizontal,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
     }
 }
 
@@ -176,9 +245,11 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
 
     val displayState = rememberDisplayTaskState(task.id)
 
-    val textSizeItem = DisplayTaskList.first { it.id == 1 }
+    val textSizeItem    = DisplayTaskList.first { it.id == 1 }
     val orientationItem = DisplayTaskList.first { it.id == 2 }
-    val speedItem = DisplayTaskList.first { it.id == 3 }
+    val speedItem       = DisplayTaskList.first { it.id == 3 }
+    val animationItem   = DisplayTaskList.first { it.id == 4 }
+    val transitionItem  = DisplayTaskList.first { it.id == 5 }
 
     var selectedSizeLabel by remember {
         mutableStateOf(
@@ -201,24 +272,33 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
         )
     }
 
-    val isHorizontal = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
+    var selectedAnimationLabel by remember {
+        mutableStateOf(
+            displayState.selectedOption(animationItem)
+                ?: animationItem.defaultOption
+        )
+    }
+
+    var selectedTransitionLabel by remember {
+        mutableStateOf(
+            displayState.selectedOption(transitionItem)
+                ?: transitionItem.defaultOption
+        )
+    }
+
+    val isHorizontal   = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
+    val animationMode  = animationModeOf(selectedAnimationLabel)
 
     val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
 
-
     val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-        fontSize = fontSize1(fontSizeDp),
+        fontSize   = fontSize1(fontSizeDp),
         lineHeight = fontSize1(lineHeightDp),
+        color = MaterialTheme.colorScheme.onSurface
     )
 
     val wpm = speedLabelToWpm(selectedSpeedLabel)
-
-    // TextFitCalculator result state
-    var fitResult by remember(
-        task.id,
-        selectedSizeLabel,
-        selectedOrientationLabel
-    ) { mutableStateOf<TextFitResult?>(null) }
+    var result by remember { mutableStateOf<TextFitResult?>(null) }
 
     val previewPadding = 10.dp
 
@@ -233,51 +313,48 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                 .height(180.dp),
             contentAlignment = Alignment.Center
         ) {
-
-
             Surface(
                 modifier = modifier,
                 shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                TextFitCalculator(
-                    text = task.description,
-                    fontSize = textStyle.fontSize,
-                    lineHeight = textStyle.lineHeight,
-                    padding = previewPadding,
-                    isHorizontal = isHorizontal,
-                    modifier = Modifier.fillMaxSize(),
-                    onResult = { fitResult = it },
-                )
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
 
-                fitResult?.let { r ->
-                    PreviewPlayer(
-                        pages = r.pagesText,
-                        wpm = wpm,
-                        linesPerParent = r.lineCountPerParent,
-                        textStyle = textStyle,
+                    TextFitCalculator(
+                        text = task.description,
+                        fontSize = textStyle.fontSize,
+                        lineHeight = textStyle.lineHeight,
                         padding = previewPadding,
                         isHorizontal = isHorizontal,
                         modifier = Modifier.fillMaxSize(),
+                        onResult = { result = it },
                     )
+
+                    result?.let {
+                        PreviewPlayer(
+                            result = result!!,
+                            wpm = wpm,
+                            textStyle = textStyle,
+                            padding = previewPadding,
+                            isHorizontal = isHorizontal,
+                            animationMode = animationMode,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
         // ── Settings list ────────────────────────────────────────────────────
         SegmentedList(
-            items = DisplayTaskList,
-            displayState = displayState,
-            modifier = modifier.padding(top = 8.dp),
+            items         = DisplayTaskList,
+            displayState  = displayState,
+            modifier      = modifier.padding(top = 8.dp),
             onSelectionChanged = { item, option ->
-                if (item.id == 1) {
-                    selectedSizeLabel = option
-                }
-                if (item.id == 2) {
-                    selectedOrientationLabel = option
-                }
-                if (item.id == 3) {
-                    selectedSpeedLabel = option
-                }
+                if (item.id == 1) selectedSizeLabel        = option
+                if (item.id == 2) selectedOrientationLabel = option
+                if (item.id == 3) selectedSpeedLabel       = option
+                if (item.id == 4) selectedAnimationLabel   = option
+                if (item.id == 5) selectedTransitionLabel  = option
             }
         )
     }
@@ -302,35 +379,35 @@ fun SegmentedListItem(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        onClick = { menuExpanded = true },
-        shape = shape,
-        color = MaterialTheme.colorScheme.surface,
+        onClick  = { menuExpanded = true },
+        shape    = shape,
+        color    = MaterialTheme.colorScheme.surface,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+                modifier          = Modifier.fillMaxWidth().height(64.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
 
                 // ── Leading icon ─────────────────────────────
 
                 BoxWithConstraints(
-                    modifier = Modifier.fillMaxHeight().aspectRatio(48f / 64f),
-                    contentAlignment = Alignment.Center,
+                    modifier           = Modifier.fillMaxHeight().aspectRatio(48f / 64f),
+                    contentAlignment   = Alignment.Center,
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxHeight().aspectRatio(48f / 28f),
+                        modifier         = Modifier.fillMaxHeight().aspectRatio(48f / 28f),
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxHeight().aspectRatio(20f / 28f),
+                            modifier         = Modifier.fillMaxHeight().aspectRatio(20f / 28f),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                painter = leadingPainter,
+                                painter            = leadingPainter,
                                 contentDescription = item.title,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                                tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier           = Modifier.fillMaxHeight().aspectRatio(1f),
                             )
                         }
                     }
@@ -340,26 +417,26 @@ fun SegmentedListItem(
 
                 Box(modifier = Modifier.weight(1f)) {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier             = Modifier.fillMaxWidth(),
+                        verticalArrangement  = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text = item.title,
-                            style = MaterialTheme.typography.titleMedium,
+                            text     = item.title,
+                            style    = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             softWrap = false,
                             overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color    = MaterialTheme.colorScheme.onSurface,
                         )
 
                         // null → hint   |   value → persisted user selection
                         Text(
-                            text = selectedOption ?: item.description,
-                            style = MaterialTheme.typography.bodyMedium,
+                            text     = selectedOption ?: item.description,
+                            style    = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             softWrap = false,
                             overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -367,43 +444,43 @@ fun SegmentedListItem(
                 // ── More menu ────────────────────────────────
 
                 BoxWithConstraints(
-                    modifier = Modifier.fillMaxHeight().aspectRatio(48f / 64f),
+                    modifier         = Modifier.fillMaxHeight().aspectRatio(48f / 64f),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
-                        modifier = Modifier.fillMaxHeight().aspectRatio(48f / 28f),
+                        modifier         = Modifier.fillMaxHeight().aspectRatio(48f / 28f),
                         contentAlignment = Alignment.Center,
                     ) {
                         Box(modifier = Modifier.fillMaxHeight().aspectRatio(20f / 28f)) {
                             IconButton(
-                                onClick = { menuExpanded = true },
+                                onClick  = { menuExpanded = true },
                                 modifier = Modifier.fillMaxHeight().aspectRatio(1f),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.MoreVert,
+                                    imageVector        = Icons.Rounded.MoreVert,
                                     contentDescription = "More options",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxSize(),
+                                    tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier           = Modifier.fillMaxSize(),
                                 )
                             }
 
                             DropdownMenu(
-                                expanded = menuExpanded,
+                                expanded        = menuExpanded,
                                 onDismissRequest = { menuExpanded = false },
                             ) {
                                 item.options.forEachIndexed { index, option ->
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                text = option,
+                                                text     = option,
                                                 fontSize = fontSize(20.dp),
-                                                style = MaterialTheme.typography.bodyMedium
+                                                style    = MaterialTheme.typography.bodyMedium
                                             )
                                         },
                                         onClick = {
                                             selectedOption = option
                                             displayState.setSelection(
-                                                item = item,
+                                                item        = item,
                                                 optionIndex = index
                                             )
                                             onSelectionChanged(item, option)
@@ -430,33 +507,31 @@ fun SegmentedList(
     onSelectionChanged: (DisplayTaskItem, String) -> Unit = { _, _ -> },
 ) {
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
+        modifier        = modifier.fillMaxSize(),
+        contentPadding  = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         itemsIndexed(items = items, key = { _, item -> item.id }) { index, item ->
             val itemShape = when {
                 items.size == 1 -> RoundedCornerShape(28.dp)
                 index == 0 -> RoundedCornerShape(
-                    topStart = 28.dp,
-                    topEnd = 28.dp,
+                    topStart    = 28.dp,
+                    topEnd      = 28.dp,
                     bottomStart = 8.dp,
-                    bottomEnd = 8.dp
+                    bottomEnd   = 8.dp
                 )
-
                 index == items.lastIndex -> RoundedCornerShape(
-                    topStart = 8.dp,
-                    topEnd = 8.dp,
+                    topStart    = 8.dp,
+                    topEnd      = 8.dp,
                     bottomStart = 28.dp,
-                    bottomEnd = 28.dp
+                    bottomEnd   = 28.dp
                 )
-
                 else -> RoundedCornerShape(8.dp)
             }
             SegmentedListItem(
-                item = item,
-                displayState = displayState,
-                shape = itemShape,
+                item               = item,
+                displayState       = displayState,
+                shape              = itemShape,
                 onSelectionChanged = onSelectionChanged,
             )
         }
@@ -494,9 +569,9 @@ val DisplayTaskList: List<DisplayTaskItem> = listOf(
         4,
         Res.drawable.ic_animation,
         "Animation",
-        "Slide, scroll",
-        listOf("Slide", "Scroll"),
-        "Slide"
+        "Frame, scroll, inline",
+        listOf("Frame", "Scroll", "Inline"),
+        "Frame"
     ),
     DisplayTaskItem(
         5,
@@ -551,8 +626,6 @@ private val previewTask2 = Task(
 
 @Composable
 private fun DisplayScreenPreview(task: Task) {
-    // LocalSettings.current falls back to NoOpSettings() (the compositionLocalOf default),
-    // so no CompositionLocalProvider is needed here — previews work without a real Context.
     Column(modifier = Modifier.fillMaxWidth()) {
         DisplayScreenStatic(onBack = {})
         DisplayScreenBody(task = task, modifier = Modifier.fillMaxWidth())
