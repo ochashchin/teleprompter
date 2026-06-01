@@ -43,7 +43,7 @@ fun ToolBar(
             .fillMaxWidth()
             .height(64.dp)
     ) {
-        val titleFontSize = fontSize(28.dp)
+        val titleFontSize = fontSize(24.dp)
 
         Text(
             modifier = Modifier.align(Alignment.Center),

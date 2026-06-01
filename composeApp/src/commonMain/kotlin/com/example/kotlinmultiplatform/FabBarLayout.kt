@@ -51,7 +51,7 @@ fun FabBarLayout(
                         .aspectRatio(216f / 80f)
                         .align(Alignment.CenterStart)
                 ) {
-                    val fontSize = fontSize(24.dp)
+                    val fontSize = fontSize(22.dp)
                     ExtendedFloatingActionButton(
                         onClick = onClick,
                         modifier = Modifier
@@ -116,7 +116,7 @@ private fun PreviewCompact() {
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(24.dp)
                 )
             })
     }

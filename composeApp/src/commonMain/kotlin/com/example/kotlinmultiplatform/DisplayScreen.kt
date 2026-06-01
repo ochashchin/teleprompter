@@ -279,8 +279,8 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
     val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
 
     val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-        fontSize   = fontSize1(fontSizeDp),
-        lineHeight = fontSize1(lineHeightDp),
+        fontSize   = fontSize(fontSizeDp),
+        lineHeight = fontSize(lineHeightDp),
         color = MaterialTheme.colorScheme.onSurface
     )
 
@@ -444,7 +444,7 @@ fun SegmentedListItem(
                                         text = {
                                             Text(
                                                 text     = option,
-                                                fontSize = fontSize(20.dp),
+                                                fontSize = fontSize(18.dp),
                                                 style    = MaterialTheme.typography.bodyMedium
                                             )
                                         },
@@ -640,8 +640,8 @@ private fun PlayerPreviewSurface(
 ) {
     AppTheme {
         val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
+            fontSize   = fontSize(24.dp),
+            lineHeight = fontSize(27.dp),
         )
         val padding = 10.dp
         val wpm     = WPM_NORMAL

@@ -3,7 +3,6 @@ package com.example.kotlinmultiplatform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -11,11 +10,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -32,50 +29,33 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlin.math.ceil
 
-
-// ─────────────────────────────────────────────
-// fontSize helper  (dp → sp, 1:1)
-// ─────────────────────────────────────────────
-
 @Composable
-fun fontSize1(dpSize: Dp): TextUnit =
+fun fontSize(dpSize: Dp): TextUnit =
     with(LocalDensity.current) { dpSize.toSp() }
-
-// ─────────────────────────────────────────────
-// Result — normal sizes
-// ─────────────────────────────────────────────
 
 data class TextFitResult(
     val linesPerParent: Int,
@@ -83,13 +63,27 @@ data class TextFitResult(
     val pagesText:      List<String>,
 )
 
-// ─────────────────────────────────────────────
-// Core calculation — normal sizes
-// ─────────────────────────────────────────────
+data class ScrollLineData(
+    val lineText:          String,
+    val lineTopPx:         Float,
+    val lineBottomPx:      Float,
+    val fadeInOffset:      Float,   // offsetAnim when this line starts fading in
+    val fadeOutOffset:     Float,   // offsetAnim when this line finishes fading out (geometry fallback for last line)
+    val nextFadeInOffset:  Float,   // fadeInOffset of the next line — fade-out of this line ends here
+)
 
-// ─────────────────────────────────────────────
-// calculateTextFit — measures text and returns page chunks + fit metrics
-// ─────────────────────────────────────────────
+private data class GlyphTiming(
+    val inTrigger:  Float,   // progress when glyph starts fading in
+    val inEnd:      Float,   // progress when glyph is fully visible
+    val outTrigger: Float,   // progress when glyph starts fading out (Fade only)
+    val outEnd:     Float,   // progress when glyph is invisible      (Fade only)
+)
+
+private data class FrameDrawState(
+    val text:    String,
+    val layout:  androidx.compose.ui.text.TextLayoutResult,
+    val timings: List<GlyphTiming?>,   // index = string index; null for spaces
+)
 
 fun calculateTextFit(
     textMeasurer:   TextMeasurer,
@@ -123,10 +117,6 @@ fun calculateTextFit(
 
     return TextFitResult(linesPerParent, parentCount, pages)
 }
-
-// ─────────────────────────────────────────────
-// TextFitCalculator — invisible, normal sizes
-// ─────────────────────────────────────────────
 
 @Composable
 fun TextFitCalculator(
@@ -176,61 +166,6 @@ fun TextFitCalculator(
     }
 }
 
-// ─────────────────────────────────────────────
-// TextFitBox — normal sizes, cycles pages internally
-//
-// None   — plain multiline Text, raw alpha cut between pages (0 → 1).
-//
-// Print  — page alpha: 0 → 1 (same raw cut as None).
-//          Per-glyph: each glyph fades in (0→1) at its natural reading time,
-//          then stays visible.  Glyphs near punctuation arrive later, giving
-//          a natural reading-speed stagger including punctuation pauses.
-//
-// Fade   — page alpha: 0 → 1 (same raw cut as None).
-//          Per-glyph: fade in (0→1) → visible pause → fade out (1→0), all
-//          within the glyph's own time window.  The fade wave travels across
-//          the page following the reading timeline (including punctuation
-//          pauses), mirroring LineFadeText.
-//
-// Timeline model (mirrors LineFadeText exactly):
-//
-//   progress [0, 1] maps to [0, holdMs].
-//   Each non-space glyph at text index s has a "natural arrival time":
-//     charProgress[s] = calculatePageDurationMs(text[0..s], wpm) / holdMs
-//   This encodes punctuation pauses as wider gaps between glyphs.
-//
-//   fadeBand  = fraction of progress for one glyph's ramp (fixed visual width).
-//   pauseSpan = fraction of progress for the visible phase between in and out.
-//   Both are sized relative to the average glyph window (1/n) so they scale
-//   with text length.
-//
-//   Per-glyph triggers:
-//     inTrigger  = charProgress[s]
-//     inEnd      = inTrigger  + fadeBand         → fully visible
-//     outTrigger = inEnd      + pauseSpan         → starts fading out   (Fade only)
-//     outEnd     = outTrigger + fadeBand          → invisible           (Fade only)
-//
-// Draw strategy — drawWithContent + stable TextLayoutResult:
-//   Layout measured once per page.  draw lambda reads progress.value as
-//   snapshot State → redraws, never recompositions.  All per-page constants
-//   bundled into FrameDrawState, updated atomically with progress.snapTo(0f).
-// ─────────────────────────────────────────────
-
-// Per-glyph timing constants, precomputed once per page.
-private data class GlyphTiming(
-    val inTrigger:  Float,   // progress when glyph starts fading in
-    val inEnd:      Float,   // progress when glyph is fully visible
-    val outTrigger: Float,   // progress when glyph starts fading out (Fade only)
-    val outEnd:     Float,   // progress when glyph is invisible      (Fade only)
-)
-
-// Immutable snapshot of everything the draw lambda needs for one page.
-private data class FrameDrawState(
-    val text:    String,
-    val layout:  androidx.compose.ui.text.TextLayoutResult,
-    val timings: List<GlyphTiming?>,   // index = string index; null for spaces
-)
-
 @Composable
 fun TextFitBox(
     pages:          List<String>,
@@ -243,17 +178,8 @@ fun TextFitBox(
     modifier:       Modifier       = Modifier,
 ) {
     var currentPage  by remember(pages) { mutableIntStateOf(0) }
-    var alpha        by remember { mutableFloatStateOf(1f) }
     val progress     = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
-
-    // ── LaunchedEffect ───────────────────────────────────────────────────────
-    // None:          delay(hold) → alpha cut → next page
-    // Print / Fade:  alpha cut → progress 0→1 over hold → next page
-    //
-    // For Print/Fade hold is read AFTER currentPage increments so it uses the
-    // new page's duration (the one whose glyphs are being animated).
-    // ────────────────────────────────────────────────────────────────────────
 
     LaunchedEffect(pages, wpm, transitionMode) {
         while (true) {
@@ -261,16 +187,12 @@ fun TextFitBox(
                 TransitionMode.None -> {
                     val hold = calculatePageDurationMs(pages[currentPage], wpm).coerceAtLeast(600L)
                     delay(hold)
-                    alpha = 0f
                     currentPage = (currentPage + 1) % pages.size
-                    alpha = 1f
                 }
                 TransitionMode.Print,
                 TransitionMode.Fade -> {
-                    alpha = 0f
                     progress.snapTo(0f)
                     currentPage = (currentPage + 1) % pages.size
-                    alpha = 1f
                     val hold = calculatePageDurationMs(pages[currentPage], wpm).coerceAtLeast(600L)
                     progress.animateTo(1f, tween(hold.toInt(), easing = LinearEasing))
                 }
@@ -306,8 +228,7 @@ fun TextFitBox(
     BoxWithConstraints(
         modifier         = rotatedModifier
             .padding(padding)
-            .fillMaxSize()
-            .graphicsLayer { this.alpha = alpha },
+            .fillMaxSize(),
         contentAlignment = Alignment.TopStart,
     ) {
         when (transitionMode) {
@@ -512,7 +433,6 @@ fun TextVerticalScrollBox(
     textStyle:       TextStyle,
     isHorizontal:    Boolean,
     padding:         Dp             = 10.dp,
-    transitionMode:  TransitionMode = TransitionMode.None,
     modifier:        Modifier       = Modifier,
 ) {
     BoxWithConstraints(
@@ -525,7 +445,6 @@ fun TextVerticalScrollBox(
 
         var textHeightPx by remember { mutableFloatStateOf(0f) }
         val offsetAnim = remember { Animatable(0f) }
-        var alpha by remember { mutableFloatStateOf(0f) }
 
         LaunchedEffect(textHeightPx, totalDurationMs) {
             if (textHeightPx <= 0f) return@LaunchedEffect
@@ -533,16 +452,8 @@ fun TextVerticalScrollBox(
             while (true) {
                 val start = containerHeightPx
                 val end = textHeightPx + containerHeightPx
-                val totalDistance = start + end
-
-                val startAnim = containerHeightPx + (containerHeightPx / 2f)
-                val endAnim = textHeightPx + (containerHeightPx / 2f)
 
                 offsetAnim.snapTo(start)
-                alpha = 1f
-
-                var passedStartAnim = false
-                var passedEndAnim = false
 
                 offsetAnim.animateTo(
                     targetValue = -end,
@@ -550,24 +461,7 @@ fun TextVerticalScrollBox(
                         durationMillis = totalDurationMs.toInt(),
                         easing = LinearEasing
                     )
-                ) {
-                    val currentOffset = this.value
-
-                    val progressFraction = ((start - currentOffset) / totalDistance).coerceIn(0f, 1f)
-                    val playTimeMs = (progressFraction * totalDurationMs).toLong()
-
-                    if (!passedStartAnim && currentOffset <= startAnim) {
-                        passedStartAnim = true
-                        println("Crossed startAnim ($startAnim px) at $playTimeMs ms")
-                        // Execute your custom enter/start logic here
-                    }
-
-                    if (!passedEndAnim && currentOffset <= -endAnim) {
-                        passedEndAnim = true
-                        println("Crossed endAnim (-$endAnim px) at $playTimeMs ms")
-                        // Execute your custom leave/end logic here
-                    }
-                }
+                )
             }
         }
 
@@ -598,8 +492,7 @@ fun TextVerticalScrollBox(
         Box(
             modifier = rotatedModifier
                 .padding(padding)
-                .fillMaxSize()
-                .graphicsLayer { this.alpha = alpha },
+                .fillMaxSize(),
             contentAlignment = Alignment.TopCenter
         ) {
             Text(
@@ -623,14 +516,6 @@ fun TextVerticalScrollBox(
     }
 }
 
-// ─────────────────────────────────────────────
-// TextHorizontalScrollBox
-// Box(clipToBounds) → Row(offset) → Spacer / page content / Spacer
-// Spacers equal parent size so content scrolls fully in from right, out left.
-// If parentCount >= 2, full text is rendered twice for a seamless loop.
-// In isHorizontal (rotated) mode the box is rotated 90° like TextFitBox.
-// ─────────────────────────────────────────────
-
 @Composable
 fun TextHorizontalScrollBox(
     totalDurationMs: Long,
@@ -653,7 +538,6 @@ fun TextHorizontalScrollBox(
 
         var textWidthPx by remember { mutableFloatStateOf(0f) }
         val offsetAnim  = remember { Animatable(0f) }
-        var alpha       by remember { mutableFloatStateOf(0f) }
 
         LaunchedEffect(textWidthPx, totalDurationMs) {
             if (textWidthPx <= 0f) return@LaunchedEffect
@@ -661,7 +545,7 @@ fun TextHorizontalScrollBox(
                 val start = containerWidthPx
                 val end   = textWidthPx + containerWidthPx
                 offsetAnim.snapTo(start)
-                alpha = 1f
+
                 offsetAnim.animateTo(
                     targetValue   = -end,
                     animationSpec = tween(totalDurationMs.toInt(), easing = LinearEasing)
@@ -695,8 +579,7 @@ fun TextHorizontalScrollBox(
         Box(
             modifier         = rotatedModifier
                 .padding(padding)
-                .fillMaxSize()
-                .graphicsLayer { this.alpha = alpha },
+                .fillMaxSize(),
             contentAlignment = Alignment.CenterStart,
         ) {
             when (transitionMode) {
@@ -856,37 +739,6 @@ fun TextHorizontalScrollBox(
     }
 }
 
-// ─────────────────────────────────────────────
-// ScrollLineData
-//
-// Geometry of one visual line within the full text block.
-// All offsets are in the same coordinate space as offsetAnim:
-//   offsetAnim starts at +start (text below viewport) and moves to -end (text above).
-//
-// Fade fires when the line's midpoint crosses containerHeightPx/2 (viewport centre).
-//   fadeInOffset  = containerHeightPx/2 - lineMidPx  (entering from below)
-//   nextFadeInOffset = next line's fadeInOffset       (seamless handoff)
-// ─────────────────────────────────────────────
-
-data class ScrollLineData(
-    val lineText:          String,
-    val lineTopPx:         Float,
-    val lineBottomPx:      Float,
-    val fadeInOffset:      Float,   // offsetAnim when this line starts fading in
-    val fadeOutOffset:     Float,   // offsetAnim when this line finishes fading out (geometry fallback for last line)
-    val nextFadeInOffset:  Float,   // fadeInOffset of the next line — fade-out of this line ends here
-)
-
-// ─────────────────────────────────────────────
-// TextCentreVerticalScrollBox
-//
-// Single constant-velocity animateTo — identical structure to TextHorizontalScrollBox:
-//   start = +containerHeightPx   (text enters from below)
-//   end   = textHeightPx + containerHeightPx  (text fully exits above)
-//
-// transitionMode selects Fade / Print letter-alpha animation or plain None scroll.
-// ─────────────────────────────────────────────
-
 @Composable
 fun TextCentreVerticalScrollBox(
     pages:          List<String>,
@@ -917,7 +769,6 @@ fun TextCentreVerticalScrollBox(
 
         var textHeightPx by remember { mutableFloatStateOf(0f) }
         val offsetAnim   = remember { Animatable(0f) }
-        var alpha        by remember { mutableFloatStateOf(0f) }
 
         val fullText = remember(pages) { pages.joinToString(" ") }
 
@@ -987,7 +838,6 @@ fun TextCentreVerticalScrollBox(
                 val end   = textHeightPx + containerHeightPx
 
                 offsetAnim.snapTo(start)
-                alpha = 1f
 
                 offsetAnim.animateTo(
                     targetValue   = -end,
@@ -996,8 +846,6 @@ fun TextCentreVerticalScrollBox(
                         easing         = LinearEasing,
                     )
                 )
-
-                alpha = 0f
             }
         }
 
@@ -1042,7 +890,6 @@ fun TextCentreVerticalScrollBox(
             when (transitionMode) {
                 TransitionMode.Fade -> ScrollFadeText(
                     pages      = pages,
-                    wpm        = wpm,
                     textStyle  = textStyle,
                     lines      = lineDataList,
                     offsetAnim = offsetAnim,
@@ -1050,7 +897,6 @@ fun TextCentreVerticalScrollBox(
                 )
                 TransitionMode.Print -> ScrollPrintText(
                     pages      = pages,
-                    wpm        = wpm,
                     textStyle  = textStyle,
                     lines      = lineDataList,
                     offsetAnim = offsetAnim,
@@ -1070,11 +916,130 @@ fun TextCentreVerticalScrollBox(
 // ─────────────────────────────────────────────
 // ScrollFadeText
 // ─────────────────────────────────────────────
+// LineFadeText — internal
+//
+// Alpha is computed directly from offsetAnim.value each frame inside graphicsLayer —
+// no LaunchedEffect, no snapshotFlow, no per-letter Animatable.
+// This guarantees perfect synchronisation with the scroll and correct cycling.
+//
+// For each letter at position index/letterCount within the line:
+//
+//   The full fade window spans fadeInOffset → fadeOutOffset (offsetAnim decreasing).
+//   fadeWindowSize = fadeInOffset - fadeOutOffset
+//
+//   Each letter's personal fade-in starts at:
+//     letterFadeIn = fadeInOffset - (fadeWindowSize * index / letterCount) * staggerFraction
+//   and rises over fadeBand pixels of scroll travel.
+//
+//   For fadeOut=true, fade-out mirrors this from fadeOutOffset upward.
+//   For fadeOut=false (Print), letter stays at alpha=1 once reached.
+// ─────────────────────────────────────────────
+// LineFadeText — internal
+//
+// Alpha computed from offsetAnim.value each frame in graphicsLayer.
+// offsetAnim decreases over time (text scrolls upward).
+//
+// Trigger point: line midpoint crossing the viewport centre.
+//
+// Both fade-in and fade-out stagger first→last (index 0 leads):
+//   fade-in  letter[i] starts at: fadeInOffset      - staggerSpan * i / n
+//   fade-out letter[i] starts at: nextFadeInOffset  - staggerSpan * i / n
+//
+// fade-out of line N starts exactly when fade-in of line N+1 starts —
+// seamless handoff, no gap, no overlap.
+// ─────────────────────────────────────────────
+// calculatePageDurationMs
+// ─────────────────────────────────────────────
+// SizeSection — one labelled group in the preview
+@Composable
+fun DisplayTextBar(
+    task: Task,
+    wpm: Int,
+    textStyle: TextStyle,
+    padding: Dp,
+    isHorizontal: Boolean,
+    isMirror: Boolean,
+    distortionMode: Float,
+    animationMode: AnimationMode,
+    transitionMode: TransitionMode,
+    preview: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
+    var result by remember { mutableStateOf<TextFitResult?>(null) }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        var alpha by remember { mutableFloatStateOf(1f) }
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .graphicsLayer {
+                    this.alpha = alpha
+                    scaleX = if (isHorizontal) distortionMode else 1f
+                    scaleY = if (isHorizontal) 1f else distortionMode
+                }
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            val playerSize = Modifier
+                .width(if (isHorizontal) maxWidth / distortionMode else maxWidth)
+                .height(if (isHorizontal) maxHeight else maxHeight / distortionMode)
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleY = if (isMirror) -1f else 1f
+                    }
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                TextFitCalculator(
+                    text = task.description,
+                    fontSize = textStyle.fontSize,
+                    lineHeight = textStyle.lineHeight,
+                    padding = padding,
+                    isHorizontal = isHorizontal,
+                    modifier = playerSize,
+                    onResult = { result = it },
+                )
+
+                result?.let { r ->
+                    val pages = remember(r.pagesText, preview) {
+                        if (preview) r.pagesText.take(2) else r.pagesText
+                    }
+                    TextFitPlayer(
+                        result = r,
+                        pages = pages,
+                        wpm = wpm,
+                        textStyle = textStyle,
+                        padding = padding,
+                        isHorizontal = isHorizontal,
+                        animationMode = animationMode,
+                        transitionMode = transitionMode,
+                        modifier = playerSize,
+                    )
+
+                    LaunchedEffect(isMirror, isHorizontal, animationMode, transitionMode, distortionMode) {
+                        alpha = 1f
+                    }
+
+                    DisposableEffect(isMirror, isHorizontal, animationMode, transitionMode, distortionMode) {
+                        onDispose {
+                            alpha = 0f
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun ScrollFadeText(
     pages:      List<String>,
-    wpm:        Int,
     textStyle:  TextStyle,
     lines:      List<ScrollLineData>,
     offsetAnim: Animatable<Float, *>,
@@ -1101,14 +1066,9 @@ fun ScrollFadeText(
     }
 }
 
-// ─────────────────────────────────────────────
-// ScrollPrintText
-// ─────────────────────────────────────────────
-
 @Composable
 fun ScrollPrintText(
     pages:      List<String>,
-    wpm:        Int,
     textStyle:  TextStyle,
     lines:      List<ScrollLineData>,
     offsetAnim: Animatable<Float, *>,
@@ -1136,39 +1096,7 @@ fun ScrollPrintText(
 }
 
 // ─────────────────────────────────────────────
-// LineFadeText — internal
-//
-// Alpha is computed directly from offsetAnim.value each frame inside graphicsLayer —
-// no LaunchedEffect, no snapshotFlow, no per-letter Animatable.
-// This guarantees perfect synchronisation with the scroll and correct cycling.
-//
-// For each letter at position index/letterCount within the line:
-//
-//   The full fade window spans fadeInOffset → fadeOutOffset (offsetAnim decreasing).
-//   fadeWindowSize = fadeInOffset - fadeOutOffset
-//
-//   Each letter's personal fade-in starts at:
-//     letterFadeIn = fadeInOffset - (fadeWindowSize * index / letterCount) * staggerFraction
-//   and rises over fadeBand pixels of scroll travel.
-//
-//   For fadeOut=true, fade-out mirrors this from fadeOutOffset upward.
-//   For fadeOut=false (Print), letter stays at alpha=1 once reached.
-// ─────────────────────────────────────────────
 
-// ─────────────────────────────────────────────
-// LineFadeText — internal
-//
-// Alpha computed from offsetAnim.value each frame in graphicsLayer.
-// offsetAnim decreases over time (text scrolls upward).
-//
-// Trigger point: line midpoint crossing the viewport centre.
-//
-// Both fade-in and fade-out stagger first→last (index 0 leads):
-//   fade-in  letter[i] starts at: fadeInOffset      - staggerSpan * i / n
-//   fade-out letter[i] starts at: nextFadeInOffset  - staggerSpan * i / n
-//
-// fade-out of line N starts exactly when fade-in of line N+1 starts —
-// seamless handoff, no gap, no overlap.
 // ─────────────────────────────────────────────
 
 @Composable
@@ -1233,11 +1161,6 @@ private fun LineFadeText(
 
 // ─────────────────────────────────────────────
 
-
-// ─────────────────────────────────────────────
-// calculatePageDurationMs
-// ─────────────────────────────────────────────
-
 fun calculatePageDurationMs(pageText: String, wpm: Int): Long {
     if (pageText.isBlank() || wpm <= 0) return 0L
     val wordCount = pageText.trim().split(Regex("\\s+")).size
@@ -1247,8 +1170,6 @@ fun calculatePageDurationMs(pageText: String, wpm: Int): Long {
     }
     return baseMs + pauseMs
 }
-
-
 
 private const val WPM_NORMAL = 130
 
@@ -1278,8 +1199,6 @@ internal val NORMAL_SIZES = listOf(
 )
 
 // ─────────────────────────────────────────────
-// SizeSection — one labelled group in the preview
-// ─────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -1288,8 +1207,8 @@ private fun NormalSizeSection(
     lineHeightDp: Dp,
 ) {
     val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-        fontSize   = fontSize1(fontSizeDp),
-        lineHeight = fontSize1(lineHeightDp),
+        fontSize   = fontSize(fontSizeDp),
+        lineHeight = fontSize(lineHeightDp),
     )
     var result by remember { mutableStateOf<TextFitResult?>(null) }
 
@@ -1432,338 +1351,6 @@ fun PreviewMassive() {
                 fontSizeDp = 56.dp,
                 lineHeightDp = 68.dp
             )
-        }
-    }
-}
-
-// ─────────────────────────────────────────────
-// Preview: TextVerticalScrollBox
-// ─────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "VerticalScroll – None")
-@Composable
-fun PreviewVerticalScrollBox() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        val wpm   = WPM_NORMAL
-        val pages = listOf(
-            PREVIEW_TEXT.take(120),
-            PREVIEW_TEXT.takeLast(120),
-        )
-        val totalDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) } * 2L
-        TextVerticalScrollBox(
-            totalDurationMs = totalDurationMs,
-            text            = pages.joinToString(" "),
-            textStyle       = textStyle,
-            isHorizontal    = false,
-            transitionMode  = TransitionMode.None,
-            modifier        = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-// ─────────────────────────────────────────────
-// Preview: TextHorizontalScrollBox
-// ─────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "HorizontalScroll – None")
-@Composable
-fun PreviewHorizontalScrollBox() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        val wpm   = WPM_NORMAL
-        val pages = listOf(
-            PREVIEW_TEXT.take(120),
-            PREVIEW_TEXT.takeLast(120),
-        )
-        val totalDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) } * 2L
-        TextHorizontalScrollBox(
-            totalDurationMs = totalDurationMs,
-            text            = pages.joinToString(" ").replace("\n", ""),
-            textStyle       = textStyle,
-            transitionMode  = TransitionMode.None,
-            isHorizontal    = false,
-            modifier        = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "HorizontalScroll – Fade")
-@Composable
-fun PreviewHorizontalScrollBoxFade() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        val wpm   = WPM_NORMAL
-        val pages = listOf(
-            PREVIEW_TEXT.take(120),
-            PREVIEW_TEXT.takeLast(120),
-        )
-        val totalDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) } * 2L
-        TextHorizontalScrollBox(
-            totalDurationMs = totalDurationMs,
-            text            = pages.joinToString(" ").replace("\n", ""),
-            textStyle       = textStyle,
-            transitionMode  = TransitionMode.Fade,
-            isHorizontal    = false,
-            modifier        = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "HorizontalScroll – Print")
-@Composable
-fun PreviewHorizontalScrollBoxPrint() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        val wpm   = WPM_NORMAL
-        val pages = listOf(
-            PREVIEW_TEXT.take(120),
-            PREVIEW_TEXT.takeLast(120),
-        )
-        val totalDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) } * 2L
-        TextHorizontalScrollBox(
-            totalDurationMs = totalDurationMs,
-            text            = pages.joinToString(" ").replace("\n", ""),
-            textStyle       = textStyle,
-            transitionMode  = TransitionMode.Print,
-            isHorizontal    = false,
-            modifier        = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-// ─────────────────────────────────────────────
-// Preview: TextCentreVerticalScrollBox
-// ─────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "CentreVerticalScroll – None")
-@Composable
-fun PreviewCentreVerticalScrollNone() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        TextCentreVerticalScrollBox(
-            pages          = listOf(PREVIEW_TEXT.take(120), PREVIEW_TEXT.takeLast(120)),
-            wpm            = WPM_NORMAL,
-            textStyle      = textStyle,
-            isHorizontal   = false,
-            transitionMode = TransitionMode.None,
-            modifier       = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "CentreVerticalScroll – Fade")
-@Composable
-fun PreviewCentreVerticalScrollFade() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        TextCentreVerticalScrollBox(
-            pages          = listOf(PREVIEW_TEXT.take(120), PREVIEW_TEXT.takeLast(120)),
-            wpm            = WPM_NORMAL,
-            textStyle      = textStyle,
-            isHorizontal   = false,
-            transitionMode = TransitionMode.Fade,
-            modifier       = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 200, name = "CentreVerticalScroll – Print")
-@Composable
-fun PreviewCentreVerticalScrollPrint() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        TextCentreVerticalScrollBox(
-            pages          = listOf(PREVIEW_TEXT.take(120), PREVIEW_TEXT.takeLast(120)),
-            wpm            = WPM_NORMAL,
-            textStyle      = textStyle,
-            isHorizontal   = false,
-            transitionMode = TransitionMode.Print,
-            modifier       = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-// ─────────────────────────────────────────────
-// Preview: TextFitBox
-// ─────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 180, name = "TextFitBox – None")
-@Composable
-fun PreviewTextFitBoxNone() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        TextFitBox(
-            pages          = listOf(PREVIEW_TEXT.take(200), PREVIEW_TEXT.takeLast(200)),
-            linesPerParent = 3,
-            textStyle      = textStyle,
-            wpm            = WPM_NORMAL,
-            transitionMode = TransitionMode.None,
-            modifier       = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 180, name = "TextFitBox – Fade")
-@Composable
-fun PreviewTextFitBoxFade() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        TextFitBox(
-            pages          = listOf(PREVIEW_TEXT.take(200), PREVIEW_TEXT.takeLast(200)),
-            linesPerParent = 3,
-            textStyle      = textStyle,
-            wpm            = WPM_NORMAL,
-            transitionMode = TransitionMode.Fade,
-            modifier       = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Preview(showBackground = true, widthDp = 412, heightDp = 180, name = "TextFitBox – Print")
-@Composable
-fun PreviewTextFitBoxPrint() {
-    AppTheme {
-        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
-            fontSize   = fontSize1(24.dp),
-            lineHeight = fontSize1(27.dp),
-        )
-        TextFitBox(
-            pages          = listOf(PREVIEW_TEXT.take(200), PREVIEW_TEXT.takeLast(200)),
-            linesPerParent = 3,
-            textStyle      = textStyle,
-            wpm            = WPM_NORMAL,
-            transitionMode = TransitionMode.Print,
-            modifier       = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-// ── FullPlayer ────────────────────────────────────────────────────────────────
-//
-// Encapsulates the Surface + distortion + mirror + alpha-fade shell.
-// preview = true  → shows only the first 2 pages (settings-screen thumbnail).
-// preview = false → shows all pages (full playback).
-
-@Composable
-fun DisplayTextBar(
-    task: Task,
-    wpm: Int,
-    textStyle: TextStyle,
-    padding: Dp,
-    isHorizontal: Boolean,
-    isMirror: Boolean,
-    distortionMode: Float,
-    animationMode: AnimationMode,
-    transitionMode: TransitionMode,
-    preview: Boolean = true,
-    modifier: Modifier = Modifier,
-) {
-    var result by remember { mutableStateOf<TextFitResult?>(null) }
-
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        var alpha by remember { mutableFloatStateOf(1f) }
-
-        BoxWithConstraints(
-            modifier = Modifier
-                .graphicsLayer {
-                    this.alpha = alpha
-                    scaleX = if (isHorizontal) distortionMode else 1f
-                    scaleY = if (isHorizontal) 1f else distortionMode
-                }
-                .fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            val playerSize = Modifier
-                .width(if (isHorizontal) maxWidth / distortionMode else maxWidth)
-                .height(if (isHorizontal) maxHeight else maxHeight / distortionMode)
-
-            BoxWithConstraints(
-                modifier = Modifier
-                    .graphicsLayer {
-                        scaleY = if (isMirror) -1f else 1f
-                    }
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                TextFitCalculator(
-                    text = task.description,
-                    fontSize = textStyle.fontSize,
-                    lineHeight = textStyle.lineHeight,
-                    padding = padding,
-                    isHorizontal = isHorizontal,
-                    modifier = playerSize,
-                    onResult = { result = it },
-                )
-
-                result?.let { r ->
-                    val pages = remember(r.pagesText, preview) {
-                        if (preview) r.pagesText.take(2) else r.pagesText
-                    }
-                    TextFitPlayer(
-                        result = r,
-                        pages = pages,
-                        wpm = wpm,
-                        textStyle = textStyle,
-                        padding = padding,
-                        isHorizontal = isHorizontal,
-                        animationMode = animationMode,
-                        transitionMode = transitionMode,
-                        modifier = playerSize,
-                    )
-
-                    LaunchedEffect(isMirror, isHorizontal, animationMode, transitionMode) {
-                        alpha = 1f
-                    }
-
-                    DisposableEffect(isMirror, isHorizontal, animationMode, transitionMode) {
-                        onDispose {
-                            alpha = 0f
-                        }
-                    }
-                }
-            }
         }
     }
 }

@@ -63,7 +63,7 @@ fun SaveChangesDialog(
                 ) {
                     Text(
                         text = "Save changes?",
-                        fontSize = fontSize(28.dp),
+                        fontSize = fontSize(24.dp),
                         lineHeight = fontSize(28.dp),
                         style = MaterialTheme.typography.headlineSmall
                     )
@@ -86,7 +86,7 @@ fun SaveChangesDialog(
                         }
                     ) {
                         Text(
-                            fontSize = fontSize(20.dp),
+                            fontSize = fontSize(18.dp),
                             text = "Discard"
                         )
                     }
@@ -96,7 +96,7 @@ fun SaveChangesDialog(
                     SaveButton(
                         modifier = Modifier
                             .fillMaxHeight(),
-                        fontSize = fontSize(20.dp),
+                        fontSize = fontSize(18.dp),
                         hovered = true,
                         onSave = {
                             onSave()

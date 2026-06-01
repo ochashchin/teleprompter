@@ -118,7 +118,7 @@ fun NewTaskScreenBody(
                 .imePadding(),
             icon = {
                 Icon(
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(24.dp),
                     imageVector        = Icons.AutoMirrored.Rounded.ArrowForward,
                     contentDescription = "Next",
                     tint               = MaterialTheme.colorScheme.onSurfaceVariant,

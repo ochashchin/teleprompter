@@ -63,7 +63,7 @@ fun ScriptTextField(
     isError: Boolean = false,
 ) {
 
-    val fontSize = fontSize(28.dp)
+    val fontSize = fontSize(20.dp)
 
     Box(modifier = modifier.fillMaxSize()) {
         Row(

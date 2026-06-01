@@ -47,7 +47,7 @@ fun TopicTextField(
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
 
-        val fontSize = fontSize(28.dp)
+        val fontSize = fontSize(20.dp)
 
         Row(
             modifier = Modifier
@@ -130,12 +130,6 @@ fun TopicTextField(
             )
         }
     }
-
-}
-
-@Composable
-fun fontSize(dpSize: Dp): TextUnit {
-    return with(LocalDensity.current) { (dpSize.toSp() * 0.82f) }
 }
 
 @Composable
