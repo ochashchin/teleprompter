@@ -569,12 +569,6 @@ fun TextVerticalScrollBox(
             }
         }
 
-        DisposableEffect(text, isHorizontal, totalDurationMs) {
-            onDispose {
-                alpha = 0f
-            }
-        }
-
         val rotatedModifier =
             if (isHorizontal) {
                 Modifier
@@ -672,8 +666,6 @@ fun TextHorizontalScrollBox(
                 )
             }
         }
-
-        DisposableEffect(text, isHorizontal, totalDurationMs) { onDispose { alpha = 0f } }
 
         val rotatedModifier = if (isHorizontal) {
             Modifier
@@ -1006,8 +998,6 @@ fun TextCentreVerticalScrollBox(
                 alpha = 0f
             }
         }
-
-        DisposableEffect(fullText, isHorizontal) { onDispose { alpha = 0f } }
 
         val rotatedModifier = if (isHorizontal) {
             Modifier

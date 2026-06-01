@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,13 +28,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -94,6 +99,15 @@ private fun transitionModeOf(label: String?): TransitionMode = when {
     else -> TransitionMode.None
 }
 
+// ── Distortion → scaleY multiplier ───────────────────────────────────────────
+// 0° = 1.0  (no-op),  45° = 1.4,  70° = 2.9
+
+fun distortionValueOf(label: String?): Float = when {
+    label.equals("45°", ignoreCase = true) -> 1.4f
+    label.equals("70°", ignoreCase = true) -> 2.9f
+    else -> 1f   // "0°" or unset
+}
+
 // ── PreviewPlayer — switches between Frame / Scroll / Inline ─────────────────
 
 @Composable
@@ -108,63 +122,69 @@ fun PreviewPlayer(
     modifier: Modifier = Modifier,
 ) {
     val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
+    var alpha        by remember { mutableFloatStateOf(1f) }
 
-    when (animationMode) {
+    LaunchedEffect(isHorizontal, animationMode, transitionMode){
+        alpha = 1f
+    }
 
-        // ── Frame: page cycling + transitionMode handled inside TextFitBox ────
-        AnimationMode.Frame -> {
-            Box(modifier = modifier) {
+    DisposableEffect(isHorizontal, animationMode, transitionMode) {
+        onDispose {
+            alpha = 0f
+        }
+    }
+
+    Box(modifier = modifier.graphicsLayer { this.alpha = alpha }) {
+
+        when (animationMode) {
+
+            // ── Frame: page cycling + transitionMode handled inside TextFitBox ────
+            AnimationMode.Frame -> {
                 TextFitBox(
-                    pages          = previewPages,
+                    pages = previewPages,
                     linesPerParent = result.linesPerParent,
-                    textStyle      = textStyle,
-                    padding        = padding,
-                    isHorizontal   = isHorizontal,
-                    wpm            = wpm,
+                    textStyle = textStyle,
+                    padding = padding,
+                    isHorizontal = isHorizontal,
+                    wpm = wpm,
                     transitionMode = transitionMode,
-                    modifier       = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
-        }
 
-        // ── Scroll: centre-scroll with transitionMode letter-alpha ────────────
-        AnimationMode.Scroll -> {
-            val page            = calculatePageDurationMs(previewPages[0], wpm)
-            val totalDurationMs = previewPages.sumOf { calculatePageDurationMs(it, wpm) } + page * 2
-
-            Box(modifier = modifier) {
+            // ── Scroll: centre-scroll with transitionMode letter-alpha ────────────
+            AnimationMode.Scroll -> {
                 TextCentreVerticalScrollBox(
-                    pages          = previewPages,
-                    wpm            = wpm,
-                    textStyle      = textStyle,
-                    padding        = padding,
-                    isHorizontal   = isHorizontal,
+                    pages = previewPages,
+                    wpm = wpm,
+                    textStyle = textStyle,
+                    padding = padding,
+                    isHorizontal = isHorizontal,
                     transitionMode = transitionMode,
-                    modifier       = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
-        }
 
-        // ── Inline: horizontal auto-scroll ────────────────────────────────────
-        AnimationMode.Inline -> {
-            val page            = calculatePageDurationMs(previewPages[0], wpm)
-            val frameDurationMs = previewPages.sumOf { calculatePageDurationMs(it, wpm) }
-            val totalDurationMs = frameDurationMs + page * 2
+            // ── Inline: horizontal auto-scroll ────────────────────────────────────
+            AnimationMode.Inline -> {
 
-            Box(modifier = modifier) {
+                val page            = calculatePageDurationMs(previewPages[0], wpm)
+                val frameDurationMs = previewPages.sumOf { calculatePageDurationMs(it, wpm) }
+                val totalDurationMs = frameDurationMs + page * 2
+
                 TextHorizontalScrollBox(
                     totalDurationMs = totalDurationMs,
-                    text            = remember(previewPages) {
+                    text = remember(previewPages) {
                         previewPages
                             .joinToString(separator = " ")
                             .replace("\r", "")
                             .replace("\n", "")
                     },
-                    textStyle       = textStyle,
-                    transitionMode  = transitionMode,
-                    isHorizontal    = isHorizontal,
-                    padding         = padding,
-                    modifier        = Modifier.fillMaxSize(),
+                    textStyle = textStyle,
+                    transitionMode = transitionMode,
+                    isHorizontal = isHorizontal,
+                    padding = padding,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -205,6 +225,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
     val speedItem       = DisplayTaskList.first { it.id == 3 }
     val animationItem   = DisplayTaskList.first { it.id == 4 }
     val transitionItem  = DisplayTaskList.first { it.id == 5 }
+    val distortionItem  = DisplayTaskList.first { it.id == 6 }
 
     var selectedSizeLabel by remember {
         mutableStateOf(
@@ -241,9 +262,17 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
         )
     }
 
-    val isHorizontal   = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
-    val animationMode  = animationModeOf(selectedAnimationLabel)
+    var selectedDistortionLabel by remember {
+        mutableStateOf(
+            displayState.selectedOption(distortionItem)
+                ?: distortionItem.defaultOption
+        )
+    }
+
+    val isHorizontal    = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
+    val animationMode   = animationModeOf(selectedAnimationLabel)
     val transitionMode  = transitionModeOf(selectedTransitionLabel)
+    val distortionMode = distortionValueOf(selectedDistortionLabel)
 
     val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
 
@@ -274,7 +303,18 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                 shape = RoundedCornerShape(28.dp),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = if (isHorizontal) distortionMode else 1f
+                            scaleY = if (isHorizontal) 1f else distortionMode
+                        }
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val playerSize = Modifier
+                        .width(if (isHorizontal) maxWidth / distortionMode else maxWidth)
+                        .height(if (isHorizontal) maxHeight else maxHeight / distortionMode)
 
                     TextFitCalculator(
                         text = task.description,
@@ -282,7 +322,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                         lineHeight = textStyle.lineHeight,
                         padding = previewPadding,
                         isHorizontal = isHorizontal,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = playerSize,
                         onResult = { result = it },
                     )
 
@@ -295,7 +335,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                             isHorizontal = isHorizontal,
                             animationMode = animationMode,
                             transitionMode = transitionMode,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = playerSize,
                         )
                     }
                 }
@@ -312,6 +352,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                 if (item.id == 3) selectedSpeedLabel       = option
                 if (item.id == 4) selectedAnimationLabel   = option
                 if (item.id == 5) selectedTransitionLabel  = option
+                if (item.id == 6) selectedDistortionLabel  = option
             }
         )
     }
@@ -658,55 +699,3 @@ private fun PlayerPreviewSurface(
         }
     }
 }
-
-// ── Frame ─────────────────────────────────────
-
-@Preview(name = "Player – Frame / None",  showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerFrameNone() =
-    PlayerPreviewSurface(AnimationMode.Frame, TransitionMode.None)
-
-@Preview(name = "Player – Frame / Fade",  showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerFrameFade() =
-    PlayerPreviewSurface(AnimationMode.Frame, TransitionMode.Fade)
-
-@Preview(name = "Player – Frame / Print", showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerFramePrint() =
-    PlayerPreviewSurface(AnimationMode.Frame, TransitionMode.Print)
-
-// ── Scroll ────────────────────────────────────
-
-@Preview(name = "Player – Scroll / None",  showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerScrollNone() =
-    PlayerPreviewSurface(AnimationMode.Scroll, TransitionMode.None)
-
-@Preview(name = "Player – Scroll / Fade",  showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerScrollFade() =
-    PlayerPreviewSurface(AnimationMode.Scroll, TransitionMode.Fade)
-
-@Preview(name = "Player – Scroll / Print", showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerScrollPrint() =
-    PlayerPreviewSurface(AnimationMode.Scroll, TransitionMode.Print)
-
-// ── Inline ────────────────────────────────────
-
-@Preview(name = "Player – Inline / None",  showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerInlineNone() =
-    PlayerPreviewSurface(AnimationMode.Inline, TransitionMode.None)
-
-@Preview(name = "Player – Inline / Fade",  showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerInlineFade() =
-    PlayerPreviewSurface(AnimationMode.Inline, TransitionMode.Fade)
-
-@Preview(name = "Player – Inline / Print", showBackground = true, widthDp = 412, heightDp = 180)
-@Composable
-private fun PreviewPlayerInlinePrint() =
-    PlayerPreviewSurface(AnimationMode.Inline, TransitionMode.Print)
-
