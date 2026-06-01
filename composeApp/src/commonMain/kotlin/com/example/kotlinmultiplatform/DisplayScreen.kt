@@ -1,8 +1,5 @@
 package com.example.kotlinmultiplatform
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,15 +26,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
@@ -46,7 +39,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
 import kotlinmultiplatform.composeapp.generated.resources.Res
@@ -58,10 +50,8 @@ import kotlinmultiplatform.composeapp.generated.resources.ic_overlay
 import kotlinmultiplatform.composeapp.generated.resources.ic_speed
 import kotlinmultiplatform.composeapp.generated.resources.ic_text_size
 import kotlinmultiplatform.composeapp.generated.resources.ic_transition
-import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import androidx.compose.runtime.getValue
 
 // ── data ──────────────────────────────────────────────────────────────────────
 
@@ -86,130 +76,95 @@ fun speedLabelToWpm(label: String?): Int = when {
     else -> WPM_SLOW   // "Slow" or unset
 }
 
-// ── Duration calculation ───────────────────────────────────────────────────────
-//   Per-page: word count of that page × ms-per-word
-//   Extra pauses: '.', '!', '?' → +300 ms each
-//                 ',', ';', ':'  → +200 ms each
-
-fun calculatePageDurationMs(pageText: String, wpm: Int): Long {
-    if (pageText.isBlank()) return 0L
-    val wordCount = pageText.trim().split(Regex("\\s+")).size
-    val msPerWord = 60_000L / wpm.coerceAtLeast(1)
-    val baseMs = wordCount * msPerWord
-    val pauseMs = pageText.sumOf { ch ->
-        when (ch) {
-            '.', '!', '?' -> 300L
-            ',', ';', ':' -> 200L
-            else -> 0L
-        }
-    }
-    return baseMs + pauseMs
-}
 
 // ── AnimationMode ─────────────────────────────────────────────────────────────
 
 enum class AnimationMode { Frame, Scroll, Inline }
+enum class TransitionMode { None, Fade, Print }
 
 private fun animationModeOf(label: String?): AnimationMode = when {
-    label.equals("Scroll",  ignoreCase = true) -> AnimationMode.Scroll
-    label.equals("Inline",  ignoreCase = true) -> AnimationMode.Inline
-    else                                        -> AnimationMode.Frame
+    label.equals("Scroll", ignoreCase = true) -> AnimationMode.Scroll
+    label.equals("Inline", ignoreCase = true) -> AnimationMode.Inline
+    else -> AnimationMode.Frame
+}
+
+private fun transitionModeOf(label: String?): TransitionMode = when {
+    label.equals("Fade", ignoreCase = true) -> TransitionMode.Fade
+    label.equals("Print", ignoreCase = true) -> TransitionMode.Print
+    else -> TransitionMode.None
 }
 
 // ── PreviewPlayer — switches between Frame / Scroll / Inline ─────────────────
 
 @Composable
-fun PreviewPlayer(           // original unpaginated text — used by Scroll / Inline
+fun PreviewPlayer(
     wpm: Int,
     padding: Dp,
     result: TextFitResult,
     textStyle: TextStyle,
     isHorizontal: Boolean,
     animationMode: AnimationMode = AnimationMode.Frame,
+    transitionMode: TransitionMode = TransitionMode.None,
     modifier: Modifier = Modifier,
 ) {
+    val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
+
     when (animationMode) {
 
-        // ── Frame: raw alpha switch 0 → 1 → 0 between first 2 pages ──────────
+        // ── Frame: page cycling + transitionMode handled inside TextFitBox ────
         AnimationMode.Frame -> {
-            val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
-
-            var currentPage by remember(result.pagesText) { mutableIntStateOf(0) }
-
-            var alpha by remember { mutableFloatStateOf(1f) }
-
-            LaunchedEffect(previewPages, wpm) {
-                if (previewPages.size <= 1) return@LaunchedEffect
-                while (true) {
-                    val holdMs = calculatePageDurationMs(previewPages[currentPage], wpm)
-                        .coerceAtLeast(600L)
-                    delay(holdMs)
-                    alpha = 0f
-                    currentPage = (currentPage + 1) % previewPages.size
-                    alpha = 1f
-                }
-            }
-
             Box(modifier = modifier) {
                 TextFitBox(
-                    pageText       = previewPages[currentPage],
+                    pages          = previewPages,
                     linesPerParent = result.linesPerParent,
                     textStyle      = textStyle,
                     padding        = padding,
                     isHorizontal   = isHorizontal,
-                    modifier       = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { this.alpha = alpha },
+                    wpm            = wpm,
+                    transitionMode = transitionMode,
+                    modifier       = Modifier.fillMaxSize(),
                 )
             }
         }
 
-        // ── Scroll: vertical auto-scroll — pass full original text so the
-        // measurer wraps at the real container width and sees all pages.
+        // ── Scroll: centre-scroll with transitionMode letter-alpha ────────────
         AnimationMode.Scroll -> {
-
-            val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
-            val page = calculatePageDurationMs(previewPages[0], wpm)
-
-            val totalDurationMs = previewPages.sumOf { page ->
-                calculatePageDurationMs(page, wpm)
-            } + (page)
+            val page            = calculatePageDurationMs(previewPages[0], wpm)
+            val totalDurationMs = previewPages.sumOf { calculatePageDurationMs(it, wpm) } + page * 2
 
             Box(modifier = modifier) {
-                TextVerticalScrollBox(
-                    totalDurationMs = totalDurationMs,
-                    text = remember(previewPages) { previewPages.joinToString(separator = " ") },
-                    textStyle = textStyle,
-                    padding = padding,
-                    isHorizontal = isHorizontal,
-                    modifier = Modifier.fillMaxSize(),
+                TextCentreVerticalScrollBox(
+                    pages          = previewPages,
+                    wpm            = wpm,
+                    textStyle      = textStyle,
+                    padding        = padding,
+                    isHorizontal   = isHorizontal,
+                    transitionMode = transitionMode,
+                    modifier       = Modifier.fillMaxSize(),
                 )
             }
         }
 
-        // ── Inline: horizontal auto-scroll — same reasoning as Scroll.
+        // ── Inline: horizontal auto-scroll ────────────────────────────────────
         AnimationMode.Inline -> {
-
-            val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
-            val page = calculatePageDurationMs(previewPages[0], wpm)
-
-            val totalDurationMs = previewPages.sumOf { page ->
-                calculatePageDurationMs(page, wpm)
-            } + (page)
+            val page            = calculatePageDurationMs(previewPages[0], wpm)
+            val frameDurationMs = previewPages.sumOf { calculatePageDurationMs(it, wpm) }
+            val totalDurationMs = frameDurationMs + page * 2
 
             Box(modifier = modifier) {
                 TextHorizontalScrollBox(
                     totalDurationMs = totalDurationMs,
-                    text = remember(previewPages) {
+                    text            = remember(previewPages) {
                         previewPages
                             .joinToString(separator = " ")
                             .replace("\r", "")
                             .replace("\n", "")
                     },
-                    textStyle = textStyle,
-                    padding = padding,
-                    isHorizontal = isHorizontal,
-                    modifier = Modifier.fillMaxSize(),
+                    textStyle       = textStyle,
+                    transitionMode  = transitionMode,
+                    isHorizontal    = isHorizontal,
+                    padding         = padding,
+                    modifier        = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -288,6 +243,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
 
     val isHorizontal   = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
     val animationMode  = animationModeOf(selectedAnimationLabel)
+    val transitionMode  = transitionModeOf(selectedTransitionLabel)
 
     val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
 
@@ -338,6 +294,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                             padding = previewPadding,
                             isHorizontal = isHorizontal,
                             animationMode = animationMode,
+                            transitionMode = transitionMode,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -649,3 +606,107 @@ private fun PreviewFullDark() {
 private fun PreviewCompact() {
     AppTheme(darkTheme = false) { DisplayScreenPreview(previewTask2) }
 }
+
+// ── PreviewPlayer isolated previews ──────────────────────────────────────────
+//
+// One preview per AnimationMode × TransitionMode combination.
+// Each is sized to match the actual preview surface (412 × 180).
+// TextFitCalculator is invisible and drives result; PreviewPlayer renders once
+// result is available.
+// ─────────────────────────────────────────────────────────────────────────────
+
+private const val PLAYER_PREVIEW_TEXT =
+    "Milk, Eggs, Bread, Coffee. Pick up from the store on the way home. Don't forget almond milk."
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlayerPreviewSurface(
+    animationMode:  AnimationMode,
+    transitionMode: TransitionMode,
+) {
+    AppTheme {
+        val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
+            fontSize   = fontSize1(24.dp),
+            lineHeight = fontSize1(27.dp),
+        )
+        val padding = 10.dp
+        val wpm     = WPM_NORMAL
+        var result  by remember { mutableStateOf<TextFitResult?>(null) }
+
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            TextFitCalculator(
+                text         = PLAYER_PREVIEW_TEXT,
+                fontSize     = textStyle.fontSize,
+                lineHeight   = textStyle.lineHeight,
+                padding      = padding,
+                isHorizontal = false,
+                modifier     = Modifier.fillMaxSize(),
+                onResult     = { result = it },
+            )
+            result?.let {
+                PreviewPlayer(
+                    result         = it,
+                    wpm            = wpm,
+                    textStyle      = textStyle,
+                    padding        = padding,
+                    isHorizontal   = false,
+                    animationMode  = animationMode,
+                    transitionMode = transitionMode,
+                    modifier       = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+}
+
+// ── Frame ─────────────────────────────────────
+
+@Preview(name = "Player – Frame / None",  showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerFrameNone() =
+    PlayerPreviewSurface(AnimationMode.Frame, TransitionMode.None)
+
+@Preview(name = "Player – Frame / Fade",  showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerFrameFade() =
+    PlayerPreviewSurface(AnimationMode.Frame, TransitionMode.Fade)
+
+@Preview(name = "Player – Frame / Print", showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerFramePrint() =
+    PlayerPreviewSurface(AnimationMode.Frame, TransitionMode.Print)
+
+// ── Scroll ────────────────────────────────────
+
+@Preview(name = "Player – Scroll / None",  showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerScrollNone() =
+    PlayerPreviewSurface(AnimationMode.Scroll, TransitionMode.None)
+
+@Preview(name = "Player – Scroll / Fade",  showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerScrollFade() =
+    PlayerPreviewSurface(AnimationMode.Scroll, TransitionMode.Fade)
+
+@Preview(name = "Player – Scroll / Print", showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerScrollPrint() =
+    PlayerPreviewSurface(AnimationMode.Scroll, TransitionMode.Print)
+
+// ── Inline ────────────────────────────────────
+
+@Preview(name = "Player – Inline / None",  showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerInlineNone() =
+    PlayerPreviewSurface(AnimationMode.Inline, TransitionMode.None)
+
+@Preview(name = "Player – Inline / Fade",  showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerInlineFade() =
+    PlayerPreviewSurface(AnimationMode.Inline, TransitionMode.Fade)
+
+@Preview(name = "Player – Inline / Print", showBackground = true, widthDp = 412, heightDp = 180)
+@Composable
+private fun PreviewPlayerInlinePrint() =
+    PlayerPreviewSurface(AnimationMode.Inline, TransitionMode.Print)
+
