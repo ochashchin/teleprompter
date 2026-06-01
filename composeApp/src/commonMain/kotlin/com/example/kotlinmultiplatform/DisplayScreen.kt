@@ -28,8 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -108,40 +106,37 @@ fun distortionValueOf(label: String?): Float = when {
     else -> 1f   // "0°" or unset
 }
 
-// ── PreviewPlayer — switches between Frame / Scroll / Inline ─────────────────
+// ── TextPlayer — switches between Frame / Scroll / Inline ────────────────────
+//
+// Callers supply the exact pages list; preview vs full is the caller's concern.
+
+private fun inlinePlayerDurationMs(pages: List<String>, wpm: Int): Long {
+    val page            = calculatePageDurationMs(pages[0], wpm)
+    val frameDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) }
+    return frameDurationMs + page * 2
+}
 
 @Composable
-fun PreviewPlayer(
+fun TextFitPlayer(
     wpm: Int,
     padding: Dp,
     result: TextFitResult,
+    pages: List<String>,
     textStyle: TextStyle,
     isHorizontal: Boolean,
     animationMode: AnimationMode = AnimationMode.Frame,
     transitionMode: TransitionMode = TransitionMode.None,
     modifier: Modifier = Modifier,
 ) {
-    val previewPages = remember(result.pagesText) { result.pagesText.take(2) }
-    var alpha        by remember { mutableFloatStateOf(1f) }
 
-    LaunchedEffect(isHorizontal, animationMode, transitionMode){
-        alpha = 1f
-    }
-
-    DisposableEffect(isHorizontal, animationMode, transitionMode) {
-        onDispose {
-            alpha = 0f
-        }
-    }
-
-    Box(modifier = modifier.graphicsLayer { this.alpha = alpha }) {
+    Box(modifier = modifier) {
 
         when (animationMode) {
 
             // ── Frame: page cycling + transitionMode handled inside TextFitBox ────
             AnimationMode.Frame -> {
                 TextFitBox(
-                    pages = previewPages,
+                    pages = pages,
                     linesPerParent = result.linesPerParent,
                     textStyle = textStyle,
                     padding = padding,
@@ -155,7 +150,7 @@ fun PreviewPlayer(
             // ── Scroll: centre-scroll with transitionMode letter-alpha ────────────
             AnimationMode.Scroll -> {
                 TextCentreVerticalScrollBox(
-                    pages = previewPages,
+                    pages = pages,
                     wpm = wpm,
                     textStyle = textStyle,
                     padding = padding,
@@ -168,14 +163,12 @@ fun PreviewPlayer(
             // ── Inline: horizontal auto-scroll ────────────────────────────────────
             AnimationMode.Inline -> {
 
-                val page            = calculatePageDurationMs(previewPages[0], wpm)
-                val frameDurationMs = previewPages.sumOf { calculatePageDurationMs(it, wpm) }
-                val totalDurationMs = frameDurationMs + page * 2
+                val totalDurationMs = inlinePlayerDurationMs(pages, wpm)
 
                 TextHorizontalScrollBox(
                     totalDurationMs = totalDurationMs,
-                    text = remember(previewPages) {
-                        previewPages
+                    text = remember(pages) {
+                        pages
                             .joinToString(separator = " ")
                             .replace("\r", "")
                             .replace("\n", "")
@@ -226,6 +219,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
     val animationItem   = DisplayTaskList.first { it.id == 4 }
     val transitionItem  = DisplayTaskList.first { it.id == 5 }
     val distortionItem  = DisplayTaskList.first { it.id == 6 }
+    val mirrorItem      = DisplayTaskList.first { it.id == 7 }
 
     var selectedSizeLabel by remember {
         mutableStateOf(
@@ -269,10 +263,18 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
         )
     }
 
+    var selectedMirrorLabel by remember {
+        mutableStateOf(
+            displayState.selectedOption(mirrorItem)
+                ?: mirrorItem.defaultOption
+        )
+    }
+
     val isHorizontal    = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
     val animationMode   = animationModeOf(selectedAnimationLabel)
     val transitionMode  = transitionModeOf(selectedTransitionLabel)
-    val distortionMode = distortionValueOf(selectedDistortionLabel)
+    val distortionMode  = distortionValueOf(selectedDistortionLabel)
+    val isMirror        = selectedMirrorLabel.equals("Enabled", ignoreCase = true)
 
     val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
 
@@ -283,7 +285,6 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
     )
 
     val wpm = speedLabelToWpm(selectedSpeedLabel)
-    var result by remember { mutableStateOf<TextFitResult?>(null) }
 
     val previewPadding = 10.dp
 
@@ -298,48 +299,19 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                 .height(180.dp),
             contentAlignment = Alignment.Center
         ) {
-            Surface(
-                modifier = modifier,
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-            ) {
-                BoxWithConstraints(
-                    modifier = Modifier
-                        .graphicsLayer {
-                            scaleX = if (isHorizontal) distortionMode else 1f
-                            scaleY = if (isHorizontal) 1f else distortionMode
-                        }
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val playerSize = Modifier
-                        .width(if (isHorizontal) maxWidth / distortionMode else maxWidth)
-                        .height(if (isHorizontal) maxHeight else maxHeight / distortionMode)
-
-                    TextFitCalculator(
-                        text = task.description,
-                        fontSize = textStyle.fontSize,
-                        lineHeight = textStyle.lineHeight,
-                        padding = previewPadding,
-                        isHorizontal = isHorizontal,
-                        modifier = playerSize,
-                        onResult = { result = it },
-                    )
-
-                    result?.let {
-                        PreviewPlayer(
-                            result = result!!,
-                            wpm = wpm,
-                            textStyle = textStyle,
-                            padding = previewPadding,
-                            isHorizontal = isHorizontal,
-                            animationMode = animationMode,
-                            transitionMode = transitionMode,
-                            modifier = playerSize,
-                        )
-                    }
-                }
-            }
+            DisplayTextBar(
+                task           = task,
+                wpm            = wpm,
+                textStyle      = textStyle,
+                padding        = previewPadding,
+                isHorizontal   = isHorizontal,
+                isMirror       = isMirror,
+                distortionMode = distortionMode,
+                animationMode  = animationMode,
+                transitionMode = transitionMode,
+                preview        = true,
+                modifier       = modifier,
+            )
         }
         // ── Settings list ────────────────────────────────────────────────────
         SegmentedList(
@@ -353,6 +325,7 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
                 if (item.id == 4) selectedAnimationLabel   = option
                 if (item.id == 5) selectedTransitionLabel  = option
                 if (item.id == 6) selectedDistortionLabel  = option
+                if (item.id == 7) selectedMirrorLabel      = option
             }
         )
     }
@@ -648,11 +621,11 @@ private fun PreviewCompact() {
     AppTheme(darkTheme = false) { DisplayScreenPreview(previewTask2) }
 }
 
-// ── PreviewPlayer isolated previews ──────────────────────────────────────────
+// ── TextPlayer isolated previews ─────────────────────────────────────────────
 //
 // One preview per AnimationMode × TransitionMode combination.
 // Each is sized to match the actual preview surface (412 × 180).
-// TextFitCalculator is invisible and drives result; PreviewPlayer renders once
+// TextFitCalculator is invisible and drives result; TextPlayer renders once
 // result is available.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -685,8 +658,9 @@ private fun PlayerPreviewSurface(
                 onResult     = { result = it },
             )
             result?.let {
-                PreviewPlayer(
+                TextFitPlayer(
                     result         = it,
+                    pages          = remember(it.pagesText) { it.pagesText.take(2) },
                     wpm            = wpm,
                     textStyle      = textStyle,
                     padding        = padding,

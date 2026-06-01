@@ -17,12 +17,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.layout.layout
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -43,7 +42,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -1671,5 +1673,97 @@ fun PreviewTextFitBoxPrint() {
             transitionMode = TransitionMode.Print,
             modifier       = Modifier.fillMaxSize(),
         )
+    }
+}
+
+// ── FullPlayer ────────────────────────────────────────────────────────────────
+//
+// Encapsulates the Surface + distortion + mirror + alpha-fade shell.
+// preview = true  → shows only the first 2 pages (settings-screen thumbnail).
+// preview = false → shows all pages (full playback).
+
+@Composable
+fun DisplayTextBar(
+    task: Task,
+    wpm: Int,
+    textStyle: TextStyle,
+    padding: Dp,
+    isHorizontal: Boolean,
+    isMirror: Boolean,
+    distortionMode: Float,
+    animationMode: AnimationMode,
+    transitionMode: TransitionMode,
+    preview: Boolean = true,
+    modifier: Modifier = Modifier,
+) {
+    var result by remember { mutableStateOf<TextFitResult?>(null) }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        var alpha by remember { mutableFloatStateOf(1f) }
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .graphicsLayer {
+                    this.alpha = alpha
+                    scaleX = if (isHorizontal) distortionMode else 1f
+                    scaleY = if (isHorizontal) 1f else distortionMode
+                }
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            val playerSize = Modifier
+                .width(if (isHorizontal) maxWidth / distortionMode else maxWidth)
+                .height(if (isHorizontal) maxHeight else maxHeight / distortionMode)
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleY = if (isMirror) -1f else 1f
+                    }
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                TextFitCalculator(
+                    text = task.description,
+                    fontSize = textStyle.fontSize,
+                    lineHeight = textStyle.lineHeight,
+                    padding = padding,
+                    isHorizontal = isHorizontal,
+                    modifier = playerSize,
+                    onResult = { result = it },
+                )
+
+                result?.let { r ->
+                    val pages = remember(r.pagesText, preview) {
+                        if (preview) r.pagesText.take(2) else r.pagesText
+                    }
+                    TextFitPlayer(
+                        result = r,
+                        pages = pages,
+                        wpm = wpm,
+                        textStyle = textStyle,
+                        padding = padding,
+                        isHorizontal = isHorizontal,
+                        animationMode = animationMode,
+                        transitionMode = transitionMode,
+                        modifier = playerSize,
+                    )
+
+                    LaunchedEffect(isMirror, isHorizontal, animationMode, transitionMode) {
+                        alpha = 1f
+                    }
+
+                    DisposableEffect(isMirror, isHorizontal, animationMode, transitionMode) {
+                        onDispose {
+                            alpha = 0f
+                        }
+                    }
+                }
+            }
+        }
     }
 }
