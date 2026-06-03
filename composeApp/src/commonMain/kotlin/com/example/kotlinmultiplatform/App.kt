@@ -23,9 +23,7 @@ fun App() {
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
             )
-            SafeAreaLayout {
-                AppNavigation(modifier = Modifier.fillMaxSize())
-            }
+            AppNavigation(modifier = Modifier.fillMaxSize())
         }
     }
 }

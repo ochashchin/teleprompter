@@ -175,6 +175,7 @@ fun TextFitBox(
     padding:        Dp             = 10.dp,
     isHorizontal:   Boolean        = false,
     transitionMode: TransitionMode = TransitionMode.None,
+    preview:        Boolean        = false,
     modifier:       Modifier       = Modifier,
 ) {
     var currentPage  by remember(pages) { mutableIntStateOf(0) }
@@ -182,7 +183,7 @@ fun TextFitBox(
     val textMeasurer = rememberTextMeasurer()
 
     LaunchedEffect(pages, wpm, transitionMode) {
-        while (true) {
+        do {
             when (transitionMode) {
                 TransitionMode.None -> {
                     val hold = calculatePageDurationMs(pages[currentPage], wpm).coerceAtLeast(600L)
@@ -192,12 +193,12 @@ fun TextFitBox(
                 TransitionMode.Print,
                 TransitionMode.Fade -> {
                     progress.snapTo(0f)
-                    currentPage = (currentPage + 1) % pages.size
                     val hold = calculatePageDurationMs(pages[currentPage], wpm).coerceAtLeast(600L)
                     progress.animateTo(1f, tween(hold.toInt(), easing = LinearEasing))
+                    currentPage = (currentPage + 1) % pages.size
                 }
             }
-        }
+        } while (preview)
     }
 
     val rotatedModifier = if (isHorizontal) {
@@ -524,6 +525,7 @@ fun TextHorizontalScrollBox(
     transitionMode:  TransitionMode,
     isHorizontal:    Boolean,
     padding:         Dp       = 10.dp,
+    preview:         Boolean  = false,
     modifier:        Modifier = Modifier,
 ) {
     val textMeasurer = rememberTextMeasurer()   // must be at composable top level
@@ -541,7 +543,7 @@ fun TextHorizontalScrollBox(
 
         LaunchedEffect(textWidthPx, totalDurationMs) {
             if (textWidthPx <= 0f) return@LaunchedEffect
-            while (true) {
+            do {
                 val start = containerWidthPx
                 val end   = textWidthPx + containerWidthPx
                 offsetAnim.snapTo(start)
@@ -550,7 +552,7 @@ fun TextHorizontalScrollBox(
                     targetValue   = -end,
                     animationSpec = tween(totalDurationMs.toInt(), easing = LinearEasing)
                 )
-            }
+            } while (preview)
         }
 
         val rotatedModifier = if (isHorizontal) {
@@ -747,6 +749,7 @@ fun TextCentreVerticalScrollBox(
     isHorizontal:   Boolean,
     transitionMode: TransitionMode = TransitionMode.None,
     padding:        Dp             = 10.dp,
+    preview:        Boolean        = false,
     modifier:       Modifier       = Modifier,
 ) {
     val textMeasurer = rememberTextMeasurer()
@@ -833,7 +836,7 @@ fun TextCentreVerticalScrollBox(
         LaunchedEffect(textHeightPx, totalDurationMs, containerHeightPx) {
             if (textHeightPx <= 0f) return@LaunchedEffect
 
-            while (true) {
+            do {
                 val start = containerHeightPx
                 val end   = textHeightPx + containerHeightPx
 
@@ -846,7 +849,7 @@ fun TextCentreVerticalScrollBox(
                         easing         = LinearEasing,
                     )
                 )
-            }
+            } while (preview)
         }
 
         val rotatedModifier = if (isHorizontal) {
@@ -967,74 +970,70 @@ fun DisplayTextBar(
 ) {
     var result by remember { mutableStateOf<TextFitResult?>(null) }
 
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surface,
+    var alpha by remember { mutableFloatStateOf(1f) }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .graphicsLayer {
+                this.alpha = alpha
+                scaleX = if (isHorizontal) distortionMode else 1f
+                scaleY = if (isHorizontal) 1f else distortionMode
+            }
+            .fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
-        var alpha by remember { mutableFloatStateOf(1f) }
+        val playerSize = Modifier
+            .width(if (isHorizontal) maxWidth / distortionMode else maxWidth)
+            .height(if (isHorizontal) maxHeight else maxHeight / distortionMode)
 
         BoxWithConstraints(
             modifier = Modifier
                 .graphicsLayer {
-                    this.alpha = alpha
-                    scaleX = if (isHorizontal) distortionMode else 1f
-                    scaleY = if (isHorizontal) 1f else distortionMode
+                    scaleY = if (isMirror) -1f else 1f
                 }
                 .fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            val playerSize = Modifier
-                .width(if (isHorizontal) maxWidth / distortionMode else maxWidth)
-                .height(if (isHorizontal) maxHeight else maxHeight / distortionMode)
+            TextFitCalculator(
+                text = task.description,
+                fontSize = textStyle.fontSize,
+                lineHeight = textStyle.lineHeight,
+                padding = padding,
+                isHorizontal = isHorizontal,
+                modifier = playerSize,
+                onResult = { result = it },
+            )
 
-            BoxWithConstraints(
-                modifier = Modifier
-                    .graphicsLayer {
-                        scaleY = if (isMirror) -1f else 1f
-                    }
-                    .fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                TextFitCalculator(
-                    text = task.description,
-                    fontSize = textStyle.fontSize,
-                    lineHeight = textStyle.lineHeight,
+            result?.let { r ->
+                val pages = remember(r.pagesText, preview) {
+                    if (preview) r.pagesText.take(2) else r.pagesText
+                }
+                TextFitPlayer(
+                    result = r,
+                    pages = pages,
+                    wpm = wpm,
+                    textStyle = textStyle,
                     padding = padding,
                     isHorizontal = isHorizontal,
+                    animationMode = animationMode,
+                    transitionMode = transitionMode,
+                    preview = preview,
                     modifier = playerSize,
-                    onResult = { result = it },
                 )
 
-                result?.let { r ->
-                    val pages = remember(r.pagesText, preview) {
-                        if (preview) r.pagesText.take(2) else r.pagesText
-                    }
-                    TextFitPlayer(
-                        result = r,
-                        pages = pages,
-                        wpm = wpm,
-                        textStyle = textStyle,
-                        padding = padding,
-                        isHorizontal = isHorizontal,
-                        animationMode = animationMode,
-                        transitionMode = transitionMode,
-                        modifier = playerSize,
-                    )
+                LaunchedEffect(isMirror, isHorizontal, animationMode, transitionMode, distortionMode) {
+                    alpha = 1f
+                }
 
-                    LaunchedEffect(isMirror, isHorizontal, animationMode, transitionMode, distortionMode) {
-                        alpha = 1f
-                    }
-
-                    DisposableEffect(isMirror, isHorizontal, animationMode, transitionMode, distortionMode) {
-                        onDispose {
-                            alpha = 0f
-                        }
+                DisposableEffect(isMirror, isHorizontal, animationMode, transitionMode, distortionMode) {
+                    onDispose {
+                        alpha = 0f
                     }
                 }
             }
         }
     }
+
 }
 
 @Composable

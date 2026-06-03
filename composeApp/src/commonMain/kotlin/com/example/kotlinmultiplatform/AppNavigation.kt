@@ -1,6 +1,7 @@
 package com.example.kotlinmultiplatform
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,15 +31,17 @@ import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 // ── destinations ──────────────────────────────────────────────────────────────
 
 sealed interface Destination {
     data object TaskList  : Destination
     data object NewDetail : Destination
+    data class PlayDetail(val task: Task, val isPreview: Boolean = false) : Destination
     /** isPreview = true  → reached from NewTask via "Next" (transient preview)
      *  isPreview = false → reached by tapping a task in the list              */
-    data class  Detail(val task: Task, val isPreview: Boolean = false) : Destination
+    data class Detail(val task: Task, val isPreview: Boolean = false) : Destination
 }
 
 // ── Settings keys ─────────────────────────────────────────────────────────────
@@ -94,6 +98,10 @@ private val mockSeed = listOf(
     MockTask("Read book",     "Read 10 pages of Atomic Habits",          LeadingShapeType.DIAMOND),
 )
 
+// ── toolbar visibility constants ──────────────────────────────────────────────
+
+private const val TOOLBAR_VISIBLE_MS   = 3_000L
+
 // ── root ──────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -128,19 +136,13 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     // ── NewTask screen state ───────────────────────────────────────────────────
     val newTaskState = rememberNewTaskScreenState()
 
-    // The id of the task that was tapped from the list to open NewDetail.
-    // Stored once on item click and held stable for the entire edit session
-    // (including Back→re-edit→Next cycles). Null for fresh creates.
     var editingTaskId by remember { mutableStateOf<Int?>(null) }
-
-    // True when NewDetail was reached by coming back from Detail(isPreview=true) via Back.
-    // In this mode the fields are prefilled but nothing has actually changed,
-    // so the "unsaved changes" dialog must NOT be shown on Back.
     var isPreviewMode by remember { mutableStateOf(false) }
 
-    // Restore draft when navigating to NewDetail fresh (not from Preview prefill)
     LaunchedEffect(destination) {
-        if (destination == Destination.NewDetail && !isPreviewMode) newTaskState.restore()
+        if (destination == Destination.NewDetail && !isPreviewMode && editingTaskId == null) {
+            newTaskState.restore()
+        }
     }
 
     var showSaveDialog by remember { mutableStateOf(false) }
@@ -148,7 +150,45 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     val scope        = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    // ── Back from Detail(isPreview) → return to NewTaskScreen with topic & script intact ─
+    // ── Toolbar visibility state (player screen only) ─────────────────────────
+    //
+    // Owned here so both PlayerScreenStatic (toolbar layer) and PlayerScreenBody
+    // (tap layer) share the same state without any cross-composable state holder.
+    // Reset to hidden whenever we leave PlayDetail.
+
+    var playerToolbarVisible by remember { mutableStateOf(true) }
+    var playerHideDeadlineMs by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds() + TOOLBAR_VISIBLE_MS) }
+
+    LaunchedEffect(destination) {
+        if (destination is Destination.PlayDetail) {
+            playerToolbarVisible = true
+            playerHideDeadlineMs = Clock.System.now().toEpochMilliseconds() + TOOLBAR_VISIBLE_MS
+        } else {
+            playerToolbarVisible = false
+            playerHideDeadlineMs = 0L
+        }
+    }
+
+    // Countdown coroutine: re-launched on every deadline change.
+    LaunchedEffect(playerHideDeadlineMs) {
+        if (playerHideDeadlineMs <= 0L) return@LaunchedEffect
+        val remaining = playerHideDeadlineMs - Clock.System.now().toEpochMilliseconds()
+        if (remaining > 0) delay(remaining)
+        playerToolbarVisible = false
+    }
+
+    // Called by PlayerScreenBody on each tap.
+    val onToolbarTap: () -> Unit = {
+        val now = Clock.System.now().toEpochMilliseconds()
+        playerHideDeadlineMs = if (playerToolbarVisible) {
+            minOf(playerHideDeadlineMs + TOOLBAR_VISIBLE_MS, now + 3_000L)
+        } else {
+            playerToolbarVisible = true
+            now + TOOLBAR_VISIBLE_MS
+        }
+    }
+
+    // ── Back from Detail(isPreview) → return to NewTaskScreen ────────────────
     val onPreviewBack: (title: String, script: String) -> Unit = { title, script ->
         newTaskState.prefill(topic = title, script = script)
         isPreviewMode = true
@@ -200,37 +240,18 @@ fun AppNavigation(modifier: Modifier = Modifier) {
 
             isPreviewMode = false
 
-            // Resolve (or create) the task to preview so Detail has a real Task object.
             val previewTask =
                 if (editingTaskId != null) {
                     allTasks.first { it.id == editingTaskId }
                 } else {
                     val newId = nextId++
-
                     val shape = LeadingShapeType.random()
-
-                    writeTask(
-                        settings,
-                        newId,
-                        displayTitle,
-                        script,
-                        shape
-                    )
-
+                    writeTask(settings, newId, displayTitle, script, shape)
                     saveIds(settings, loadIds(settings) + newId)
                     settings[KEY_NEXT_ID] = nextId
-
                     editingTaskId = newId
-
-                    val task = Task(
-                        id = newId,
-                        title = displayTitle,
-                        description = script,
-                        leadingShape = shape
-                    )
-
+                    val task = Task(id = newId, title = displayTitle, description = script, leadingShape = shape)
                     allTasks.add(task)
-
                     task
                 }
 
@@ -341,6 +362,13 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                         { -> destination = Destination.TaskList },
                 )
                 is Destination.NewDetail -> NewTaskScreenStatic(onBack = onNewTaskBack)
+                is Destination.PlayDetail -> PlayerScreenStatic(
+                    taskId         = dest.task.id,
+                    toolbarVisible = playerToolbarVisible,
+                    onToolbarTap   = onToolbarTap,
+                    onBack         = { destination = Destination.Detail(dest.task, isPreview = dest.isPreview) },
+                    onClose        = { destination = Destination.TaskList },
+                )
             }
         },
         dynamicContent = { dest ->
@@ -355,11 +383,19 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     },
                     onNewClick   = {
                         editingTaskId = null
+                        newTaskState.clear()
                         destination   = Destination.NewDetail
                     },
                     modifier     = Modifier.fillMaxSize(),
                 )
                 is Destination.Detail    -> DisplayScreenBody(
+                    task     = dest.task,
+                    onPlayClick = {
+                        destination = Destination.PlayDetail(dest.task, dest.isPreview)
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+                is Destination.PlayDetail -> PlayerScreenBody(
                     task     = dest.task,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -393,41 +429,53 @@ fun AppNavigation(modifier: Modifier = Modifier) {
 
 @Composable
 private fun ScreenLayout(
-    destination   : Destination,
-    staticContent : @Composable (Destination) -> Unit,
+    destination: Destination,
+    staticContent: @Composable (Destination) -> Unit,
     dynamicContent: @Composable (Destination) -> Unit,
-    modifier      : Modifier = Modifier,
+    modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        AnimatedContent(
-            targetState    = destination,
-            transitionSpec = {
-                when {
-                    // Back from Detail(isPreview) to NewDetail: slide right-to-left (reverse)
-                    initialState is Destination.Detail &&
-                            (initialState as Destination.Detail).isPreview &&
-                            targetState is Destination.NewDetail ->
-                        slideInHorizontally(tween(350)) { -it } togetherWith
-                                slideOutHorizontally(tween(350)) { it }
-                    // Back to TaskList: slide right-to-left
-                    targetState is Destination.TaskList ->
-                        slideInHorizontally(tween(350)) { -it } togetherWith
-                                slideOutHorizontally(tween(350)) { it }
-                    // Forward: slide left-to-right
-                    else ->
-                        slideInHorizontally(tween(350)) { it }  togetherWith
-                                slideOutHorizontally(tween(350)) { -it }
-                }
-            },
-            label    = "dynamicLayer",
-            modifier = Modifier.fillMaxSize().padding(top = 64.dp),
-        ) { dest -> dynamicContent(dest) }
+    SafeAreaLayout {
+        Box(modifier = modifier.fillMaxSize()) {
+            AnimatedContent(
+                targetState = destination,
+                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
+                label = "staticLayer",
+                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)
+            ) { dest -> staticContent(dest) }
 
-        AnimatedContent(
-            targetState    = destination,
-            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
-            label          = "staticLayer",
-            modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-        ) { dest -> staticContent(dest) }
+            AnimatedContent(
+                targetState = destination,
+                transitionSpec = {
+                    when {
+                        // Back from Detail(isPreview) to NewDetail: slide right-to-left (reverse)
+                        initialState is Destination.Detail &&
+                                (initialState as Destination.Detail).isPreview &&
+                                targetState is Destination.NewDetail ->
+                            slideInHorizontally(tween(350)) { -it } togetherWith
+                                    slideOutHorizontally(tween(350)) { it }
+                        // Back to TaskList: slide right-to-left
+                        targetState is Destination.TaskList ->
+                            slideInHorizontally(tween(350)) { -it } togetherWith
+                                    slideOutHorizontally(tween(350)) { it }
+
+                        // Back from PlayDetail
+                        initialState is Destination.PlayDetail && targetState is Destination.Detail ->
+                            slideInHorizontally(tween(350)) { -it } togetherWith
+                                    slideOutHorizontally(tween(350)) { it } using
+                                    SizeTransform(clip = true)
+
+                        // Forward: slide left-to-right
+                        else ->
+                            slideInHorizontally(tween(350)) { it } togetherWith
+                                    slideOutHorizontally(tween(350)) { -it } using
+                                    SizeTransform(clip = true)
+                    }
+                },
+                label = "dynamicLayer",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = if (destination is Destination.PlayDetail) 0.dp else 64.dp),
+            ) { dest -> dynamicContent(dest) }
+        }
     }
 }

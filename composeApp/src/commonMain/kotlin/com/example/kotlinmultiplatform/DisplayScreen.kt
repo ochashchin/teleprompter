@@ -12,13 +12,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -65,7 +69,10 @@ data class DisplayTaskItem(
     val description: String,
     val options: List<String>,
     val defaultOption: String,
-)
+) {
+    /** Index of [defaultOption] within [options]. Falls back to 0 if not found. */
+    val defaultIndex: Int get() = options.indexOf(defaultOption).coerceAtLeast(0)
+}
 
 // ── Speed → WPM mapping ───────────────────────────────────────────────────────
 
@@ -73,10 +80,11 @@ private const val WPM_SLOW = 100
 private const val WPM_NORMAL = 130
 private const val WPM_FAST = 150
 
-fun speedLabelToWpm(label: String?): Int = when {
-    label.equals("Fast", ignoreCase = true) -> WPM_FAST
-    label.equals("Normal", ignoreCase = true) -> WPM_NORMAL
-    else -> WPM_SLOW   // "Slow" or unset
+// Speed options: index 0 = Slow, 1 = Normal, 2 = Fast
+fun speedIndexToWpm(index: Int): Int = when (index) {
+    2    -> WPM_FAST
+    1    -> WPM_NORMAL
+    else -> WPM_SLOW
 }
 
 
@@ -85,25 +93,25 @@ fun speedLabelToWpm(label: String?): Int = when {
 enum class AnimationMode { Frame, Scroll, Inline }
 enum class TransitionMode { None, Fade, Print }
 
-private fun animationModeOf(label: String?): AnimationMode = when {
-    label.equals("Scroll", ignoreCase = true) -> AnimationMode.Scroll
-    label.equals("Inline", ignoreCase = true) -> AnimationMode.Inline
+// Animation options: index 0 = Frame, 1 = Scroll, 2 = Inline
+fun animationModeOf(index: Int): AnimationMode = when (index) {
+    1    -> AnimationMode.Scroll
+    2    -> AnimationMode.Inline
     else -> AnimationMode.Frame
 }
 
-private fun transitionModeOf(label: String?): TransitionMode = when {
-    label.equals("Fade", ignoreCase = true) -> TransitionMode.Fade
-    label.equals("Print", ignoreCase = true) -> TransitionMode.Print
+// Transition options: index 0 = None, 1 = Fade, 2 = Print
+fun transitionModeOf(index: Int): TransitionMode = when (index) {
+    1    -> TransitionMode.Fade
+    2    -> TransitionMode.Print
     else -> TransitionMode.None
 }
 
-// ── Distortion → scaleY multiplier ───────────────────────────────────────────
-// 0° = 1.0  (no-op),  45° = 1.4,  70° = 2.9
-
-fun distortionValueOf(label: String?): Float = when {
-    label.equals("45°", ignoreCase = true) -> 1.4f
-    label.equals("70°", ignoreCase = true) -> 2.9f
-    else -> 1f   // "0°" or unset
+// Distortion options: index 0 = 0° (1.0f), 1 = 45° (1.4f), 2 = 70° (2.9f)
+fun distortionValueOf(index: Int): Float = when (index) {
+    1    -> 1.4f
+    2    -> 2.9f
+    else -> 1f
 }
 
 // ── TextPlayer — switches between Frame / Scroll / Inline ────────────────────
@@ -126,6 +134,7 @@ fun TextFitPlayer(
     isHorizontal: Boolean,
     animationMode: AnimationMode = AnimationMode.Frame,
     transitionMode: TransitionMode = TransitionMode.None,
+    preview: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
 
@@ -143,6 +152,7 @@ fun TextFitPlayer(
                     isHorizontal = isHorizontal,
                     wpm = wpm,
                     transitionMode = transitionMode,
+                    preview = preview,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -156,6 +166,7 @@ fun TextFitPlayer(
                     padding = padding,
                     isHorizontal = isHorizontal,
                     transitionMode = transitionMode,
+                    preview = preview,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -177,6 +188,7 @@ fun TextFitPlayer(
                     transitionMode = transitionMode,
                     isHorizontal = isHorizontal,
                     padding = padding,
+                    preview = preview,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -188,28 +200,32 @@ fun TextFitPlayer(
 
 @Composable
 fun DisplayScreenStatic(onBack: () -> Unit) {
-    ToolBar(
-        title = "Display",
-        onLeadingClick = onBack,
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-    )
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        ToolBar(
+            title = "Display",
+            onLeadingClick = onBack,
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+        )
+    }
 }
-
-private fun textSizeTriple(label: String?) =
-    NORMAL_SIZES.firstOrNull { it.first.equals(label, ignoreCase = true) }
-        ?: NORMAL_SIZES[1]   // fallback: "Normal"
 
 // ── DisplayScreenBody ─────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
+fun DisplayScreenBody(
+    task: Task,
+    onPlayClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
 
     val displayState = rememberDisplayTaskState(task.id)
 
@@ -221,62 +237,58 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
     val distortionItem  = DisplayTaskList.first { it.id == 6 }
     val mirrorItem      = DisplayTaskList.first { it.id == 7 }
 
-    var selectedSizeLabel by remember {
+    var selectedSizeIndex        by remember {
         mutableStateOf(
-            displayState.selectedOption(textSizeItem)
-                ?: textSizeItem.defaultOption
+            displayState.selectedIndex(textSizeItem) ?: textSizeItem.defaultIndex
         )
     }
 
-    var selectedOrientationLabel by remember {
+    var selectedOrientationIndex by remember {
         mutableStateOf(
-            displayState.selectedOption(orientationItem)
-                ?: orientationItem.defaultOption
+            displayState.selectedIndex(orientationItem) ?: orientationItem.defaultIndex
         )
     }
 
-    var selectedSpeedLabel by remember {
+    var selectedSpeedIndex       by remember {
         mutableStateOf(
-            displayState.selectedOption(speedItem)
-                ?: speedItem.defaultOption
+            displayState.selectedIndex(speedItem) ?: speedItem.defaultIndex
         )
     }
 
-    var selectedAnimationLabel by remember {
+    var selectedAnimationIndex   by remember {
         mutableStateOf(
-            displayState.selectedOption(animationItem)
-                ?: animationItem.defaultOption
+            displayState.selectedIndex(animationItem) ?: animationItem.defaultIndex
         )
     }
 
-    var selectedTransitionLabel by remember {
+    var selectedTransitionIndex  by remember {
         mutableStateOf(
-            displayState.selectedOption(transitionItem)
-                ?: transitionItem.defaultOption
+            displayState.selectedIndex(transitionItem) ?: transitionItem.defaultIndex
         )
     }
 
-    var selectedDistortionLabel by remember {
+    var selectedDistortionIndex  by remember {
         mutableStateOf(
-            displayState.selectedOption(distortionItem)
-                ?: distortionItem.defaultOption
+            displayState.selectedIndex(distortionItem) ?: distortionItem.defaultIndex
         )
     }
 
-    var selectedMirrorLabel by remember {
+    var selectedMirrorIndex      by remember {
         mutableStateOf(
-            displayState.selectedOption(mirrorItem)
-                ?: mirrorItem.defaultOption
+            displayState.selectedIndex(mirrorItem) ?: mirrorItem.defaultIndex
         )
     }
 
-    val isHorizontal    = selectedOrientationLabel.equals("Horizontal", ignoreCase = true)
-    val animationMode   = animationModeOf(selectedAnimationLabel)
-    val transitionMode  = transitionModeOf(selectedTransitionLabel)
-    val distortionMode  = distortionValueOf(selectedDistortionLabel)
-    val isMirror        = selectedMirrorLabel.equals("Enabled", ignoreCase = true)
+    // Orientation: index 0 = Vertical, 1 = Horizontal
+    val isHorizontal    = selectedOrientationIndex == 1
+    val animationMode   = animationModeOf(selectedAnimationIndex)
+    val transitionMode  = transitionModeOf(selectedTransitionIndex)
+    val distortionMode  = distortionValueOf(selectedDistortionIndex)
+    // Mirror: index 0 = Disabled, 1 = Enabled
+    val isMirror        = selectedMirrorIndex == 1
 
-    val (_, fontSizeDp, lineHeightDp) = textSizeTriple(selectedSizeLabel)
+    val (_, fontSizeDp, lineHeightDp) = NORMAL_SIZES.getOrNull(selectedSizeIndex)
+        ?: NORMAL_SIZES[1]   // fallback: "Normal"
 
     val textStyle = MaterialTheme.typography.bodyMediumEmphasized.copy(
         fontSize   = fontSize(fontSizeDp),
@@ -284,48 +296,72 @@ fun DisplayScreenBody(task: Task, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.onSurface
     )
 
-    val wpm = speedLabelToWpm(selectedSpeedLabel)
+    val wpm = speedIndexToWpm(selectedSpeedIndex)
 
     val previewPadding = 10.dp
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        // ── Preview surface ──────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .height(180.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            DisplayTextBar(
-                task           = task,
-                wpm            = wpm,
-                textStyle      = textStyle,
-                padding        = previewPadding,
-                isHorizontal   = isHorizontal,
-                isMirror       = isMirror,
-                distortionMode = distortionMode,
-                animationMode  = animationMode,
-                transitionMode = transitionMode,
-                preview        = true,
-                modifier       = modifier,
+    Box(modifier = modifier.fillMaxWidth()) {
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // ── Preview surface ──────────────────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(180.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    modifier = modifier,
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    DisplayTextBar(
+                        task           = task,
+                        wpm            = wpm,
+                        textStyle      = textStyle,
+                        padding        = previewPadding,
+                        isHorizontal   = isHorizontal,
+                        isMirror       = isMirror,
+                        distortionMode = distortionMode,
+                        animationMode  = animationMode,
+                        transitionMode = transitionMode,
+                        preview        = true,
+                        modifier       = modifier,
+                    )
+                }
+            }
+            // ── Settings list ────────────────────────────────────────────────
+            SegmentedList(
+                items         = DisplayTaskList,
+                displayState  = displayState,
+                modifier      = modifier.padding(top = 8.dp),
+                onSelectionChanged = { item, index ->
+                    when (item.id) {
+                        1 -> selectedSizeIndex        = index
+                        2 -> selectedOrientationIndex = index
+                        3 -> selectedSpeedIndex       = index
+                        4 -> selectedAnimationIndex   = index
+                        5 -> selectedTransitionIndex  = index
+                        6 -> selectedDistortionIndex  = index
+                        7 -> selectedMirrorIndex      = index
+                    }
+                }
             )
         }
-        // ── Settings list ────────────────────────────────────────────────────
-        SegmentedList(
-            items         = DisplayTaskList,
-            displayState  = displayState,
-            modifier      = modifier.padding(top = 8.dp),
-            onSelectionChanged = { item, option ->
-                if (item.id == 1) selectedSizeLabel        = option
-                if (item.id == 2) selectedOrientationLabel = option
-                if (item.id == 3) selectedSpeedLabel       = option
-                if (item.id == 4) selectedAnimationLabel   = option
-                if (item.id == 5) selectedTransitionLabel  = option
-                if (item.id == 6) selectedDistortionLabel  = option
-                if (item.id == 7) selectedMirrorLabel      = option
+
+        // ── Play FAB ─────────────────────────────────────────────────────────
+        FabBarLayout(
+            text    = "Play",
+            onClick = onPlayClick,
+            modifier = Modifier.fillMaxSize(),
+            icon = {
+                Icon(
+                    imageVector        = Icons.AutoMirrored.Rounded.ArrowForward,
+                    contentDescription = "Play",
+                    tint               = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier           = Modifier.size(24.dp),
+                )
             }
         )
     }
@@ -337,7 +373,7 @@ fun SegmentedListItem(
     displayState: DisplayTaskState,
     shape: Shape,
     modifier: Modifier = Modifier,
-    onSelectionChanged: (DisplayTaskItem, String) -> Unit = { _, _ -> },
+    onSelectionChanged: (DisplayTaskItem, Int) -> Unit = { _, _ -> },
 ) {
     // null = user never selected anything
     var selectedOption by remember(
@@ -454,7 +490,7 @@ fun SegmentedListItem(
                                                 item        = item,
                                                 optionIndex = index
                                             )
-                                            onSelectionChanged(item, option)
+                                            onSelectionChanged(item, index)
                                             menuExpanded = false
                                         },
                                     )
@@ -475,7 +511,7 @@ fun SegmentedList(
     items: List<DisplayTaskItem>,
     displayState: DisplayTaskState,
     modifier: Modifier = Modifier,
-    onSelectionChanged: (DisplayTaskItem, String) -> Unit = { _, _ -> },
+    onSelectionChanged: (DisplayTaskItem, Int) -> Unit = { _, _ -> },
 ) {
     LazyColumn(
         modifier        = modifier.fillMaxSize(),
@@ -599,7 +635,7 @@ private val previewTask2 = Task(
 private fun DisplayScreenPreview(task: Task) {
     Column(modifier = Modifier.fillMaxWidth()) {
         DisplayScreenStatic(onBack = {})
-        DisplayScreenBody(task = task, modifier = Modifier.fillMaxWidth())
+        DisplayScreenBody(task = task, onPlayClick = {}, modifier = Modifier.fillMaxWidth())
     }
 }
 

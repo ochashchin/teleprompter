@@ -51,12 +51,12 @@ fun FabBarLayout(
                         .aspectRatio(216f / 80f)
                         .align(Alignment.CenterStart)
                 ) {
-                    val fontSize = fontSize(22.dp)
+                    val fontSize = fontSize(20.dp)
                     ExtendedFloatingActionButton(
                         onClick = onClick,
                         modifier = Modifier
                             .fillMaxHeight()
-                            .padding(end = 40.dp)
+                            .padding(end = 36.dp)
                             .align(Alignment.CenterEnd),
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(25),

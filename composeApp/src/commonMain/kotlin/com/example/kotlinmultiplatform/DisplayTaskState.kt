@@ -29,20 +29,17 @@ class DisplayTaskState(
      *   Task(id=7) → DisplayTaskItem(id=2) → stored key index=1
      *   → reads "display_task_7_item_2_itemOpt_1" → returns item.options[1]
      */
-    fun selectedOption(item: DisplayTaskItem): String? {
-
-        val selectedIndex = item.options.indices.firstOrNull { index ->
-            settings.getBooleanOrNull(
-                settingsKey(
-                    taskId,
-                    item.id,
-                    index
-                )
-            ) == true
+    /**
+     * Returns the persisted option index for [item],
+     * or null if the user has never made a selection.
+     */
+    fun selectedIndex(item: DisplayTaskItem): Int? =
+        item.options.indices.firstOrNull { index ->
+            settings.getBooleanOrNull(settingsKey(taskId, item.id, index)) == true
         }
 
-        return selectedIndex?.let { item.options[it] }
-    }
+    fun selectedOption(item: DisplayTaskItem): String? =
+        selectedIndex(item)?.let { item.options[it] }
 
     fun setSelection(
         item: DisplayTaskItem,
