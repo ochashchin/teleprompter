@@ -397,6 +397,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                 )
                 is Destination.PlayDetail -> PlayerScreenBody(
                     task     = dest.task,
+                    onReadingComplete = { playerToolbarVisible = true },
                     modifier = Modifier.fillMaxSize(),
                 )
                 is Destination.NewDetail -> NewTaskScreenBody(

@@ -25,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -119,6 +117,7 @@ fun PlayerScreenStatic(
 fun PlayerScreenBody(
     task: Task,
     modifier: Modifier = Modifier,
+    onReadingComplete: () -> Unit = {},
 ) {
     val displayState = rememberDisplayTaskState(task.id)
 
@@ -162,14 +161,14 @@ fun PlayerScreenBody(
 
     // ── Countdown state ───────────────────────────────────────────────────────
 
-    val countdownDurationMs = 3000
+    val countdownDurationMs = 3000L
     val progress            = remember { Animatable(1f) }
     var countdownFinished   by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         progress.animateTo(
             targetValue   = 0f,
-            animationSpec = tween(durationMillis = countdownDurationMs, easing = LinearEasing),
+            animationSpec = tween(durationMillis = countdownDurationMs.toInt(), easing = LinearEasing),
         )
         countdownFinished = true
     }
@@ -189,17 +188,18 @@ fun PlayerScreenBody(
             contentAlignment = Alignment.Center,
         ) {
             DisplayTextBar(
-                task = task,
-                wpm = wpm,
-                textStyle = textStyle,
-                padding = previewPadding,
-                isHorizontal = isHorizontal,
-                isMirror = isMirror,
-                distortionMode = distortionMode,
-                animationMode = animationMode,
-                transitionMode = transitionMode,
-                preview = false,
-                modifier = modifier,
+                task                = task,
+                wpm                 = wpm,
+                textStyle           = textStyle,
+                padding             = previewPadding,
+                isHorizontal        = isHorizontal,
+                isMirror            = isMirror,
+                distortionMode      = distortionMode,
+                animationMode       = animationMode,
+                transitionMode      = transitionMode,
+                preview             = false,
+                modifier            = modifier,
+                onAnimationComplete = onReadingComplete,
             )
         }
 

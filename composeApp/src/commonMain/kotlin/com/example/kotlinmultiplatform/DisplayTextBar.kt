@@ -220,22 +220,28 @@ fun TextFitCalculator(
 
 @Composable
 fun TextFitBox(
-    pages:          List<String>,
-    linesPerParent: Int,
-    textStyle:      TextStyle,
-    wpm:            Int,
-    padding:        Dp             = 10.dp,
-    isHorizontal:   Boolean        = false,
-    transitionMode: TransitionMode = TransitionMode.None,
-    preview:        Boolean        = false,
-    modifier:       Modifier       = Modifier,
+    pages:               List<String>,
+    linesPerParent:      Int,
+    textStyle:           TextStyle,
+    wpm:                 Int,
+    padding:             Dp             = 10.dp,
+    isHorizontal:        Boolean        = false,
+    transitionMode:      TransitionMode = TransitionMode.None,
+    preview:             Boolean        = false,
+    modifier:            Modifier       = Modifier,
+    onAnimationComplete: (() -> Unit)?  = null,
 ) {
     var currentPage  by remember(pages) { mutableIntStateOf(0) }
     val progress     = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
+    var alpha by remember { mutableFloatStateOf(1f) }
 
     LaunchedEffect(pages, wpm, transitionMode, preview) {
-        if (!preview) delay(4000L)
+        if (!preview) {
+            alpha = 0f
+            delay(4000L)
+            alpha = 1f
+        }
 
         while (true) {
 
@@ -256,6 +262,7 @@ fun TextFitBox(
             }
 
             if (currentPage == pages.lastIndex && !preview) {
+                onAnimationComplete?.invoke()
                 break
             }
 
@@ -291,6 +298,7 @@ fun TextFitBox(
     BoxWithConstraints(
         modifier         = rotatedModifier
             .padding(padding)
+            .graphicsLayer(alpha = alpha)
             .fillMaxSize(),
         contentAlignment = Alignment.TopStart,
     ) {
@@ -483,14 +491,15 @@ fun TextFitBox(
 
 @Composable
 fun TextHorizontalScrollBox(
-    pages:          List<String>,
-    wpm:            Int,
-    textStyle:      TextStyle,
-    transitionMode: TransitionMode,
-    isHorizontal:   Boolean,
-    padding:        Dp       = 10.dp,
-    preview:        Boolean  = false,
-    modifier:       Modifier = Modifier,
+    pages:               List<String>,
+    wpm:                 Int,
+    textStyle:           TextStyle,
+    transitionMode:      TransitionMode,
+    isHorizontal:        Boolean,
+    padding:             Dp       = 10.dp,
+    preview:             Boolean  = false,
+    modifier:            Modifier = Modifier,
+    onAnimationComplete: (() -> Unit)?  = null,
 ) {
     val totalDurationMs = remember(pages, wpm) { inlinePlayerDurationMs(pages, wpm) }
     val text            = pages
@@ -537,6 +546,7 @@ fun TextHorizontalScrollBox(
                     animationSpec = tween(totalDurationMs.toInt(), easing = LinearEasing)
                 )
             } while (preview)
+            onAnimationComplete?.invoke()
         }
 
         val rotatedModifier = if (isHorizontal) {
@@ -706,10 +716,12 @@ fun TextCentreVerticalScrollBox(
     wpm:            Int,
     textStyle:      TextStyle,
     isHorizontal:   Boolean,
-    transitionMode: TransitionMode = TransitionMode.None,
-    padding:        Dp             = 10.dp,
-    preview:        Boolean        = false,
-    modifier:       Modifier       = Modifier,
+    transitionMode:      TransitionMode = TransitionMode.None,
+    padding:             Dp             = 10.dp,
+    preview:             Boolean        = false,
+    trim:                Boolean        = true,
+    modifier:            Modifier       = Modifier,
+    onAnimationComplete: (() -> Unit)?  = null,
 ) {
     val textMeasurer = rememberTextMeasurer()
     var alpha by remember { mutableFloatStateOf(1f) }
@@ -790,22 +802,111 @@ fun TextCentreVerticalScrollBox(
             }
 
             raw.mapIndexed { idx, ld ->
-                val nextFadeIn = raw.getOrNull(idx + 1)?.fadeInOffset ?: ld.fadeOutOffset
+
+                val nextFadeIn = raw.getOrNull(idx + 1)?.fadeInOffset ?: run {
+                    val spacing = if (idx > 0) {
+                        raw[idx - 1].fadeInOffset - raw[idx].fadeInOffset
+                    } else {
+                        containerHeightPx * 0.1f
+                    }
+
+                    raw[idx].fadeInOffset - spacing
+                }
+
                 ld.copy(nextFadeInOffset = nextFadeIn)
             }
         }
+
+        // ── Trim offsets ──────────────────────────────────────────────────────
+        // trim=true removes dead scroll at whichever ends are relevant per mode:
+        //   None  → trimStart=false, trimEnd=false  (no fade window, nothing to trim)
+        //   Fade  → trimStart=true,  trimEnd=true   (trim both ends)
+        //   Print → trimStart=true,  trimEnd=false  (no fade-out, only trim entry)
+        val doTrimStart = trim && when (transitionMode) {
+            TransitionMode.Fade,
+            TransitionMode.Print -> true
+            TransitionMode.None  -> false
+        }
+        val doTrimEnd = trim && when (transitionMode) {
+            TransitionMode.Fade  -> true
+            TransitionMode.Print,
+            TransitionMode.None  -> false
+        }
+
+        data class TrimOffsets(val startOffset: Float?, val endOffset: Float?)
+
+        val trimOffsets: TrimOffsets? = remember(
+            lineDataList, containerHeightPx, transitionMode, doTrimStart, doTrimEnd,
+        ) {
+            if ((!doTrimStart && !doTrimEnd) || lineDataList.isEmpty()) return@remember null
+
+            val firstLine = lineDataList.first()
+            val lastLine  = lineDataList.last()
+
+            // ── fade-band helper ──────────────────────────────────────────────
+            fun fadeBandFor(ld: ScrollLineData): Float {
+                val fadeWindow  = ld.fadeInOffset - ld.nextFadeInOffset
+                val staggerSpan = (fadeWindow * 0.60f).coerceAtLeast(1f)
+                return (staggerSpan / 2f).coerceAtLeast(1f)
+            }
+
+            // ── Start trim ────────────────────────────────────────────────────
+            // Snap to the first-line fade trigger (index 0, no stagger subtracted)
+            // so there is zero dead scroll before the first character appears.
+            val startOffset: Float? = if (doTrimStart) firstLine.fadeInOffset else null
+
+            // ── End trim ──────────────────────────────────────────────────────
+            // The last line has no real successor, so its nextFadeInOffset is patched
+            // to equal fadeInOffset (see lineDataList build). This means:
+            //   • fadeWindow = 0  →  staggerSpan/fadeBand collapse to 1f (coerce floor)
+            //   • fade-out triggers immediately as the line reaches the reading centre
+            //   • fade-out completes in ~1px of scroll travel
+            //
+            // Fade:  add half-container buffer past fadeInOffset so the last line
+            //        is visible at centre and its instant fade-out finishes completely.
+            // Print: no fade-out — stop when the last character has fully faded in.
+            //        Borrow fadeBand from the second-to-last line (real fadeWindow)
+            //        since the last line's own band is the collapsed 1f floor.
+            val endOffset: Float? = if (doTrimEnd) {
+                if (transitionMode == TransitionMode.Print) {
+                    val refLine     = lineDataList.getOrElse(lineDataList.lastIndex - 1) { lastLine }
+                    val fadeBand    = fadeBandFor(refLine)
+                    val staggerSpan = fadeBand * 2f
+                    val n           = lastLine.lineText.length.coerceAtLeast(1)
+                    val fadeInStart_lastChar = lastLine.fadeInOffset - staggerSpan * (n - 1) / n
+                    fadeInStart_lastChar - fadeBand
+                } else {
+                    // Fade — half-container buffer ensures the last line reaches the
+                    // reading centre and its fade-out fully completes.
+                    lastLine.fadeInOffset - containerHeightPx / 2f
+                }
+            } else null
+
+            TrimOffsets(startOffset, endOffset)
+        }
+
         // Pixel velocity derived from wpm: totalDurationMs scales with total scroll distance
         // so the reading speed in words/min matches wpm regardless of text length.
-        val totalDurationMs: Long = remember(textHeightPx, containerHeightPx, wpm, fullText) {
+        // When start/end are trimmed the duration is scaled to the actual travel distance
+        // so WPM is preserved.
+        val totalDurationMs: Long = remember(textHeightPx, containerHeightPx, wpm, fullText, trimOffsets) {
             if (textHeightPx <= 0f || containerHeightPx <= 0f) return@remember 3000L
             val textDurationMs = calculatePageDurationMs(fullText, wpm).coerceAtLeast(1000L)
-            val totalDistance  = textHeightPx + containerHeightPx * 2f
-            (textDurationMs * totalDistance / textHeightPx.coerceAtLeast(1f)).toLong()
+            val fullDistance   = textHeightPx + containerHeightPx * 2f
+
+            val effectiveStart = trimOffsets?.startOffset ?: containerHeightPx
+            val effectiveEnd   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
+            // travel distance = start − (−|end|) = start + |end|; but endOffset may be
+            // negative (text scrolled past centre), so: distance = start − endOffset
+            val trimmedDistance = (effectiveStart - effectiveEnd).coerceAtLeast(1f)
+
+            (textDurationMs * trimmedDistance / textHeightPx.coerceAtLeast(1f)).toLong()
         }
 
         // Single constant-velocity animateTo — same structure as TextHorizontalScrollBox.
         // start/end match exactly: text enters from below, exits above.
-        LaunchedEffect(textHeightPx, totalDurationMs, containerHeightPx) {
+        // trimStart/trimEnd independently control whether each end is clipped.
+        LaunchedEffect(textHeightPx, totalDurationMs, containerHeightPx, trimOffsets) {
             if (textHeightPx <= 0f) return@LaunchedEffect
             if (!preview) {
                 alpha = 0f
@@ -813,18 +914,19 @@ fun TextCentreVerticalScrollBox(
                 alpha = 1f
             }
             do {
-                val start = containerHeightPx
-                val end   = textHeightPx + containerHeightPx
+                val start = trimOffsets?.startOffset ?: containerHeightPx
+                val end   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
 
                 offsetAnim.snapTo(start)
 
                 offsetAnim.animateTo(
-                    targetValue   = -end,
+                    targetValue   = end,
                     animationSpec = tween(
                         durationMillis = totalDurationMs.toInt(),
                         easing         = LinearEasing,
                     )
                 )
+                onAnimationComplete?.invoke()
             } while (preview)
         }
 
@@ -1099,17 +1201,18 @@ private fun LineAnimCanvas(
 // SizeSection — one labelled group in the preview
 @Composable
 fun DisplayTextBar(
-    task: Task,
-    wpm: Int,
-    textStyle: TextStyle,
-    padding: Dp,
-    isHorizontal: Boolean,
-    isMirror: Boolean,
-    distortionMode: Float,
-    animationMode: AnimationMode,
-    transitionMode: TransitionMode,
-    preview: Boolean = true,
-    modifier: Modifier = Modifier,
+    task:                Task,
+    wpm:                 Int,
+    textStyle:           TextStyle,
+    padding:             Dp,
+    isHorizontal:        Boolean,
+    isMirror:            Boolean,
+    distortionMode:      Float,
+    animationMode:       AnimationMode,
+    transitionMode:      TransitionMode,
+    preview:             Boolean        = true,
+    modifier:            Modifier       = Modifier,
+    onAnimationComplete: (() -> Unit)?  = null,
 ) {
     var result by remember { mutableStateOf<TextFitResult?>(null) }
 
@@ -1162,6 +1265,7 @@ fun DisplayTextBar(
                     transitionMode = transitionMode,
                     preview = preview,
                     modifier = playerSize,
+                    onAnimationComplete = onAnimationComplete,
                 )
 
                 LaunchedEffect(isMirror, isHorizontal, animationMode, transitionMode, distortionMode) {

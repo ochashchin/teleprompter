@@ -121,16 +121,17 @@ fun distortionValueOf(index: Int): Float = when (index) {
 
 @Composable
 fun TextFitPlayer(
-    wpm: Int,
-    padding: Dp,
-    result: TextFitResult,
-    pages: List<String>,
-    textStyle: TextStyle,
-    isHorizontal: Boolean,
-    animationMode: AnimationMode = AnimationMode.Frame,
-    transitionMode: TransitionMode = TransitionMode.None,
-    preview: Boolean = false,
-    modifier: Modifier = Modifier,
+    wpm:                 Int,
+    padding:             Dp,
+    result:              TextFitResult,
+    pages:               List<String>,
+    textStyle:           TextStyle,
+    isHorizontal:        Boolean,
+    animationMode:       AnimationMode  = AnimationMode.Frame,
+    transitionMode:      TransitionMode = TransitionMode.None,
+    preview:             Boolean        = false,
+    modifier:            Modifier       = Modifier,
+    onAnimationComplete: (() -> Unit)?  = null,
 ) {
 
     Box(modifier = modifier) {
@@ -149,6 +150,7 @@ fun TextFitPlayer(
                     transitionMode = transitionMode,
                     preview = preview,
                     modifier = Modifier.fillMaxSize(),
+                    onAnimationComplete = onAnimationComplete,
                 )
             }
 
@@ -163,6 +165,7 @@ fun TextFitPlayer(
                     transitionMode = transitionMode,
                     preview = preview,
                     modifier = Modifier.fillMaxSize(),
+                    onAnimationComplete = onAnimationComplete,
                 )
             }
 
@@ -177,6 +180,7 @@ fun TextFitPlayer(
                     padding = padding,
                     preview = preview,
                     modifier = Modifier.fillMaxSize(),
+                    onAnimationComplete = onAnimationComplete,
                 )
             }
         }
