@@ -118,11 +118,6 @@ fun distortionValueOf(index: Int): Float = when (index) {
 //
 // Callers supply the exact pages list; preview vs full is the caller's concern.
 
-private fun inlinePlayerDurationMs(pages: List<String>, wpm: Int): Long {
-    val page            = calculatePageDurationMs(pages[0], wpm)
-    val frameDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) }
-    return frameDurationMs + page * 2
-}
 
 @Composable
 fun TextFitPlayer(
@@ -173,17 +168,9 @@ fun TextFitPlayer(
 
             // ── Inline: horizontal auto-scroll ────────────────────────────────────
             AnimationMode.Inline -> {
-
-                val totalDurationMs = inlinePlayerDurationMs(pages, wpm)
-
                 TextHorizontalScrollBox(
-                    totalDurationMs = totalDurationMs,
-                    text = remember(pages) {
-                        pages
-                            .joinToString(separator = " ")
-                            .replace("\r", "")
-                            .replace("\n", "")
-                    },
+                    pages = pages,
+                    wpm = wpm,
                     textStyle = textStyle,
                     transitionMode = transitionMode,
                     isHorizontal = isHorizontal,
@@ -300,7 +287,10 @@ fun DisplayScreenBody(
 
     val previewPadding = 10.dp
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    Box(modifier = modifier
+        .padding(top = 64.dp)
+        .fillMaxWidth()
+    ) {
 
         Column(modifier = Modifier.fillMaxWidth()) {
             // ── Preview surface ──────────────────────────────────────────────

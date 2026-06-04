@@ -3,12 +3,14 @@ package com.example.kotlinmultiplatform
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -34,13 +36,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,25 +75,66 @@ data class TextFitResult(
 )
 
 data class ScrollLineData(
-    val lineText:          String,
-    val lineTopPx:         Float,
-    val lineBottomPx:      Float,
-    val fadeInOffset:      Float,   // offsetAnim when this line starts fading in
-    val fadeOutOffset:     Float,   // offsetAnim when this line finishes fading out (geometry fallback for last line)
-    val nextFadeInOffset:  Float,   // fadeInOffset of the next line — fade-out of this line ends here
+    val lineText:         String,
+    val lineTopPx:        Float,
+    val lineBottomPx:     Float,
+    val fadeInOffset:     Float,
+    val fadeOutOffset:    Float,
+    val nextFadeInOffset: Float,
+    val layout:           TextLayoutResult,
+    val charBounds:       Array<Rect>,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ScrollLineData) return false
+        return lineText         == other.lineText         &&
+                lineTopPx        == other.lineTopPx        &&
+                lineBottomPx     == other.lineBottomPx     &&
+                fadeInOffset     == other.fadeInOffset     &&
+                fadeOutOffset    == other.fadeOutOffset    &&
+                nextFadeInOffset == other.nextFadeInOffset &&
+                layout           == other.layout           &&
+                charBounds.contentEquals(other.charBounds)
+    }
+    override fun hashCode(): Int {
+        var r = lineText.hashCode()
+        r = 31 * r + lineTopPx.hashCode()
+        r = 31 * r + lineBottomPx.hashCode()
+        r = 31 * r + fadeInOffset.hashCode()
+        r = 31 * r + fadeOutOffset.hashCode()
+        r = 31 * r + nextFadeInOffset.hashCode()
+        r = 31 * r + layout.hashCode()
+        r = 31 * r + charBounds.contentHashCode()
+        return r
+    }
+}
+
+// ── Cached per-glyph data stored at page-build time ──────────────────────
+data class GlyphTiming(
+    val inTrigger:  Float,
+    val inEnd:      Float,
+    val outTrigger: Float,
+    val outEnd:     Float,
 )
 
-private data class GlyphTiming(
-    val inTrigger:  Float,   // progress when glyph starts fading in
-    val inEnd:      Float,   // progress when glyph is fully visible
-    val outTrigger: Float,   // progress when glyph starts fading out (Fade only)
-    val outEnd:     Float,   // progress when glyph is invisible      (Fade only)
+// NEW: store the bounding rect alongside timing so we never call
+// getBoundingBox() inside the draw loop.
+data class GlyphDrawInfo(
+    val timing: GlyphTiming,
+    val bounds: Rect,           // cached from getBoundingBox() at build time
+    val char:   Char,
+    val stringIndex: Int,
 )
 
-private data class FrameDrawState(
-    val text:    String,
-    val layout:  androidx.compose.ui.text.TextLayoutResult,
-    val timings: List<GlyphTiming?>,   // index = string index; null for spaces
+data class FrameDrawState(
+    val text:   String,
+    val layout: TextLayoutResult,
+    // Replaces List<GlyphTiming?> — only non-space glyphs, pre-filtered
+    val glyphs: List<GlyphDrawInfo>,
+    // Pre-cached color components to avoid Color.copy() allocation in draw
+    val colorR: Float,
+    val colorG: Float,
+    val colorB: Float,
 )
 
 fun calculateTextFit(
@@ -182,23 +234,33 @@ fun TextFitBox(
     val progress     = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
 
-    LaunchedEffect(pages, wpm, transitionMode) {
-        do {
+    LaunchedEffect(pages, wpm, transitionMode, preview) {
+        if (!preview) delay(4000L)
+
+        while (true) {
+
+            val page = pages.getOrNull(currentPage) ?: break
+
             when (transitionMode) {
                 TransitionMode.None -> {
-                    val hold = calculatePageDurationMs(pages[currentPage], wpm).coerceAtLeast(600L)
+                    val hold = calculatePageDurationMs(page, wpm).coerceAtLeast(600L)
                     delay(hold)
-                    currentPage = (currentPage + 1) % pages.size
                 }
+
                 TransitionMode.Print,
                 TransitionMode.Fade -> {
                     progress.snapTo(0f)
-                    val hold = calculatePageDurationMs(pages[currentPage], wpm).coerceAtLeast(600L)
+                    val hold = calculatePageDurationMs(page, wpm).coerceAtLeast(600L)
                     progress.animateTo(1f, tween(hold.toInt(), easing = LinearEasing))
-                    currentPage = (currentPage + 1) % pages.size
                 }
             }
-        } while (preview)
+
+            if (currentPage == pages.lastIndex && !preview) {
+                break
+            }
+
+            currentPage = (currentPage + 1) % pages.size
+        }
     }
 
     val rotatedModifier = if (isHorizontal) {
@@ -243,74 +305,46 @@ fun TextFitBox(
 
             TransitionMode.Print,
             TransitionMode.Fade -> {
-                val contentColor   = textStyle.color.takeOrElse { LocalContentColor.current }
-                val density        = LocalDensity.current
+                val density = LocalDensity.current
                 val contentWidthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
+                val contentColor = textStyle.color.takeOrElse { LocalContentColor.current }
 
-                // ── DrawState ────────────────────────────────────────────────────
-                //
-                // charProgress[s]: the natural arrival time (in [0,1]) of the glyph
-                // at string index s, proportional to how long it takes to read up to
-                // that point (including punctuation pauses before it).
-                //
-                // Average glyph window = 1/n where n = non-space count.
-                //
-                // fadeBand  = 30% of average glyph window — the ramp width.
-                // pauseSpan = 40% of average glyph window — guaranteed visible phase.
-                //
-                // These ratios mirror LineFadeText:
-                //   staggerSpan = fadeWindow * 0.60  →  ramp + stagger fills 60%
-                //   fadeBand    = staggerSpan / 2    →  ramp is half the stagger span
-                //   visiblePause ≈ fadeWindow * 0.70 →  char visible for 70% of its window
-                // ─────────────────────────────────────────────────────────────────
-
+                // ── Build-time state (unchanged from original) ──────────────────────
                 val drawState = remember(pageText, textStyle, contentWidthPx, linesPerParent, wpm) {
+
                     val layout = textMeasurer.measure(
-                        text        = pageText,
-                        style       = textStyle,
+                        text = pageText,
+                        style = textStyle,
                         constraints = Constraints(maxWidth = contentWidthPx),
-                        overflow    = TextOverflow.Clip,
-                        maxLines    = linesPerParent,
+                        overflow = TextOverflow.Clip,
+                        maxLines = linesPerParent,
                     )
 
-                    val holdMs    = calculatePageDurationMs(pageText, wpm).coerceAtLeast(1L).toFloat()
+                    val holdMs = calculatePageDurationMs(pageText, wpm).coerceAtLeast(1L).toFloat()
                     val msPerWord = if (wpm > 0) 60_000f / wpm else 500f
 
-                    // ── Per-letter arrival time ───────────────────────────────────
-                    //
-                    // Split pageText into tokens (words + punctuation pauses).
-                    // Within each word, letters are distributed evenly across the
-                    // word's time slice so every letter gets its own trigger time.
-                    //
-                    // Word[k] occupies [wordStartMs[k], wordStartMs[k] + msPerWord).
-                    // Letter j of wordLen letters within that word:
-                    //   arrival_ms = wordStartMs + (j / wordLen) * msPerWord
-                    //
-                    // Punctuation pauses (after the char) shift wordStartMs forward
-                    // exactly as calculatePageDurationMs does, keeping the total
-                    // duration consistent.
-                    //
-                    // arrival ∈ [0, 1] = arrival_ms / holdMs
-                    // ─────────────────────────────────────────────────────────────
-
-                    // First pass: collect (stringIndex, arrival_ms) for every non-space char
                     data class CharArrival(val index: Int, val arrivalMs: Float)
+
                     val arrivals = ArrayList<CharArrival>(pageText.length)
 
                     var wordStartMs = 0f
-                    var wordStartIdx = -1   // string index of first char of current word
+                    var wordStartIdx = -1
 
                     fun flushWord(wordEndIdx: Int) {
                         if (wordStartIdx < 0) return
-                        val wordChars = pageText.substring(wordStartIdx, wordEndIdx + 1)
-                            .filter { it != ' ' }
+                        val wordChars =
+                            pageText.substring(wordStartIdx, wordEndIdx + 1).filter { it != ' ' }
                         val wLen = wordChars.length.coerceAtLeast(1)
                         var charPos = 0
                         for (si in wordStartIdx..wordEndIdx) {
                             val ch = pageText[si]
                             if (ch == ' ') continue
-                            val ms = wordStartMs + (charPos.toFloat() / wLen) * msPerWord
-                            arrivals.add(CharArrival(si, ms))
+                            arrivals.add(
+                                CharArrival(
+                                    si,
+                                    wordStartMs + (charPos.toFloat() / wLen) * msPerWord
+                                )
+                            )
                             charPos++
                         }
                         wordStartMs += msPerWord
@@ -319,216 +353,153 @@ fun TextFitBox(
 
                     pageText.forEachIndexed { si, ch ->
                         when {
-                            ch == ' ' -> {
-                                flushWord(si - 1)
-                            }
-                            else -> {
-                                if (wordStartIdx < 0) wordStartIdx = si
-                                // Punctuation pause added AFTER the word (post-char)
-                                // — accumulate into wordStartMs after flush
-                            }
+                            ch == ' ' -> flushWord(si - 1)
+                            else -> if (wordStartIdx < 0) wordStartIdx = si
                         }
-                        // Punctuation shifts the timeline after this character's word
                         if (ch != ' ') {
                             val pause = when (ch) {
                                 '.', '!', '?' -> 300f
-                                ',', ';', ':'  -> 200f
-                                else           -> 0f
+                                ',', ';', ':' -> 200f
+                                else -> 0f
                             }
                             if (pause > 0f) {
-                                flushWord(si)
-                                wordStartMs += pause
+                                flushWord(si); wordStartMs += pause
                             }
                         }
                     }
-                    // Flush last word (no trailing space)
                     if (wordStartIdx >= 0) flushWord(pageText.lastIndex)
 
-                    // ── Timing constants ─────────────────────────────────────────
-                    //
-                    // fadeBand  — how long one letter's ramp takes in progress units.
-                    //             Sized to ~2 letters' worth of time so the wave looks
-                    //             smooth: wide enough to overlap with neighbours.
-                    //
-                    // pauseSpan — how long a letter stays fully visible before fading
-                    //             out.  Sized to ~3 letters' worth so there is a clear
-                    //             visible phase between the in and out ramps.
-                    //
-                    // budget    — scale arrivals so the last letter's full arc ends at 1.
+                    val n = arrivals.size.coerceAtLeast(1)
+                    val letterSlice = 1f / n
+                    val fadeBand = letterSlice * 10f
+                    val pauseSpan = letterSlice * 10f
+                    val budget = 1f - fadeBand * 2f - pauseSpan
 
-                    val n         = arrivals.size.coerceAtLeast(1)
-                    val letterSlice = 1f / n           // average progress per letter
-                    val fadeBand    = letterSlice * 10f  // ramp spans ≈ 2 letters
-                    val pauseSpan   = letterSlice * 10f  // visible phase spans ≈ 3 letters
-                    val budget      = 1f - fadeBand * 2f - pauseSpan
-
-                    // Build the final timings list (index = string index, null = space)
-                    val timings = arrayOfNulls<GlyphTiming>(pageText.length)
+                    val glyphs = ArrayList<GlyphDrawInfo>(arrivals.size)
                     for (ca in arrivals) {
-                        val raw     = (ca.arrivalMs / holdMs).coerceIn(0f, 1f)
-                        val inTrig  = raw * budget
-                        val inEnd   = inTrig  + fadeBand
-                        val outTrig = inEnd   + pauseSpan
-                        val outEnd  = outTrig + fadeBand
-                        timings[ca.index] = GlyphTiming(inTrig, inEnd, outTrig, outEnd)
+                        val raw = (ca.arrivalMs / holdMs).coerceIn(0f, 1f)
+                        val inTrig = raw * budget
+                        val inEnd = inTrig + fadeBand
+                        val outTrig = inEnd + pauseSpan
+                        val outEnd = outTrig + fadeBand
+                        glyphs.add(
+                            GlyphDrawInfo(
+                                timing = GlyphTiming(inTrig, inEnd, outTrig, outEnd),
+                                bounds = layout.getBoundingBox(ca.index),
+                                char = pageText[ca.index],
+                                stringIndex = ca.index,
+                            )
+                        )
                     }
 
-                    FrameDrawState(pageText, layout, timings.toList())
+                    FrameDrawState(
+                        text = pageText,
+                        layout = layout,
+                        glyphs = glyphs,
+                        colorR = contentColor.red,
+                        colorG = contentColor.green,
+                        colorB = contentColor.blue,
+                    )
                 }
 
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .drawWithContent {
-                            val p  = progress.value
+                            val p = progress.value
                             val ds = drawState
 
-                            ds.text.forEachIndexed { stringIndex, char ->
-                                val timing = ds.timings.getOrNull(stringIndex) ?: return@forEachIndexed
+                            // Open a layer so DstIn rects can alpha-punch into the text
+                            // without affecting anything behind the composable.
+                            drawContext.canvas.saveLayer(
+                                bounds = Rect(Offset.Zero, size),
+                                paint = Paint(),
+                            )
 
-                                val glyphAlpha: Float = if (transitionMode == TransitionMode.Print) {
-                                    // Fade in, then stay visible
-                                    when {
-                                        p <= timing.inTrigger -> 0f
-                                        p >= timing.inEnd     -> 1f
+                            // 1. Draw full layout once at full opacity.
+                            //    Positions come from ds.layout — measured once at build time,
+                            //    never recalculated → no position drift between frames.
+                            drawText(
+                                textLayoutResult = ds.layout,
+                                color = Color(ds.colorR, ds.colorG, ds.colorB, 1f),
+                                topLeft = Offset.Zero,
+                            )
+
+                            // 2. Mask each glyph to its current alpha via DstIn rects.
+                            //    Every glyph gets a rect — including ones not yet visible
+                            //    (alpha=0 erases them).  Fully visible glyphs (alpha>=1)
+                            //    are skipped to avoid unnecessary fillrate.
+                            for (glyph in ds.glyphs) {
+                                val timing = glyph.timing
+
+                                val glyphAlpha: Float = when {
+                                    p < timing.inTrigger -> 0f
+                                    transitionMode == TransitionMode.Print -> when {
+                                        p >= timing.inEnd -> 1f
                                         else -> (p - timing.inTrigger) /
-                                                (timing.inEnd - timing.inTrigger).coerceAtLeast(0.0001f)
+                                                (timing.inEnd - timing.inTrigger).coerceAtLeast(
+                                                    0.0001f
+                                                )
                                     }
-                                } else {
-                                    // Fade in → visible pause → fade out
-                                    val inAlpha = when {
-                                        p <= timing.inTrigger -> 0f
-                                        p >= timing.inEnd     -> 1f
-                                        else -> (p - timing.inTrigger) /
-                                                (timing.inEnd - timing.inTrigger).coerceAtLeast(0.0001f)
+
+                                    else -> {   // TransitionMode.Fade
+                                        val inAlpha = when {
+                                            p >= timing.inEnd -> 1f
+                                            else -> (p - timing.inTrigger) /
+                                                    (timing.inEnd - timing.inTrigger).coerceAtLeast(
+                                                        0.0001f
+                                                    )
+                                        }
+                                        val outAlpha = when {
+                                            p <= timing.outTrigger -> 1f
+                                            p >= timing.outEnd -> 0f
+                                            else -> 1f - (p - timing.outTrigger) /
+                                                    (timing.outEnd - timing.outTrigger).coerceAtLeast(
+                                                        0.0001f
+                                                    )
+                                        }
+                                        minOf(inAlpha, outAlpha)
                                     }
-                                    val outAlpha = when {
-                                        p <= timing.outTrigger -> 1f
-                                        p >= timing.outEnd     -> 0f
-                                        else -> 1f - (p - timing.outTrigger) /
-                                                (timing.outEnd - timing.outTrigger).coerceAtLeast(0.0001f)
-                                    }
-                                    minOf(inAlpha, outAlpha)
                                 }
 
-                                val bounds = ds.layout.getBoundingBox(stringIndex)
-                                drawContext.canvas.save()
-                                drawContext.canvas.clipRect(bounds)
-                                drawText(
-                                    textLayoutResult = ds.layout,
-                                    color            = contentColor.copy(alpha = glyphAlpha),
+                                if (glyphAlpha >= 1f) continue   // fully visible — no masking needed
+
+                                drawRect(
+                                    color = Color.Black,     // hue irrelevant; DstIn uses alpha only
+                                    topLeft = glyph.bounds.topLeft,
+                                    size = glyph.bounds.size,
+                                    alpha = glyphAlpha,
+                                    blendMode = BlendMode.DstIn,
                                 )
-                                drawContext.canvas.restore()
                             }
+
+                            drawContext.canvas.restore()
                         }
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun TextVerticalScrollBox(
-    totalDurationMs: Long,
-    text:            String,
-    textStyle:       TextStyle,
-    isHorizontal:    Boolean,
-    padding:         Dp             = 10.dp,
-    modifier:        Modifier       = Modifier,
-) {
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .clipToBounds()
-    ) {
-        val containerHeightPx =
-            if (isHorizontal) constraints.maxWidth.toFloat() else constraints.maxHeight.toFloat()
-
-        var textHeightPx by remember { mutableFloatStateOf(0f) }
-        val offsetAnim = remember { Animatable(0f) }
-
-        LaunchedEffect(textHeightPx, totalDurationMs) {
-            if (textHeightPx <= 0f) return@LaunchedEffect
-
-            while (true) {
-                val start = containerHeightPx
-                val end = textHeightPx + containerHeightPx
-
-                offsetAnim.snapTo(start)
-
-                offsetAnim.animateTo(
-                    targetValue = -end,
-                    animationSpec = tween(
-                        durationMillis = totalDurationMs.toInt(),
-                        easing = LinearEasing
-                    )
-                )
-            }
-        }
-
-        val rotatedModifier =
-            if (isHorizontal) {
-                Modifier
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(
-                            constraints.copy(
-                                minWidth = constraints.minHeight,
-                                maxWidth = constraints.maxHeight,
-                                minHeight = constraints.minWidth,
-                                maxHeight = constraints.maxWidth,
-                            )
-                        )
-                        layout(placeable.height, placeable.width) {
-                            placeable.place(
-                                x = -(placeable.width - placeable.height) / 2,
-                                y = -(placeable.height - placeable.width) / 2,
-                            )
-                        }
-                    }
-                    .rotate(90f)
-            } else {
-                Modifier
-            }
-
-        Box(
-            modifier = rotatedModifier
-                .padding(padding)
-                .fillMaxSize(),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            Text(
-                text = text,
-                style = textStyle,
-                overflow = TextOverflow.Clip,
-                modifier = Modifier
-                    .wrapContentHeight(
-                        unbounded = true,
-                        align = Alignment.Top
-                    )
-                    .graphicsLayer {
-                        translationY = offsetAnim.value
-                    }
-                    .onGloballyPositioned { coordinates ->
-                        val measuredHeight = coordinates.size.height.toFloat()
-                        if (measuredHeight != textHeightPx) textHeightPx = measuredHeight
-                    }
-            )
         }
     }
 }
 
 @Composable
 fun TextHorizontalScrollBox(
-    totalDurationMs: Long,
-    text:            String,
-    textStyle:       TextStyle,
-    transitionMode:  TransitionMode,
-    isHorizontal:    Boolean,
-    padding:         Dp       = 10.dp,
-    preview:         Boolean  = false,
-    modifier:        Modifier = Modifier,
+    pages:          List<String>,
+    wpm:            Int,
+    textStyle:      TextStyle,
+    transitionMode: TransitionMode,
+    isHorizontal:   Boolean,
+    padding:        Dp       = 10.dp,
+    preview:        Boolean  = false,
+    modifier:       Modifier = Modifier,
 ) {
-    val textMeasurer = rememberTextMeasurer()   // must be at composable top level
+    val totalDurationMs = remember(pages, wpm) { inlinePlayerDurationMs(pages, wpm) }
+    val text            = pages
+        .joinToString(separator = " ")
+        .replace("\r", "")
+        .replace("\n", "")
+
+    val textMeasurer = rememberTextMeasurer()
+    var alpha by remember { mutableFloatStateOf(1f) }
 
     BoxWithConstraints(
         modifier = modifier
@@ -536,18 +507,31 @@ fun TextHorizontalScrollBox(
             .clipToBounds()
     ) {
         val containerWidthPx =
-            if (isHorizontal) constraints.maxHeight.toFloat() else constraints.maxWidth.toFloat()
+            if (isHorizontal) constraints.maxHeight.toFloat()
+            else constraints.maxWidth.toFloat()
 
-        var textWidthPx by remember { mutableFloatStateOf(0f) }
-        val offsetAnim  = remember { Animatable(0f) }
+        val measured = remember(text, textStyle) {
+            textMeasurer.measure(text = text, style = textStyle)
+        }
+
+        val textWidthPx = remember(measured) {
+            measured.getHorizontalPosition(text.length.coerceAtLeast(1), true)
+                .coerceAtLeast(1f)
+        }
+
+        val offsetAnim = remember { Animatable(0f) }
 
         LaunchedEffect(textWidthPx, totalDurationMs) {
             if (textWidthPx <= 0f) return@LaunchedEffect
+            if (!preview) {
+                alpha = 0f
+                delay(4000L)
+                alpha = 1f
+            }
             do {
                 val start = containerWidthPx
                 val end   = textWidthPx + containerWidthPx
                 offsetAnim.snapTo(start)
-
                 offsetAnim.animateTo(
                     targetValue   = -end,
                     animationSpec = tween(totalDurationMs.toInt(), easing = LinearEasing)
@@ -581,147 +565,12 @@ fun TextHorizontalScrollBox(
         Box(
             modifier         = rotatedModifier
                 .padding(padding)
+                .graphicsLayer(alpha = alpha)
                 .fillMaxSize(),
             contentAlignment = Alignment.CenterStart,
         ) {
             when (transitionMode) {
-                TransitionMode.Fade,
-                TransitionMode.Print -> {
-                    val measured = remember(text, textStyle) {
-                        textMeasurer.measure(
-                            text  = text,
-                            style = textStyle,
-                        )
-                    }
 
-                    val n = text.length.coerceAtLeast(1)
-
-                    val measuredWidth = measured
-                        .getHorizontalPosition(n, true)
-                        .coerceAtLeast(1f)
-
-                    val widthScale = textWidthPx.coerceAtLeast(1f) / measuredWidth
-
-                    val letterOffsets: List<Pair<Float, Float>> =
-                        remember(measured, containerWidthPx, textWidthPx) {
-
-                            val fadeIns = (0 until n).map { i ->
-
-                                val leftX = measured.getHorizontalPosition(i, true)
-
-                                val rightX = measured.getHorizontalPosition(i + 1, true)
-
-                                val midX = ((leftX + rightX) / 2f) * widthScale
-
-                                containerWidthPx / 2f - midX
-                            }
-
-                            fadeIns.mapIndexed { i, fi ->
-                                val next =
-                                    if (i + 1 < n) fadeIns[i + 1]
-                                    else fi
-
-                                fi to next
-                            }
-                        }
-
-                    // Use ACTUAL rendered width for timing
-                    val totalTextWidth =
-                        textWidthPx.coerceAtLeast(1f)
-
-                    val avgCharWidth =
-                        (totalTextWidth / n)
-                            .coerceAtLeast(1f)
-
-                    val fadeWindowChars = 10
-                    val fadeBand =
-                        avgCharWidth * fadeWindowChars
-
-                    Row(
-                        modifier = Modifier
-                            .wrapContentWidth(
-                                unbounded = true,
-                                align = Alignment.Start
-                            )
-                            .graphicsLayer {
-                                translationX = offsetAnim.value
-                            }
-                            .onGloballyPositioned { coords ->
-                                val w = coords.size.width.toFloat()
-                                if (w != textWidthPx)
-                                    textWidthPx = w
-                            }
-                    ) {
-
-                        text.forEachIndexed { index, char ->
-
-                            val (fadeInOffset, _) =
-                                letterOffsets.getOrElse(index) {
-                                    Pair(0f, 0f)
-                                }
-
-                            val fadeInStart = fadeInOffset + fadeBand
-
-                            val fadeInEnd = fadeInOffset
-
-                            val fadeOutStart = fadeInOffset
-
-                            val fadeOutEnd = fadeInOffset - fadeBand
-
-                            val display =
-                                if (char == ' ')
-                                    "\u00A0"
-                                else
-                                    char.toString()
-
-                            Text(
-                                text = display,
-                                style = textStyle,
-                                maxLines = 1,
-                                overflow = TextOverflow.Clip,
-                                modifier = Modifier.graphicsLayer {
-
-                                    if (char == ' ') {
-                                        this.alpha = 0f
-                                        return@graphicsLayer
-                                    }
-
-                                    val offset = offsetAnim.value
-
-                                    val inAlpha = when {
-                                        offset >= fadeInStart -> 0f
-                                        offset <= fadeInEnd -> 1f
-                                        else ->
-                                            1f - (
-                                                    (offset - fadeInEnd)
-                                                            / fadeBand
-                                                    )
-                                    }
-
-                                    this.alpha =
-                                        if (
-                                            transitionMode ==
-                                            TransitionMode.Print
-                                        ) {
-                                            inAlpha
-                                        } else {
-
-                                            val outAlpha = when {
-                                                offset >= fadeOutStart -> 1f
-                                                offset <= fadeOutEnd -> 0f
-                                                else ->
-                                                    (
-                                                            offset - fadeOutEnd
-                                                            ) / fadeBand
-                                            }
-
-                                            minOf(inAlpha, outAlpha)
-                                        }
-                                }
-                            )
-                        }
-                    }
-                }
                 TransitionMode.None -> {
                     Text(
                         text     = text,
@@ -730,15 +579,125 @@ fun TextHorizontalScrollBox(
                         modifier = Modifier
                             .wrapContentWidth(unbounded = true, align = Alignment.Start)
                             .graphicsLayer { translationX = offsetAnim.value }
-                            .onGloballyPositioned { coords ->
-                                val w = coords.size.width.toFloat()
-                                if (w != textWidthPx) textWidthPx = w
-                            }
                     )
+                }
+
+                TransitionMode.Fade,
+                TransitionMode.Print -> {
+
+                    val n = text.length.coerceAtLeast(1)
+
+                    val measuredWidth = measured
+                        .getHorizontalPosition(n, true)
+                        .coerceAtLeast(1f)
+
+                    val widthScale = textWidthPx / measuredWidth
+
+                    val fadeInOffsets: FloatArray =
+                        remember(measured, containerWidthPx, textWidthPx) {
+                            FloatArray(n) { i ->
+                                val leftX  = measured.getHorizontalPosition(i,     true)
+                                val rightX = measured.getHorizontalPosition(i + 1, true)
+                                val midX   = ((leftX + rightX) / 2f) * widthScale
+                                containerWidthPx / 2f - midX
+                            }
+                        }
+
+                    val charBounds: Array<Rect> =
+                        remember(measured, n) {
+                            Array(n) { i -> measured.getBoundingBox(i) }
+                        }
+
+                    val avgCharWidth = (textWidthPx / n).coerceAtLeast(1f)
+                    val fadeBand     = avgCharWidth * 10f
+
+                    val contentColor = textStyle.color.takeOrElse { LocalContentColor.current }
+                    val colorR = contentColor.red
+                    val colorG = contentColor.green
+                    val colorB = contentColor.blue
+
+                    Canvas(
+                        modifier = Modifier
+                            .wrapContentWidth(unbounded = true, align = Alignment.Start)
+                            .height(with(LocalDensity.current) {
+                                measured.size.height.toDp()
+                            })
+                            .width(with(LocalDensity.current) { textWidthPx.toDp() })
+                            .graphicsLayer { translationX = offsetAnim.value }
+                    ) {
+                        val offset = offsetAnim.value
+
+                        drawContext.canvas.saveLayer(
+                            bounds = Rect(Offset.Zero, this.size),
+                            paint  = Paint(),
+                        )
+
+                        drawText(
+                            textLayoutResult = measured,
+                            color            = Color(colorR, colorG, colorB, 1f),
+                            topLeft          = Offset.Zero,
+                        )
+
+                        for (i in 0 until n) {
+                            val ch = text[i]
+
+                            if (ch == ' ') {
+                                drawRect(
+                                    color     = Color.Black,
+                                    topLeft   = charBounds[i].topLeft,
+                                    size      = charBounds[i].size,
+                                    alpha     = 0f,
+                                    blendMode = BlendMode.DstIn,
+                                )
+                                continue
+                            }
+
+                            val fadeInOffset = fadeInOffsets[i]
+                            val fadeInStart  = fadeInOffset + fadeBand
+                            val fadeInEnd    = fadeInOffset
+
+                            val inAlpha = when {
+                                offset >= fadeInStart -> 0f
+                                offset <= fadeInEnd   -> 1f
+                                else -> 1f - (offset - fadeInEnd) / fadeBand
+                            }
+
+                            val glyphAlpha = if (transitionMode == TransitionMode.Print) {
+                                inAlpha
+                            } else {
+                                val fadeOutStart = fadeInOffset
+                                val fadeOutEnd   = fadeInOffset - fadeBand
+                                val outAlpha = when {
+                                    offset >= fadeOutStart -> 1f
+                                    offset <= fadeOutEnd   -> 0f
+                                    else -> (offset - fadeOutEnd) / fadeBand
+                                }
+                                minOf(inAlpha, outAlpha)
+                            }
+
+                            if (glyphAlpha >= 1f) continue
+
+                            drawRect(
+                                color     = Color.Black,
+                                topLeft   = charBounds[i].topLeft,
+                                size      = charBounds[i].size,
+                                alpha     = glyphAlpha,
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+
+                        drawContext.canvas.restore()
+                    }
                 }
             }
         }
     }
+}
+
+private fun inlinePlayerDurationMs(pages: List<String>, wpm: Int): Long {
+    val page            = calculatePageDurationMs(pages[0], wpm)
+    val frameDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) }
+    return frameDurationMs + page * 2
 }
 
 @Composable
@@ -753,6 +712,7 @@ fun TextCentreVerticalScrollBox(
     modifier:       Modifier       = Modifier,
 ) {
     val textMeasurer = rememberTextMeasurer()
+    var alpha by remember { mutableFloatStateOf(1f) }
 
     BoxWithConstraints(
         modifier = modifier
@@ -790,14 +750,6 @@ fun TextCentreVerticalScrollBox(
                 overflow    = TextOverflow.Clip,
             )
 
-            // the viewport centre (containerHeightPx / 2).
-            //
-            // screenMid  = offsetAnim + lineMidPx
-            //
-            // fadeInOffset:  screenMid == containerHeightPx/2  entering from below
-            //   ∴ fadeInOffset = containerHeightPx/2 - lineMidPx
-            //
-            // fadeOutOffset for last line (no next line): same formula, used as fallback.
             val raw = (0 until measured.lineCount).map { idx ->
                 val start        = measured.getLineStart(idx)
                 val end          = measured.getLineEnd(idx, visibleEnd = true)
@@ -806,22 +758,42 @@ fun TextCentreVerticalScrollBox(
                 val lineTopPx    = measured.getLineTop(idx)
                 val lineBottomPx = measured.getLineBottom(idx)
                 val lineMidPx    = (lineTopPx + lineBottomPx) / 2f
-
                 val fadeInOffset  = containerHeightPx / 2f - lineMidPx
-                val fadeOutOffset = fadeInOffset   // same point — used only as last-line fallback
+                val fadeOutOffset = fadeInOffset
 
-                ScrollLineData(lineText, lineTopPx, lineBottomPx, fadeInOffset, fadeOutOffset,
-                    nextFadeInOffset = fadeOutOffset)
+                // Measure this line in isolation so charBounds coordinates
+                // start at (0,0) — matching the Canvas origin directly.
+                val lineLayout = if (lineText.isNotEmpty()) {
+                    textMeasurer.measure(
+                        text        = lineText,
+                        style       = textStyle,
+                        constraints = Constraints(maxWidth = measuredWidthPx),
+                        overflow    = TextOverflow.Clip,
+                        maxLines    = 1,
+                    )
+                } else measured   // blank line: layout unused, charBounds empty
+
+                val bounds: Array<Rect> = if (lineText.isNotEmpty()) {
+                    Array(lineText.length) { i -> lineLayout.getBoundingBox(i) }
+                } else emptyArray()
+
+                ScrollLineData(
+                    lineText         = lineText,
+                    lineTopPx        = lineTopPx,
+                    lineBottomPx     = lineBottomPx,
+                    fadeInOffset     = fadeInOffset,
+                    fadeOutOffset    = fadeOutOffset,
+                    nextFadeInOffset = fadeOutOffset,   // patched below
+                    layout           = lineLayout,
+                    charBounds       = bounds,
+                )
             }
 
-            // Second pass: nextFadeInOffset of line N = fadeInOffset of line N+1.
-            // Fade-out of line N ends exactly when fade-in of line N+1 begins.
             raw.mapIndexed { idx, ld ->
                 val nextFadeIn = raw.getOrNull(idx + 1)?.fadeInOffset ?: ld.fadeOutOffset
                 ld.copy(nextFadeInOffset = nextFadeIn)
             }
         }
-
         // Pixel velocity derived from wpm: totalDurationMs scales with total scroll distance
         // so the reading speed in words/min matches wpm regardless of text length.
         val totalDurationMs: Long = remember(textHeightPx, containerHeightPx, wpm, fullText) {
@@ -835,7 +807,11 @@ fun TextCentreVerticalScrollBox(
         // start/end match exactly: text enters from below, exits above.
         LaunchedEffect(textHeightPx, totalDurationMs, containerHeightPx) {
             if (textHeightPx <= 0f) return@LaunchedEffect
-
+            if (!preview) {
+                alpha = 0f
+                delay(4000L)
+                alpha = 1f
+            }
             do {
                 val start = containerHeightPx
                 val end   = textHeightPx + containerHeightPx
@@ -891,28 +867,195 @@ fun TextCentreVerticalScrollBox(
                 }
 
             when (transitionMode) {
-                TransitionMode.Fade -> ScrollFadeText(
-                    pages      = pages,
-                    textStyle  = textStyle,
-                    lines      = lineDataList,
+                TransitionMode.Fade -> ScrollAnimText(
+                    pages = pages,
+                    textStyle = textStyle,
+                    lines = lineDataList,
                     offsetAnim = offsetAnim,
-                    modifier   = scrollModifier,
+                    fadeOut = true,
+                    modifier = scrollModifier,
                 )
-                TransitionMode.Print -> ScrollPrintText(
-                    pages      = pages,
-                    textStyle  = textStyle,
-                    lines      = lineDataList,
+
+                TransitionMode.Print -> ScrollAnimText(
+                    pages = pages,
+                    textStyle = textStyle,
+                    lines = lineDataList,
                     offsetAnim = offsetAnim,
-                    modifier   = scrollModifier,
+                    fadeOut = false,
+                    modifier = scrollModifier,
                 )
+
                 TransitionMode.None -> Text(
-                    text     = fullText,
-                    style    = textStyle,
+                    text = fullText,
+                    style = textStyle,
                     overflow = TextOverflow.Clip,
                     modifier = scrollModifier,
                 )
             }
         }
+    }
+}
+
+@Composable
+fun ScrollAnimText(
+    pages:      List<String>,
+    textStyle:  TextStyle,
+    lines:      List<ScrollLineData>,
+    offsetAnim: Animatable<Float, *>,
+    fadeOut:    Boolean,
+    modifier:   Modifier = Modifier,
+) {
+    val fullText     = remember(pages) { pages.joinToString(" ") }
+    val contentColor = textStyle.color.takeOrElse { LocalContentColor.current }
+    val colorR       = contentColor.red
+    val colorG       = contentColor.green
+    val colorB       = contentColor.blue
+
+    Box(modifier = modifier) {
+        if (lines.isEmpty()) {
+            // Invisible placeholder keeps the layout pass stable so
+            // textHeightPx is written via onGloballyPositioned.
+            Text(
+                text     = fullText,
+                style    = textStyle,
+                modifier = Modifier.graphicsLayer { alpha = 0f },
+            )
+            return@Box
+        }
+        Column {
+            lines.forEach { lineData ->
+                LineAnimCanvas(
+                    lineData   = lineData,
+                    offsetAnim = offsetAnim,
+                    fadeOut    = fadeOut,
+                    colorR     = colorR,
+                    colorG     = colorG,
+                    colorB     = colorB,
+                )
+            }
+        }
+    }
+}
+
+// ── LineAnimCanvas ─────────────────────────────────────────────────────────
+// Replaces LineFadeText (Row of N Text composables each with graphicsLayer).
+//
+// BEFORE: N render nodes, N hardware texture layers, alpha computed in
+//         graphicsLayer lambda re-running every frame per character.
+//
+// AFTER:  1 Canvas node, 0 extra layers.  Per frame:
+//           saveLayer
+//           drawText(lineData.layout)   — 1 call, cached layout, no re-measure
+//           for each char: drawRect(DstIn, alpha)   — skipped if alpha >= 1
+//           restore
+//
+// Jitter fix: positions come exclusively from lineData.charBounds which was
+// populated by getBoundingBox() at build time on the per-line layout.
+// Nothing is measured or re-measured inside this function.
+
+@Composable
+private fun LineAnimCanvas(
+    lineData:   ScrollLineData,
+    offsetAnim: Animatable<Float, *>,
+    fadeOut:    Boolean,
+    colorR:     Float,
+    colorG:     Float,
+    colorB:     Float,
+) {
+    if (lineData.lineText.isEmpty()) return
+
+    val n           = lineData.lineText.length.coerceAtLeast(1)
+    val fadeWindow  = lineData.fadeInOffset - lineData.nextFadeInOffset
+    val staggerSpan = (fadeWindow * 0.60f).coerceAtLeast(1f)
+    val fadeBand    = (staggerSpan / 2f).coerceAtLeast(1f)
+
+    val lineHeightDp = with(LocalDensity.current) {
+        (lineData.lineBottomPx - lineData.lineTopPx).toDp()
+    }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(lineHeightDp)
+    ) {
+        val offset = offsetAnim.value
+
+        // Open an offscreen layer so DstIn rects only erase pixels we drew
+        // here, not anything behind the Canvas.
+        drawContext.canvas.saveLayer(
+            bounds = Rect(Offset.Zero, this.size),
+            paint  = Paint(),
+        )
+
+        // 1. Draw the entire line once at full opacity.
+        //    lineData.layout was measured independently for this line, so
+        //    its glyph coordinates are relative to (0,0) — no offset needed.
+        //    Positions are identical every frame → no jitter.
+        drawText(
+            textLayoutResult = lineData.layout,
+            color            = Color(colorR, colorG, colorB, 1f),
+            topLeft          = Offset.Zero,
+        )
+
+        // 2. Per-character DstIn rect to apply alpha.
+        //    DstIn: output.alpha = drawn_text.alpha × rect.alpha
+        //    rect alpha 0 → glyph erased   (not yet appeared / fully faded)
+        //    rect alpha 1 → glyph intact   (skip rect entirely — saves fillrate)
+        //    0 < alpha < 1 → partially visible
+        for (index in 0 until n) {
+            val ch = lineData.lineText[index]
+
+            // Spaces are always invisible — erase unconditionally.
+            if (ch == ' ') {
+                val b = lineData.charBounds.getOrNull(index) ?: continue
+                drawRect(
+                    color     = Color.Black,
+                    topLeft   = b.topLeft,
+                    size      = b.size,
+                    alpha     = 0f,
+                    blendMode = BlendMode.DstIn,
+                )
+                continue
+            }
+
+            // Fade-in: letter[index] leads (index 0 first), staggered across
+            // the fade window.  Same formula as original LineFadeText.
+            val fadeInStart = lineData.fadeInOffset - staggerSpan * index / n
+            val fadeInEnd   = fadeInStart - fadeBand
+
+            val inAlpha = when {
+                offset >= fadeInStart -> 0f
+                offset <= fadeInEnd   -> 1f
+                else -> 1f - (offset - fadeInEnd) / fadeBand
+            }
+
+            val glyphAlpha = if (!fadeOut) {
+                inAlpha
+            } else {
+                val fadeOutStart = lineData.nextFadeInOffset - staggerSpan * index / n
+                val fadeOutEnd   = fadeOutStart - fadeBand
+                val outAlpha = when {
+                    offset >= fadeOutStart -> 1f
+                    offset <= fadeOutEnd   -> 0f
+                    else -> (offset - fadeOutEnd) / fadeBand
+                }
+                minOf(inAlpha, outAlpha)
+            }
+
+            // Fully visible — drawText already drew it at alpha=1, skip rect.
+            if (glyphAlpha >= 1f) continue
+
+            val b = lineData.charBounds.getOrNull(index) ?: continue
+            drawRect(
+                color     = Color.Black,
+                topLeft   = b.topLeft,
+                size      = b.size,
+                alpha     = glyphAlpha,
+                blendMode = BlendMode.DstIn,
+            )
+        }
+
+        drawContext.canvas.restore()
     }
 }
 
@@ -1033,132 +1176,7 @@ fun DisplayTextBar(
             }
         }
     }
-
 }
-
-@Composable
-fun ScrollFadeText(
-    pages:      List<String>,
-    textStyle:  TextStyle,
-    lines:      List<ScrollLineData>,
-    offsetAnim: Animatable<Float, *>,
-    modifier:   Modifier = Modifier,
-) {
-    val fullText = remember(pages) { pages.joinToString(" ") }
-
-    Box(modifier = modifier) {
-        if (lines.isEmpty()) {
-            Text(text = fullText, style = textStyle,
-                modifier = Modifier.graphicsLayer { alpha = 0f })
-            return@Box
-        }
-        Column {
-            lines.forEach { lineData ->
-                LineFadeText(
-                    lineData   = lineData,
-                    offsetAnim = offsetAnim,
-                    fadeOut    = true,
-                    textStyle  = textStyle,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ScrollPrintText(
-    pages:      List<String>,
-    textStyle:  TextStyle,
-    lines:      List<ScrollLineData>,
-    offsetAnim: Animatable<Float, *>,
-    modifier:   Modifier = Modifier,
-) {
-    val fullText = remember(pages) { pages.joinToString(" ") }
-
-    Box(modifier = modifier) {
-        if (lines.isEmpty()) {
-            Text(text = fullText, style = textStyle,
-                modifier = Modifier.graphicsLayer { alpha = 0f })
-            return@Box
-        }
-        Column {
-            lines.forEach { lineData ->
-                LineFadeText(
-                    lineData   = lineData,
-                    offsetAnim = offsetAnim,
-                    fadeOut    = false,
-                    textStyle  = textStyle,
-                )
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-
-@Composable
-private fun LineFadeText(
-    lineData:   ScrollLineData,
-    offsetAnim: Animatable<Float, *>,
-    fadeOut:    Boolean,
-    textStyle:  TextStyle,
-) {
-    if (lineData.lineText.isEmpty()) return
-
-    val n           = lineData.lineText.length.coerceAtLeast(1)
-    val fadeWindow  = lineData.fadeInOffset - lineData.nextFadeInOffset  // total px span for this line
-    val staggerSpan = (fadeWindow * 0.60f).coerceAtLeast(1f)
-    val fadeBand    = (staggerSpan / 2f).coerceAtLeast(1f)
-
-    Row {
-        lineData.lineText.forEachIndexed { index, char ->
-
-            // Fade-in:  letter[i] starts at fadeInOffset - staggerSpan * i / n  (0 leads)
-            val fadeInStart = lineData.fadeInOffset - staggerSpan * index / n
-            val fadeInEnd   = fadeInStart - fadeBand
-
-            // Fade-out: letter[i] starts at nextFadeInOffset - staggerSpan * i / n  (0 leads, same direction)
-            val fadeOutStart = lineData.nextFadeInOffset - staggerSpan * index / n
-            val fadeOutEnd   = fadeOutStart - fadeBand
-
-            val display = if (char == ' ') "\u00A0" else char.toString()
-            Text(
-                text     = display,
-                style    = textStyle,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                modifier = Modifier.graphicsLayer {
-                    if (char == ' ') { alpha = 0f; return@graphicsLayer }
-
-                    val offset = offsetAnim.value
-
-                    // Fade-in alpha: 0 before fadeInStart, ramps to 1 by fadeInEnd
-                    val inAlpha = when {
-                        offset >= fadeInStart -> 0f
-                        offset <= fadeInEnd   -> 1f
-                        else -> 1f - (offset - fadeInEnd) / fadeBand
-                    }
-
-                    alpha = if (!fadeOut) {
-                        inAlpha
-                    } else {
-                        // Fade-out alpha: 1 before fadeOutStart, ramps to 0 by fadeOutEnd
-                        val outAlpha = when {
-                            offset >= fadeOutStart -> 1f
-                            offset <= fadeOutEnd   -> 0f
-                            else -> (offset - fadeOutEnd) / fadeBand
-                        }
-                        minOf(inAlpha, outAlpha)
-                    }
-                },
-            )
-        }
-    }
-}
-
-// ─────────────────────────────────────────────
 
 fun calculatePageDurationMs(pageText: String, wpm: Int): Long {
     if (pageText.isBlank() || wpm <= 0) return 0L

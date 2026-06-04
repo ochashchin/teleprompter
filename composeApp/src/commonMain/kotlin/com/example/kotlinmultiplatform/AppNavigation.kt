@@ -473,8 +473,7 @@ private fun ScreenLayout(
                 },
                 label = "dynamicLayer",
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = if (destination is Destination.PlayDetail) 0.dp else 64.dp),
+                    .fillMaxSize(),
             ) { dest -> dynamicContent(dest) }
         }
     }
