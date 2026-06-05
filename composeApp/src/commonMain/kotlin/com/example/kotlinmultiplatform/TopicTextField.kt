@@ -37,6 +37,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.cd_topic_required
+import kotlinmultiplatform.composeapp.generated.resources.topic_label
+import kotlinmultiplatform.composeapp.generated.resources.topic_placeholder
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun TopicTextField(
@@ -81,7 +86,7 @@ fun TopicTextField(
                 OutlinedTextField(
                     state = state,
                     labelPosition = TextFieldLabelPosition.Attached(alwaysMinimize = true),
-                    label = { Text("Topic") },
+                    label = { Text(stringResource(Res.string.topic_label)) },
                     shape = fieldShape,
                     modifier = Modifier
                         .fillMaxSize()
@@ -96,7 +101,7 @@ fun TopicTextField(
                     ),
                     placeholder = {
                         Text(
-                            text = "Enter topic",
+                            text = stringResource(Res.string.topic_placeholder),
                             fontSize = fontSize
                         )
                     },
@@ -106,7 +111,7 @@ fun TopicTextField(
                         {
                             Icon(
                                 imageVector = Icons.Rounded.Error,
-                                contentDescription = "Topic is required",
+                                contentDescription = stringResource(Res.string.cd_topic_required),
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
                             )

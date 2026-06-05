@@ -55,6 +55,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.cd_script_required
+import kotlinmultiplatform.composeapp.generated.resources.script_label
+import kotlinmultiplatform.composeapp.generated.resources.script_placeholder
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun ScriptTextField(
@@ -99,7 +104,7 @@ fun ScriptTextField(
                 OutlinedTextField(
                     state = state,
 
-                    label = { Text("Script") },
+                    label = { Text(stringResource(Res.string.script_label)) },
 
                     labelPosition = TextFieldLabelPosition.Attached(
                         alwaysMinimize = true
@@ -119,7 +124,7 @@ fun ScriptTextField(
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Error,
-                                    contentDescription = "Script is required",
+                                    contentDescription = stringResource(Res.string.cd_script_required),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -138,7 +143,7 @@ fun ScriptTextField(
 
                     placeholder = {
                         Text(
-                            text = "Enter or paste your script",
+                            text = stringResource(Res.string.script_placeholder),
                             fontSize = fontSize,
                         )
                     },

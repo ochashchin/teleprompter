@@ -42,6 +42,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.cd_back
+import kotlinmultiplatform.composeapp.generated.resources.cd_clear
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun SearchBar(
@@ -82,7 +86,7 @@ fun SearchBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(Res.string.cd_back),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -165,7 +169,7 @@ fun SearchBar(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(Res.string.cd_clear),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

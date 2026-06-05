@@ -54,7 +54,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.cd_delete
+import kotlinmultiplatform.composeapp.generated.resources.cd_edit
+import kotlinmultiplatform.composeapp.generated.resources.cd_open
+import kotlinmultiplatform.composeapp.generated.resources.cd_search
+import kotlinmultiplatform.composeapp.generated.resources.fab_new
+import kotlinmultiplatform.composeapp.generated.resources.screen_tasks
+import kotlinmultiplatform.composeapp.generated.resources.search_hint
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 
 // ── data ──────────────────────────────────────────────────────────────────────
 
@@ -131,7 +140,7 @@ fun TaskScreenStatic(
     ) { isSearching ->
         if (isSearching) {
             SearchBar(
-                hint = "Search tasks…",
+                hint = stringResource(Res.string.search_hint),
                 query = query,
                 onQueryChange = onQueryChange,
                 onClear = onClear,
@@ -139,12 +148,12 @@ fun TaskScreenStatic(
             )
         } else {
             ToolBar(
-                title = "Tasks",
+                title = stringResource(Res.string.screen_tasks),
                 onTrailingClick = onSearchOpen,
                 trailingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Search,
-                        contentDescription = "Search",
+                        contentDescription = stringResource(Res.string.cd_search),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
@@ -175,12 +184,13 @@ fun TaskScreenBody(
             modifier = modifier,
         )
         FabBarLayout(
+            text = stringResource(Res.string.fab_new),
             onClick = onNewClick,
             modifier = modifier,
             icon = {
                 Icon(
                     imageVector = Icons.Rounded.Edit,
-                    contentDescription = "Edit",
+                    contentDescription = stringResource(Res.string.cd_edit),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier
                         .size(26.dp)
@@ -263,7 +273,7 @@ fun <T> SwipeableListItem(
                         ) {
                             Icon(
                                 imageVector        = Icons.Rounded.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(Res.string.cd_delete),
                                 tint               = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier           = Modifier
                                     .fillMaxHeight()
@@ -349,7 +359,7 @@ fun <T> SwipeableListItem(
                             ) {
                                 Icon(
                                     imageVector        = Icons.AutoMirrored.Rounded.ArrowRight,
-                                    contentDescription = "Open",
+                                    contentDescription = stringResource(Res.string.cd_open),
                                     tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier           = Modifier
                                         .fillMaxHeight()

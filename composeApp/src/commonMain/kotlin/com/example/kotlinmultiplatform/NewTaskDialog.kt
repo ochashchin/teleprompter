@@ -27,6 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.dialog_discard
+import kotlinmultiplatform.composeapp.generated.resources.dialog_save
+import kotlinmultiplatform.composeapp.generated.resources.dialog_save_changes_title
+import org.jetbrains.compose.resources.stringResource
 
 
 @Composable
@@ -62,7 +67,7 @@ fun SaveChangesDialog(
                         .align(BiasAlignment(percentToBias(.5f), percentToBias(.35f)))
                 ) {
                     Text(
-                        text = "Save changes?",
+                        text = stringResource(Res.string.dialog_save_changes_title),
                         fontSize = fontSize(24.dp),
                         lineHeight = fontSize(28.dp),
                         style = MaterialTheme.typography.headlineSmall
@@ -87,7 +92,7 @@ fun SaveChangesDialog(
                     ) {
                         Text(
                             fontSize = fontSize(18.dp),
-                            text = "Discard"
+                            text = stringResource(Res.string.dialog_discard)
                         )
                     }
 
@@ -135,7 +140,7 @@ fun SaveButton(
     ) {
         Text(
             fontSize = fontSize,
-            text = "Save",
+            text = stringResource(Res.string.dialog_save),
             style = MaterialTheme.typography.titleMedium
         )
     }

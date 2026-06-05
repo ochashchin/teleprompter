@@ -26,7 +26,7 @@ import com.example.kotlinmultiplatform.ui.theme.AppTheme
 @Composable
 fun FabBarLayout(
     modifier: Modifier = Modifier,
-    text: String = "New",
+    text: String,
     onClick: () -> Unit = {},
     icon: @Composable () -> Unit
 ) {
@@ -89,6 +89,7 @@ fun FabBarLayout(
 private fun PreviewFull() {
     AppTheme(darkTheme = false) {
         FabBarLayout(modifier = Modifier.fillMaxWidth(),
+            text = "New",
             icon = {
             Icon(
                 imageVector = Icons.Rounded.Edit,
@@ -110,6 +111,7 @@ private fun PreviewFull() {
 private fun PreviewCompact() {
     AppTheme(darkTheme = false) {
         FabBarLayout(modifier = Modifier.fillMaxWidth(),
+            text = "New",
             icon = {
                 Icon(
                     imageVector = Icons.Rounded.Edit,

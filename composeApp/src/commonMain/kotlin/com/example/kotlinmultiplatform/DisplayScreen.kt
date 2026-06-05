@@ -58,6 +58,49 @@ import kotlinmultiplatform.composeapp.generated.resources.ic_speed
 import kotlinmultiplatform.composeapp.generated.resources.ic_text_size
 import kotlinmultiplatform.composeapp.generated.resources.ic_transition
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import kotlinmultiplatform.composeapp.generated.resources.cd_back
+import kotlinmultiplatform.composeapp.generated.resources.cd_more_options
+import kotlinmultiplatform.composeapp.generated.resources.cd_play
+import kotlinmultiplatform.composeapp.generated.resources.display_text_size
+import kotlinmultiplatform.composeapp.generated.resources.display_text_size_desc
+import kotlinmultiplatform.composeapp.generated.resources.display_orientation
+import kotlinmultiplatform.composeapp.generated.resources.display_orientation_desc
+import kotlinmultiplatform.composeapp.generated.resources.display_speed
+import kotlinmultiplatform.composeapp.generated.resources.display_speed_desc
+import kotlinmultiplatform.composeapp.generated.resources.display_animation
+import kotlinmultiplatform.composeapp.generated.resources.display_animation_desc
+import kotlinmultiplatform.composeapp.generated.resources.display_transition
+import kotlinmultiplatform.composeapp.generated.resources.display_transition_desc
+import kotlinmultiplatform.composeapp.generated.resources.display_distortion
+import kotlinmultiplatform.composeapp.generated.resources.display_distortion_desc
+import kotlinmultiplatform.composeapp.generated.resources.display_mirror
+import kotlinmultiplatform.composeapp.generated.resources.display_mirror_desc
+import kotlinmultiplatform.composeapp.generated.resources.display_overlay
+import kotlinmultiplatform.composeapp.generated.resources.display_overlay_desc
+import kotlinmultiplatform.composeapp.generated.resources.option_small
+import kotlinmultiplatform.composeapp.generated.resources.option_normal
+import kotlinmultiplatform.composeapp.generated.resources.option_large
+import kotlinmultiplatform.composeapp.generated.resources.option_huge
+import kotlinmultiplatform.composeapp.generated.resources.option_massive
+import kotlinmultiplatform.composeapp.generated.resources.option_vertical
+import kotlinmultiplatform.composeapp.generated.resources.option_horizontal
+import kotlinmultiplatform.composeapp.generated.resources.option_slow
+import kotlinmultiplatform.composeapp.generated.resources.option_fast
+import kotlinmultiplatform.composeapp.generated.resources.option_frame
+import kotlinmultiplatform.composeapp.generated.resources.option_scroll
+import kotlinmultiplatform.composeapp.generated.resources.option_inline
+import kotlinmultiplatform.composeapp.generated.resources.option_none
+import kotlinmultiplatform.composeapp.generated.resources.option_fade
+import kotlinmultiplatform.composeapp.generated.resources.option_print
+import kotlinmultiplatform.composeapp.generated.resources.option_distortion_0
+import kotlinmultiplatform.composeapp.generated.resources.option_distortion_45
+import kotlinmultiplatform.composeapp.generated.resources.option_distortion_70
+import kotlinmultiplatform.composeapp.generated.resources.option_disabled
+import kotlinmultiplatform.composeapp.generated.resources.option_enabled
+import kotlinmultiplatform.composeapp.generated.resources.screen_display
+import kotlinmultiplatform.composeapp.generated.resources.fab_play
 import org.jetbrains.compose.resources.painterResource
 
 // ── data ──────────────────────────────────────────────────────────────────────
@@ -65,13 +108,13 @@ import org.jetbrains.compose.resources.painterResource
 data class DisplayTaskItem(
     val id: Int,
     val leadingIconRes: DrawableResource,
-    val title: String,
-    val description: String,
-    val options: List<String>,
-    val defaultOption: String,
+    val titleRes: StringResource,
+    val descriptionRes: StringResource,
+    val optionRes: List<StringResource>,
+    val defaultOptionRes: StringResource,
 ) {
-    /** Index of [defaultOption] within [options]. Falls back to 0 if not found. */
-    val defaultIndex: Int get() = options.indexOf(defaultOption).coerceAtLeast(0)
+    /** Index of [defaultOptionRes] within [optionRes]. Falls back to 0 if not found. */
+    val defaultIndex: Int get() = optionRes.indexOf(defaultOptionRes).coerceAtLeast(0)
 }
 
 // ── Speed → WPM mapping ───────────────────────────────────────────────────────
@@ -195,12 +238,12 @@ fun DisplayScreenStatic(onBack: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
     ) {
         ToolBar(
-            title = "Display",
+            title = stringResource(Res.string.screen_display),
             onLeadingClick = onBack,
             leadingIcon = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(Res.string.cd_back),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             },
@@ -346,13 +389,13 @@ fun DisplayScreenBody(
 
         // ── Play FAB ─────────────────────────────────────────────────────────
         FabBarLayout(
-            text    = "Play",
+            text    = stringResource(Res.string.fab_play),
             onClick = onPlayClick,
             modifier = Modifier.fillMaxSize(),
             icon = {
                 Icon(
                     imageVector        = Icons.AutoMirrored.Rounded.ArrowForward,
-                    contentDescription = "Play",
+                    contentDescription = stringResource(Res.string.cd_play),
                     tint               = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier           = Modifier.size(24.dp),
                 )
@@ -370,10 +413,10 @@ fun SegmentedListItem(
     onSelectionChanged: (DisplayTaskItem, Int) -> Unit = { _, _ -> },
 ) {
     // null = user never selected anything
-    var selectedOption by remember(
+    var selectedOptionRes by remember(
         displayState.taskId,
         item.id
-    ) { mutableStateOf(displayState.selectedOption(item)) }
+    ) { mutableStateOf(displayState.selectedOptionRes(item)) }
     var menuExpanded by remember { mutableStateOf(false) }
 
     val leadingPainter: Painter = painterResource(item.leadingIconRes)
@@ -406,7 +449,7 @@ fun SegmentedListItem(
                         ) {
                             Icon(
                                 painter            = leadingPainter,
-                                contentDescription = item.title,
+                                contentDescription = stringResource(item.titleRes),
                                 tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier           = Modifier.fillMaxHeight().aspectRatio(1f),
                             )
@@ -422,7 +465,7 @@ fun SegmentedListItem(
                         verticalArrangement  = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text     = item.title,
+                            text     = stringResource(item.titleRes),
                             style    = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             softWrap = false,
@@ -432,7 +475,7 @@ fun SegmentedListItem(
 
                         // null → hint   |   value → persisted user selection
                         Text(
-                            text     = selectedOption ?: item.description,
+                            text     = selectedOptionRes?.let { stringResource(it) } ?: stringResource(item.descriptionRes),
                             style    = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             softWrap = false,
@@ -459,7 +502,7 @@ fun SegmentedListItem(
                             ) {
                                 Icon(
                                     imageVector        = Icons.Rounded.MoreVert,
-                                    contentDescription = "More options",
+                                    contentDescription = stringResource(Res.string.cd_more_options),
                                     tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier           = Modifier.fillMaxSize(),
                                 )
@@ -469,17 +512,17 @@ fun SegmentedListItem(
                                 expanded        = menuExpanded,
                                 onDismissRequest = { menuExpanded = false },
                             ) {
-                                item.options.forEachIndexed { index, option ->
+                                item.optionRes.forEachIndexed { index, optionRes ->
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                text     = option,
+                                                text     = stringResource(optionRes),
                                                 fontSize = fontSize(18.dp),
                                                 style    = MaterialTheme.typography.bodyMedium
                                             )
                                         },
                                         onClick = {
-                                            selectedOption = option
+                                            selectedOptionRes = optionRes
                                             displayState.setSelection(
                                                 item        = item,
                                                 optionIndex = index
@@ -545,66 +588,97 @@ val DisplayTaskList: List<DisplayTaskItem> = listOf(
     DisplayTaskItem(
         1,
         Res.drawable.ic_text_size,
-        "Text Size",
-        "Small, normal, large, huge, massive",
-        listOf("Small", "Normal", "Large", "Huge", "Massive"),
-        "Normal"
+        Res.string.display_text_size,
+        Res.string.display_text_size_desc,
+        listOf(
+            Res.string.option_small,
+            Res.string.option_normal,
+            Res.string.option_large,
+            Res.string.option_huge,
+            Res.string.option_massive,
+        ),
+        Res.string.option_normal,
     ),
     DisplayTaskItem(
         2,
         Res.drawable.ic_orientation,
-        "Orientation",
-        "Vertical, horizontal",
-        listOf("Vertical", "Horizontal"),
-        "Vertical"
+        Res.string.display_orientation,
+        Res.string.display_orientation_desc,
+        listOf(
+            Res.string.option_vertical,
+            Res.string.option_horizontal,
+        ),
+        Res.string.option_vertical,
     ),
     DisplayTaskItem(
         3,
         Res.drawable.ic_speed,
-        "Speed",
-        "Slow, normal, fast",
-        listOf("Slow", "Normal", "Fast"),
-        "Slow"
+        Res.string.display_speed,
+        Res.string.display_speed_desc,
+        listOf(
+            Res.string.option_slow,
+            Res.string.option_normal,
+            Res.string.option_fast,
+        ),
+        Res.string.option_slow,
     ),
     DisplayTaskItem(
         4,
         Res.drawable.ic_animation,
-        "Animation",
-        "Frame, scroll, inline",
-        listOf("Frame", "Scroll", "Inline"),
-        "Frame"
+        Res.string.display_animation,
+        Res.string.display_animation_desc,
+        listOf(
+            Res.string.option_frame,
+            Res.string.option_scroll,
+            Res.string.option_inline,
+        ),
+        Res.string.option_frame,
     ),
     DisplayTaskItem(
         5,
         Res.drawable.ic_transition,
-        "Transition",
-        "None, fade, print",
-        listOf("None", "Fade", "Print"),
-        "None"
+        Res.string.display_transition,
+        Res.string.display_transition_desc,
+        listOf(
+            Res.string.option_none,
+            Res.string.option_fade,
+            Res.string.option_print,
+        ),
+        Res.string.option_none,
     ),
     DisplayTaskItem(
         6,
         Res.drawable.ic_distortion,
-        "Distortion",
-        "0°, 45°, 70°",
-        listOf("0°", "45°", "70°"),
-        "0°"
+        Res.string.display_distortion,
+        Res.string.display_distortion_desc,
+        listOf(
+            Res.string.option_distortion_0,
+            Res.string.option_distortion_45,
+            Res.string.option_distortion_70,
+        ),
+        Res.string.option_distortion_0,
     ),
     DisplayTaskItem(
         7,
         Res.drawable.ic_mirror,
-        "Mirror",
-        "Disabled, enabled",
-        listOf("Disabled", "Enabled"),
-        "Disabled"
+        Res.string.display_mirror,
+        Res.string.display_mirror_desc,
+        listOf(
+            Res.string.option_disabled,
+            Res.string.option_enabled,
+        ),
+        Res.string.option_disabled,
     ),
     DisplayTaskItem(
         8,
         Res.drawable.ic_overlay,
-        "Overlay",
-        "Disabled, enabled",
-        listOf("Disabled", "Enabled"),
-        "Disabled"
+        Res.string.display_overlay,
+        Res.string.display_overlay_desc,
+        listOf(
+            Res.string.option_disabled,
+            Res.string.option_enabled,
+        ),
+        Res.string.option_disabled,
     ),
 )
 

@@ -23,6 +23,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.cd_back
+import kotlinmultiplatform.composeapp.generated.resources.cd_next
+import kotlinmultiplatform.composeapp.generated.resources.fab_next
+import kotlinmultiplatform.composeapp.generated.resources.screen_new_task
+import org.jetbrains.compose.resources.stringResource
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,12 +40,12 @@ fun NewTaskScreenStatic(
     onBack: () -> Unit,
 ) {
     ToolBar(
-        title = "New Task",
+        title = stringResource(Res.string.screen_new_task),
         onLeadingClick = onBack,
         leadingIcon = {
             Icon(
                 imageVector        = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(Res.string.cd_back),
                 tint               = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
@@ -106,7 +112,7 @@ fun NewTaskScreenBody(
         }
 
         FabBarLayout(
-            text = "Next",
+            text = stringResource(Res.string.fab_next),
             onClick = {
                 if (state.scriptText.trim().isEmpty()) {
                     // Show error on the script field — do not navigate.
@@ -123,7 +129,7 @@ fun NewTaskScreenBody(
                 Icon(
                     modifier = Modifier.size(24.dp),
                     imageVector        = Icons.AutoMirrored.Rounded.ArrowForward,
-                    contentDescription = "Next",
+                    contentDescription = stringResource(Res.string.cd_next),
                     tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

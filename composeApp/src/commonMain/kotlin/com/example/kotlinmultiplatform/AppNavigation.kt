@@ -32,6 +32,9 @@ import com.russhwolf.settings.set
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.draft_title
+import org.jetbrains.compose.resources.stringResource
 
 // ── destinations ──────────────────────────────────────────────────────────────
 
@@ -107,6 +110,7 @@ private const val TOOLBAR_VISIBLE_MS   = 3_000L
 @Composable
 fun AppNavigation(modifier: Modifier = Modifier) {
     val settings = LocalSettings.current
+    val draftTitle  = stringResource(Res.string.draft_title)
     var destination  by remember { mutableStateOf<Destination>(Destination.TaskList) }
     var searchActive by remember { mutableStateOf(false) }
     var query        by remember { mutableStateOf("") }
@@ -228,7 +232,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
         val script   = newTaskState.scriptText.trim()
 
         if (script.isNotEmpty()) {
-            val displayTitle = rawTitle.ifBlank { "Draft" }
+            val displayTitle = rawTitle.ifBlank { draftTitle }
             val id = editingTaskId
 
             if (id != null) {
@@ -268,7 +272,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             return
         }
 
-        val finalTitle = rawTitle.ifBlank { "Draft" }
+        val finalTitle = rawTitle.ifBlank { draftTitle }
         val id         = editingTaskId
 
         if (id != null) {
@@ -310,7 +314,7 @@ fun AppNavigation(modifier: Modifier = Modifier) {
             val editId = editingTaskId
             if (editId != null) {
                 val existing      = allTasks.firstOrNull { it.id == editId }
-                val currentTitle  = newTaskState.topicText.trim().ifBlank { "Draft" }
+                val currentTitle  = newTaskState.topicText.trim().ifBlank { draftTitle }
                 val currentScript = newTaskState.scriptText.trim()
                 val unchanged     = existing != null &&
                         currentTitle == existing.title &&

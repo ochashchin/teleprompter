@@ -1,6 +1,7 @@
 package com.example.kotlinmultiplatform
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.runtime.remember
 import com.russhwolf.settings.Settings
 
@@ -34,19 +35,19 @@ class DisplayTaskState(
      * or null if the user has never made a selection.
      */
     fun selectedIndex(item: DisplayTaskItem): Int? =
-        item.options.indices.firstOrNull { index ->
+        item.optionRes.indices.firstOrNull { index ->
             settings.getBooleanOrNull(settingsKey(taskId, item.id, index)) == true
         }
 
-    fun selectedOption(item: DisplayTaskItem): String? =
-        selectedIndex(item)?.let { item.options[it] }
+    fun selectedOptionRes(item: DisplayTaskItem): StringResource? =
+        selectedIndex(item)?.let { item.optionRes[it] }
 
     fun setSelection(
         item: DisplayTaskItem,
         optionIndex: Int
     ) {
 
-        item.options.indices.forEach { index ->
+        item.optionRes.indices.forEach { index ->
 
             settings.remove(
                 settingsKey(

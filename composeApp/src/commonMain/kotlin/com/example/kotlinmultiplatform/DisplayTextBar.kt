@@ -504,8 +504,8 @@ fun TextHorizontalScrollBox(
     val totalDurationMs = remember(pages, wpm) { inlinePlayerDurationMs(pages, wpm) }
     val text            = pages
         .joinToString(separator = " ")
-        .replace("\r", "")
-        .replace("\n", "")
+        .replace("\r", " ")
+        .replace("\n", " ")
 
     val textMeasurer = rememberTextMeasurer()
     var alpha by remember { mutableFloatStateOf(1f) }

@@ -34,6 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.cd_back
+import kotlinmultiplatform.composeapp.generated.resources.cd_close
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -85,14 +89,14 @@ fun PlayerScreenStatic(
                 leadingIcon = {
                     Icon(
                         imageVector        = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(Res.string.cd_back),
                         tint               = MaterialTheme.colorScheme.onSurface,
                     )
                 },
                 trailingIcon = {
                     Icon(
                         imageVector        = Icons.Rounded.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(Res.string.cd_close),
                         tint               = MaterialTheme.colorScheme.onSurface,
                     )
                 },
