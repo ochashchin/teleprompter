@@ -773,8 +773,6 @@ fun TextCentreVerticalScrollBox(
                 val fadeInOffset  = containerHeightPx / 2f - lineMidPx
                 val fadeOutOffset = fadeInOffset
 
-                // Measure this line in isolation so charBounds coordinates
-                // start at (0,0) — matching the Canvas origin directly.
                 val lineLayout = if (lineText.isNotEmpty()) {
                     textMeasurer.measure(
                         text        = lineText,
@@ -783,7 +781,7 @@ fun TextCentreVerticalScrollBox(
                         overflow    = TextOverflow.Clip,
                         maxLines    = 1,
                     )
-                } else measured   // blank line: layout unused, charBounds empty
+                } else measured
 
                 val bounds: Array<Rect> = if (lineText.isNotEmpty()) {
                     Array(lineText.length) { i -> lineLayout.getBoundingBox(i) }
@@ -795,33 +793,66 @@ fun TextCentreVerticalScrollBox(
                     lineBottomPx     = lineBottomPx,
                     fadeInOffset     = fadeInOffset,
                     fadeOutOffset    = fadeOutOffset,
-                    nextFadeInOffset = fadeOutOffset,   // patched below
+                    nextFadeInOffset = fadeOutOffset,
                     layout           = lineLayout,
                     charBounds       = bounds,
                 )
             }
 
             raw.mapIndexed { idx, ld ->
-
                 val nextFadeIn = raw.getOrNull(idx + 1)?.fadeInOffset ?: run {
                     val spacing = if (idx > 0) {
                         raw[idx - 1].fadeInOffset - raw[idx].fadeInOffset
                     } else {
                         containerHeightPx * 0.1f
                     }
-
                     raw[idx].fadeInOffset - spacing
                 }
+                ld.copy(nextFadeInOffset = nextFadeIn)
+            }
+        }
 
+        // Re-normalize line positions against the actual rendered height to eliminate
+        // cumulative drift caused by \n line breaks disagreeing between the measurer
+        // and the real compositor. textHeightPx is ground truth; scale everything to it.
+        val normalizedLines: List<ScrollLineData> = remember(lineDataList, textHeightPx, containerHeightPx) {
+            if (textHeightPx <= 0f || lineDataList.isEmpty()) return@remember lineDataList
+            val measuredTotal = lineDataList.last().lineBottomPx
+            if (measuredTotal <= 0f) return@remember lineDataList
+            val scale = textHeightPx / measuredTotal
+
+            val scaled = lineDataList.map { ld ->
+                val correctedMid = ((ld.lineTopPx + ld.lineBottomPx) / 2f) * scale
+                val fadeInOffset = containerHeightPx / 2f - correctedMid
+                ld.copy(
+                    fadeInOffset  = fadeInOffset,
+                    fadeOutOffset = fadeInOffset,
+                )
+            }
+
+// Re-patch nextFadeInOffset — skip blank lines when looking for the next real spacing
+            scaled.mapIndexed { idx, ld ->
+                val nextFadeIn = scaled
+                    .drop(idx + 1)
+                    .firstOrNull { it.lineText.isNotBlank() }  // skip blank \n lines
+                    ?.fadeInOffset
+                    ?: run {
+                        // no next real line — infer spacing from previous real pair
+                        val prevReal = scaled
+                            .take(idx)
+                            .filter { it.lineText.isNotBlank() }
+                        val spacing = if (prevReal.size >= 2) {
+                            prevReal[prevReal.lastIndex - 1].fadeInOffset - prevReal[prevReal.lastIndex].fadeInOffset
+                        } else {
+                            containerHeightPx * 0.1f
+                        }
+                        ld.fadeInOffset - spacing
+                    }
                 ld.copy(nextFadeInOffset = nextFadeIn)
             }
         }
 
         // ── Trim offsets ──────────────────────────────────────────────────────
-        // trim=true removes dead scroll at whichever ends are relevant per mode:
-        //   None  → trimStart=false, trimEnd=false  (no fade window, nothing to trim)
-        //   Fade  → trimStart=true,  trimEnd=true   (trim both ends)
-        //   Print → trimStart=true,  trimEnd=false  (no fade-out, only trim entry)
         val doTrimStart = trim && when (transitionMode) {
             TransitionMode.Fade,
             TransitionMode.Print -> true
@@ -836,48 +867,30 @@ fun TextCentreVerticalScrollBox(
         data class TrimOffsets(val startOffset: Float?, val endOffset: Float?)
 
         val trimOffsets: TrimOffsets? = remember(
-            lineDataList, containerHeightPx, transitionMode, doTrimStart, doTrimEnd,
+            normalizedLines, containerHeightPx, transitionMode, doTrimStart, doTrimEnd,
         ) {
-            if ((!doTrimStart && !doTrimEnd) || lineDataList.isEmpty()) return@remember null
+            if ((!doTrimStart && !doTrimEnd) || normalizedLines.isEmpty()) return@remember null
 
-            val firstLine = lineDataList.first()
-            val lastLine  = lineDataList.last()
+            val firstLine = normalizedLines.first()
+            val lastLine  = normalizedLines.last()
 
-            // ── fade-band helper ──────────────────────────────────────────────
             fun fadeBandFor(ld: ScrollLineData): Float {
                 val fadeWindow  = ld.fadeInOffset - ld.nextFadeInOffset
                 val staggerSpan = (fadeWindow * 0.60f).coerceAtLeast(1f)
                 return (staggerSpan / 2f).coerceAtLeast(1f)
             }
 
-            // ── Start trim ────────────────────────────────────────────────────
-            // Snap to the first-line fade trigger (index 0, no stagger subtracted)
-            // so there is zero dead scroll before the first character appears.
             val startOffset: Float? = if (doTrimStart) firstLine.fadeInOffset else null
 
-            // ── End trim ──────────────────────────────────────────────────────
-            // The last line has no real successor, so its nextFadeInOffset is patched
-            // to equal fadeInOffset (see lineDataList build). This means:
-            //   • fadeWindow = 0  →  staggerSpan/fadeBand collapse to 1f (coerce floor)
-            //   • fade-out triggers immediately as the line reaches the reading centre
-            //   • fade-out completes in ~1px of scroll travel
-            //
-            // Fade:  add half-container buffer past fadeInOffset so the last line
-            //        is visible at centre and its instant fade-out finishes completely.
-            // Print: no fade-out — stop when the last character has fully faded in.
-            //        Borrow fadeBand from the second-to-last line (real fadeWindow)
-            //        since the last line's own band is the collapsed 1f floor.
             val endOffset: Float? = if (doTrimEnd) {
                 if (transitionMode == TransitionMode.Print) {
-                    val refLine     = lineDataList.getOrElse(lineDataList.lastIndex - 1) { lastLine }
+                    val refLine     = normalizedLines.getOrElse(normalizedLines.lastIndex - 1) { lastLine }
                     val fadeBand    = fadeBandFor(refLine)
                     val staggerSpan = fadeBand * 2f
                     val n           = lastLine.lineText.length.coerceAtLeast(1)
                     val fadeInStart_lastChar = lastLine.fadeInOffset - staggerSpan * (n - 1) / n
                     fadeInStart_lastChar - fadeBand
                 } else {
-                    // Fade — half-container buffer ensures the last line reaches the
-                    // reading centre and its fade-out fully completes.
                     lastLine.fadeInOffset - containerHeightPx / 2f
                 }
             } else null
@@ -885,27 +898,17 @@ fun TextCentreVerticalScrollBox(
             TrimOffsets(startOffset, endOffset)
         }
 
-        // Pixel velocity derived from wpm: totalDurationMs scales with total scroll distance
-        // so the reading speed in words/min matches wpm regardless of text length.
-        // When start/end are trimmed the duration is scaled to the actual travel distance
-        // so WPM is preserved.
         val totalDurationMs: Long = remember(textHeightPx, containerHeightPx, wpm, fullText, trimOffsets) {
             if (textHeightPx <= 0f || containerHeightPx <= 0f) return@remember 3000L
             val textDurationMs = calculatePageDurationMs(fullText, wpm).coerceAtLeast(1000L)
-            val fullDistance   = textHeightPx + containerHeightPx * 2f
 
             val effectiveStart = trimOffsets?.startOffset ?: containerHeightPx
             val effectiveEnd   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
-            // travel distance = start − (−|end|) = start + |end|; but endOffset may be
-            // negative (text scrolled past centre), so: distance = start − endOffset
             val trimmedDistance = (effectiveStart - effectiveEnd).coerceAtLeast(1f)
 
             (textDurationMs * trimmedDistance / textHeightPx.coerceAtLeast(1f)).toLong()
         }
 
-        // Single constant-velocity animateTo — same structure as TextHorizontalScrollBox.
-        // start/end match exactly: text enters from below, exits above.
-        // trimStart/trimEnd independently control whether each end is clipped.
         LaunchedEffect(textHeightPx, totalDurationMs, containerHeightPx, trimOffsets) {
             if (textHeightPx <= 0f) return@LaunchedEffect
             if (!preview) {
@@ -970,26 +973,26 @@ fun TextCentreVerticalScrollBox(
 
             when (transitionMode) {
                 TransitionMode.Fade -> ScrollAnimText(
-                    pages = pages,
-                    textStyle = textStyle,
-                    lines = lineDataList,
+                    pages      = pages,
+                    textStyle  = textStyle,
+                    lines      = normalizedLines,
                     offsetAnim = offsetAnim,
-                    fadeOut = true,
-                    modifier = scrollModifier,
+                    fadeOut    = true,
+                    modifier   = scrollModifier,
                 )
 
                 TransitionMode.Print -> ScrollAnimText(
-                    pages = pages,
-                    textStyle = textStyle,
-                    lines = lineDataList,
+                    pages      = pages,
+                    textStyle  = textStyle,
+                    lines      = normalizedLines,
                     offsetAnim = offsetAnim,
-                    fadeOut = false,
-                    modifier = scrollModifier,
+                    fadeOut    = false,
+                    modifier   = scrollModifier,
                 )
 
                 TransitionMode.None -> Text(
-                    text = fullText,
-                    style = textStyle,
+                    text     = fullText,
+                    style    = textStyle,
                     overflow = TextOverflow.Clip,
                     modifier = scrollModifier,
                 )

@@ -68,6 +68,10 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
         }
     }
+    sourceSets.commonMain.dependencies {
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+        implementation(kotlin("test"))
+    }
 }
 
 android {
