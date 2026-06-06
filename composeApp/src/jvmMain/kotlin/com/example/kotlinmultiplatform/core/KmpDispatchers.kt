@@ -1,0 +1,10 @@
+package com.example.kotlinmultiplatform.core
+
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+
+actual object KmpDispatchers {
+    actual val Main:    CoroutineDispatcher = Dispatchers.Main
+    actual val IO:      CoroutineDispatcher = Dispatchers.IO
+    actual val Default: CoroutineDispatcher = Dispatchers.Default
+}

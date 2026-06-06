@@ -11,474 +11,411 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.unit.dp
-import com.russhwolf.settings.Settings
-import com.russhwolf.settings.set
+import com.example.kotlinmultiplatform.features.display.DisplayEvent
+import com.example.kotlinmultiplatform.features.display.DisplayIntent
+import com.example.kotlinmultiplatform.features.display.LocalDisplayViewModel
+import com.example.kotlinmultiplatform.features.newtask.LocalNewTaskViewModel
+import com.example.kotlinmultiplatform.features.newtask.NewTaskEvent
+import com.example.kotlinmultiplatform.features.newtask.NewTaskIntent
+import com.example.kotlinmultiplatform.features.player.LocalPlayerViewModel
+import com.example.kotlinmultiplatform.features.player.PlayerEvent
+import com.example.kotlinmultiplatform.features.player.PlayerIntent
+import com.example.kotlinmultiplatform.features.tasklist.LocalTaskListViewModel
+import com.example.kotlinmultiplatform.features.tasklist.TaskListEvent
+import com.example.kotlinmultiplatform.features.tasklist.TaskListIntent
+import com.example.kotlinmultiplatform.features.tasklist.TaskListItem
+import com.example.kotlinmultiplatform.core.WindowModeObserver
+import com.example.kotlinmultiplatform.navigation.NavigationUiEvent
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlin.time.Clock
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.draft_title
 import org.jetbrains.compose.resources.stringResource
 
-// ── destinations ──────────────────────────────────────────────────────────────
+// ── Destination ───────────────────────────────────────────────────────────────
+//
+// Step 4: Detail and PlayDetail carry only an id — no Task object crosses
+// navigation boundaries. Each screen's ViewModel loads the full task from
+// Settings when it receives a Load intent.
 
 sealed interface Destination {
     data object TaskList  : Destination
     data object NewDetail : Destination
-    data class PlayDetail(val task: Task, val isPreview: Boolean = false) : Destination
-    /** isPreview = true  → reached from NewTask via "Next" (transient preview)
-     *  isPreview = false → reached by tapping a task in the list              */
-    data class Detail(val task: Task, val isPreview: Boolean = false) : Destination
+    data class  Detail(val taskId: Int, val isPreview: Boolean = false)     : Destination
+    data class  PlayDetail(val taskId: Int, val isPreview: Boolean = false) : Destination
 }
 
-// ── Settings keys ─────────────────────────────────────────────────────────────
-private const val KEY_POPULATED = "tasks_populated"
-private const val KEY_NEXT_ID   = "tasks_next_id"
-private const val KEY_IDS       = "tasks_ids"
-
-private fun keyTitle(id: Int) = "task_title_$id"
-private fun keyDesc (id: Int) = "task_desc_$id"
-private fun keyIcon (id: Int) = "task_icon_$id"
-
-// ── Settings read/write helpers ───────────────────────────────────────────────
-
-private fun loadIds(settings: Settings): List<Int> {
-    val raw = settings.getStringOrNull(KEY_IDS) ?: return emptyList()
-    return raw.split(",").mapNotNull { it.trim().toIntOrNull() }
-}
-
-private fun saveIds(settings: Settings, ids: List<Int>) {
-    settings[KEY_IDS] = ids.joinToString(",")
-}
-
-private fun writeTask(settings: Settings, id: Int, title: String, desc: String, shape: LeadingShapeType) {
-    settings[keyTitle(id)] = title
-    settings[keyDesc(id)]  = desc
-    settings[keyIcon(id)]  = shape.ordinal
-}
-
-private fun deleteTask(settings: Settings, id: Int) {
-    settings.remove(keyTitle(id))
-    settings.remove(keyDesc(id))
-    settings.remove(keyIcon(id))
-}
-
-private fun readTask(settings: Settings, id: Int): Task? {
-    val title   = settings.getStringOrNull(keyTitle(id)) ?: return null
-    val desc    = settings.getStringOrNull(keyDesc(id))  ?: ""
-    val ordinal = settings.getIntOrNull(keyIcon(id))     ?: return null
-    val shape   = LeadingShapeType.entries.getOrNull(ordinal) ?: return null
-    return Task(id, title, desc, shape)
-}
-
-private fun loadAllTasks(settings: Settings): List<Task> =
-    loadIds(settings).mapNotNull { readTask(settings, it) }
-
-// ── mock seed ─────────────────────────────────────────────────────────────────
-
-private data class MockTask(val title: String, val desc: String, val shape: LeadingShapeType)
-
-private val mockSeed = listOf(
-    MockTask("Buy groceries", "Milk, Eggs, Bread, Coffee",              LeadingShapeType.HEART),
-    MockTask("KMP Project",   "Sync repository and update dependencies", LeadingShapeType.COOKIE_6),
-    MockTask("Gym session",   "Leg day workout at 6 PM",                 LeadingShapeType.SUNNY),
-    MockTask("Read book",     "Read 10 pages of Atomic Habits",          LeadingShapeType.DIAMOND),
-)
-
-// ── toolbar visibility constants ──────────────────────────────────────────────
-
-private const val TOOLBAR_VISIBLE_MS   = 3_000L
-
-// ── root ──────────────────────────────────────────────────────────────────────
+// ── AppNavigation ─────────────────────────────────────────────────────────────
+//
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │  Step 4 — what was REMOVED                                              │
+// │    • readTask() / keyTitle/keyDesc/keyIcon / KEY_IDS                    │
+// │    • Destination.Detail(task: Task) → now Detail(taskId: Int)           │
+// │    • Destination.PlayDetail(task: Task) → now PlayDetail(taskId: Int)   │
+// │    • var playerToolbarVisible / playerHideDeadlineMs                    │
+// │    • LaunchedEffect toolbar timer (2× LaunchedEffects)                  │
+// │    • val onToolbarTap lambda                                             │
+// │    • Task.toListItem() projection                                        │
+// │                                                                         │
+// │  Step 4 — what was ADDED                                                │
+// │    • displayVm / playerVm from CompositionLocals                        │
+// │    • LaunchedEffect(destination) dispatches Load to displayVm/playerVm  │
+// │    • Event collectors for DisplayEvent and PlayerEvent                   │
+// │    • DisplayScreenBody receives a Task built from displayVm.state       │
+// │    • PlayerScreenBody receives a Task built from playerVm.state         │
+// └─────────────────────────────────────────────────────────────────────────┘
 
 @Composable
 fun AppNavigation(modifier: Modifier = Modifier) {
-    val settings = LocalSettings.current
-    val draftTitle  = stringResource(Res.string.draft_title)
-    var destination  by remember { mutableStateOf<Destination>(Destination.TaskList) }
-    var searchActive by remember { mutableStateOf(false) }
-    var query        by remember { mutableStateOf("") }
+    val settings   = LocalSettings.current
+    val draftTitle = stringResource(Res.string.draft_title)
 
-    var nextId by remember {
-        mutableIntStateOf(
-            run {
-                val populated = settings.getBoolean(KEY_POPULATED, false)
-                var id = settings.getInt(KEY_NEXT_ID, 1)
-                if (!populated) {
-                    val ids = mutableListOf<Int>()
-                    mockSeed.forEach { seed ->
-                        writeTask(settings, id, seed.title, seed.desc, seed.shape)
-                        ids.add(id++)
-                    }
-                    saveIds(settings, ids)
-                    settings[KEY_NEXT_ID]   = id
-                    settings[KEY_POPULATED] = true
-                }
-                id
-            }
-        )
+    // ── Navigation VM (Step 1) ─────────────────────────────────────────────
+
+    val nav         = LocalNavViewModel.current
+    val navState    by nav.state.collectAsState()
+    val destination  = navState.current
+
+    var lastNavEvent by remember { mutableStateOf<NavigationUiEvent<Destination>?>(null) }
+    LaunchedEffect(nav) {
+        nav.events.collect { event -> lastNavEvent = event }
     }
 
-    val allTasks = remember { mutableStateListOf(*loadAllTasks(settings).toTypedArray()) }
+    // ── TaskList VM (Step 2) ───────────────────────────────────────────────
 
-    // ── NewTask screen state ───────────────────────────────────────────────────
-    val newTaskState = rememberNewTaskScreenState()
+    val taskListVm    = LocalTaskListViewModel.current
+    val taskListState by taskListVm.state.collectAsState()
 
-    var editingTaskId by remember { mutableStateOf<Int?>(null) }
-    var isPreviewMode by remember { mutableStateOf(false) }
-
-    LaunchedEffect(destination) {
-        if (destination == Destination.NewDetail && !isPreviewMode && editingTaskId == null) {
-            newTaskState.restore()
-        }
+    LaunchedEffect(taskListVm) {
+        taskListVm.onIntent(TaskListIntent.Load)
     }
 
-    var showSaveDialog by remember { mutableStateOf(false) }
+    // ── NewTask VM (Step 3) ────────────────────────────────────────────────
 
-    val scope        = rememberCoroutineScope()
+    val newTaskVm    = LocalNewTaskViewModel.current
+    val newTaskState by newTaskVm.state.collectAsState()
     val focusManager = LocalFocusManager.current
 
-    // ── Toolbar visibility state (player screen only) ─────────────────────────
-    //
-    // Owned here so both PlayerScreenStatic (toolbar layer) and PlayerScreenBody
-    // (tap layer) share the same state without any cross-composable state holder.
-    // Reset to hidden whenever we leave PlayDetail.
+    // TextFieldState objects created above AnimatedContent — survive transitions
+    val topicFieldState  = rememberTextFieldState()
+    val scriptFieldState = rememberTextFieldState()
 
-    var playerToolbarVisible by remember { mutableStateOf(true) }
-    var playerHideDeadlineMs by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds() + TOOLBAR_VISIBLE_MS) }
+    LaunchedEffect(topicFieldState.text) {
+        newTaskVm.onIntent(NewTaskIntent.TopicChanged(topicFieldState.text.toString()))
+    }
+    LaunchedEffect(scriptFieldState.text) {
+        newTaskVm.onIntent(NewTaskIntent.ScriptChanged(scriptFieldState.text.toString()))
+    }
 
     LaunchedEffect(destination) {
-        if (destination is Destination.PlayDetail) {
-            playerToolbarVisible = true
-            playerHideDeadlineMs = Clock.System.now().toEpochMilliseconds() + TOOLBAR_VISIBLE_MS
-        } else {
-            playerToolbarVisible = false
-            playerHideDeadlineMs = 0L
+        if (destination == Destination.NewDetail) {
+            newTaskVm.onIntent(
+                NewTaskIntent.Init(
+                    editingTaskId   = newTaskState.editingTaskId,
+                    isPreviewReturn = newTaskState.isPreviewMode,
+                    draftTitle      = draftTitle,
+                )
+            )
         }
     }
 
-    // Countdown coroutine: re-launched on every deadline change.
-    LaunchedEffect(playerHideDeadlineMs) {
-        if (playerHideDeadlineMs <= 0L) return@LaunchedEffect
-        val remaining = playerHideDeadlineMs - Clock.System.now().toEpochMilliseconds()
-        if (remaining > 0) delay(remaining)
-        playerToolbarVisible = false
-    }
+    // ── Display VM (Step 4) ────────────────────────────────────────────────
 
-    // Called by PlayerScreenBody on each tap.
-    val onToolbarTap: () -> Unit = {
-        val now = Clock.System.now().toEpochMilliseconds()
-        playerHideDeadlineMs = if (playerToolbarVisible) {
-            minOf(playerHideDeadlineMs + TOOLBAR_VISIBLE_MS, now + 3_000L)
-        } else {
-            playerToolbarVisible = true
-            now + TOOLBAR_VISIBLE_MS
+    val displayVm    = LocalDisplayViewModel.current                // ← STEP 4
+    val displayState by displayVm.state.collectAsState()            // ← STEP 4
+
+    // ── Player VM (Step 4) ─────────────────────────────────────────────────
+
+    val playerVm    = LocalPlayerViewModel.current                  // ← STEP 4
+    val playerState by playerVm.state.collectAsState()              // ← STEP 4
+
+    // Dispatch Load to the right VM when destination changes.          ← STEP 4
+    LaunchedEffect(destination) {
+        when (val dest = destination) {
+            is Destination.Detail    ->
+                displayVm.onIntent(DisplayIntent.Load(dest.taskId, dest.isPreview))
+            is Destination.PlayDetail ->
+                playerVm.onIntent(PlayerIntent.Load(dest.taskId, dest.isPreview))
+            else -> Unit
         }
     }
 
-    // ── Back from Detail(isPreview) → return to NewTaskScreen ────────────────
-    val onPreviewBack: (title: String, script: String) -> Unit = { title, script ->
-        newTaskState.prefill(topic = title, script = script)
-        isPreviewMode = true
-        destination   = Destination.NewDetail
-    }
-
-    // ── Update an existing task in-place by id ────────────────────────────────
-    fun updateOrRecreateTask(id: Int, newTitle: String, newDesc: String) {
-        val ids      = loadIds(settings)
-        val memIndex = allTasks.indexOfFirst { it.id == id }
-
-        if (id in ids) {
-            val ordinal = settings.getIntOrNull(keyIcon(id)) ?: 0
-            val shape   = LeadingShapeType.entries.getOrNull(ordinal) ?: LeadingShapeType.random()
-            settings[keyTitle(id)] = newTitle
-            settings[keyDesc(id)]  = newDesc
-            val updated = Task(id, newTitle, newDesc, shape)
-            if (memIndex >= 0) allTasks[memIndex] = updated else allTasks.add(updated)
-        } else {
-            deleteTask(settings, id)
-            val newId    = nextId++
-            val newShape = LeadingShapeType.random()
-            val position = if (memIndex >= 0) memIndex else allTasks.size
-            writeTask(settings, newId, newTitle, newDesc, newShape)
-            val mutableIds = ids.toMutableList()
-            mutableIds.add(position.coerceAtMost(mutableIds.size), newId)
-            saveIds(settings, mutableIds)
-            settings[KEY_NEXT_ID] = nextId
-            val newTask = Task(newId, newTitle, newDesc, newShape)
-            if (memIndex >= 0) allTasks[memIndex] = newTask else allTasks.add(newTask)
-        }
-    }
-
-    // ── Handle "Next" on NewTaskScreen ────────────────────────────────────────
-    val onNextClick: () -> Unit = {
-        val rawTitle = newTaskState.topicText.trim()
-        val script   = newTaskState.scriptText.trim()
-
-        if (script.isNotEmpty()) {
-            val displayTitle = rawTitle.ifBlank { draftTitle }
-            val id = editingTaskId
-
-            if (id != null) {
-                val existing      = allTasks.firstOrNull { it.id == id }
-                val titleChanged  = existing == null || displayTitle != existing.title
-                val scriptChanged = existing == null || script != existing.description
-                if (titleChanged || scriptChanged) updateOrRecreateTask(id, displayTitle, script)
-            }
-
-            isPreviewMode = false
-
-            val previewTask =
-                if (editingTaskId != null) {
-                    allTasks.first { it.id == editingTaskId }
-                } else {
-                    val newId = nextId++
-                    val shape = LeadingShapeType.random()
-                    writeTask(settings, newId, displayTitle, script, shape)
-                    saveIds(settings, loadIds(settings) + newId)
-                    settings[KEY_NEXT_ID] = nextId
-                    editingTaskId = newId
-                    val task = Task(id = newId, title = displayTitle, description = script, leadingShape = shape)
-                    allTasks.add(task)
-                    task
+    // Collect TaskList events
+    LaunchedEffect(taskListVm) {
+        taskListVm.events.collect { event ->
+            when (event) {
+                is TaskListEvent.NavigateToNewTask -> {
+                    newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = null, draftTitle = draftTitle))
+                    nav.push(Destination.NewDetail)
                 }
-
-            destination = Destination.Detail(task = previewTask, isPreview = true)
-        }
-    }
-
-    fun commitNewTask() {
-        val rawTitle = newTaskState.topicText.trim()
-        val desc     = newTaskState.scriptText.trim()
-
-        if (rawTitle.isBlank() && desc.isBlank()) {
-            editingTaskId = null
-            return
-        }
-
-        val finalTitle = rawTitle.ifBlank { draftTitle }
-        val id         = editingTaskId
-
-        if (id != null) {
-            updateOrRecreateTask(id = id, newTitle = finalTitle, newDesc = desc)
-        } else {
-            val newId = nextId++
-            val shape = LeadingShapeType.random()
-            writeTask(settings, newId, finalTitle, desc, shape)
-            saveIds(settings, loadIds(settings) + newId)
-            settings[KEY_NEXT_ID] = nextId
-            allTasks.add(Task(newId, finalTitle, desc, shape))
-        }
-
-        editingTaskId = null
-        isPreviewMode = false
-        newTaskState.clear()
-    }
-
-    // ── Back from NewTaskScreen ───────────────────────────────────────────────
-    val onNewTaskBack: () -> Unit = {
-        focusManager.clearFocus(force = true)
-
-        scope.launch {
-            delay(500)
-
-            if (isPreviewMode) {
-                commitNewTask()
-                destination = Destination.TaskList
-                return@launch
-            }
-
-            if (!newTaskState.isNotEmpty) {
-                editingTaskId = null
-                newTaskState.clear()
-                destination = Destination.TaskList
-                return@launch
-            }
-
-            val editId = editingTaskId
-            if (editId != null) {
-                val existing      = allTasks.firstOrNull { it.id == editId }
-                val currentTitle  = newTaskState.topicText.trim().ifBlank { draftTitle }
-                val currentScript = newTaskState.scriptText.trim()
-                val unchanged     = existing != null &&
-                        currentTitle == existing.title &&
-                        currentScript == existing.description
-                if (unchanged) {
-                    editingTaskId = null
-                    newTaskState.clear()
-                    destination = Destination.TaskList
-                    return@launch
+                is TaskListEvent.NavigateToEditTask -> {
+                    newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = event.taskId, draftTitle = draftTitle))
+                    nav.push(Destination.NewDetail)
                 }
             }
-
-            showSaveDialog = true
         }
     }
 
-    // ── Remove task ───────────────────────────────────────────────────────────
-    fun removeTask(task: Task) {
-        deleteTask(settings, task.id)
-        saveIds(settings, loadIds(settings) - task.id)
-        allTasks.remove(task)
-    }
-
-    val visibleTasks by remember {
-        derivedStateOf {
-            if (query.isBlank()) allTasks.toList()
-            else allTasks.filter {
-                it.title.contains(query, true) || it.description.contains(query, true)
+    // Collect NewTask events
+    LaunchedEffect(newTaskVm) {
+        newTaskVm.events.collect { event ->
+            when (event) {
+                is NewTaskEvent.PrefillFields -> {
+                    topicFieldState.edit  { replace(0, length, event.topic)  }
+                    scriptFieldState.edit { replace(0, length, event.script) }
+                }
+                is NewTaskEvent.ClearFields -> {
+                    topicFieldState.edit  { replace(0, length, "") }
+                    scriptFieldState.edit { replace(0, length, "") }
+                }
+                is NewTaskEvent.DismissKeyboard -> {
+                    focusManager.clearFocus(force = true)
+                    delay(500)
+                }
+                is NewTaskEvent.NavigateToDetail -> {
+                    taskListVm.onIntent(TaskListIntent.Load)
+                    // ← STEP 4: push id-only destination — no Task object
+                    nav.push(Destination.Detail(taskId = event.taskId, isPreview = event.isPreview))
+                }
+                is NewTaskEvent.NavigateBack -> {
+                    taskListVm.onIntent(TaskListIntent.Load)
+                    nav.popToRoot()
+                }
             }
         }
     }
+
+    // Collect Display events                                           ← STEP 4
+    LaunchedEffect(displayVm) {
+        displayVm.events.collect { event ->
+            when (event) {
+                is DisplayEvent.NavigateToPlay ->
+                    nav.push(Destination.PlayDetail(taskId = event.taskId, isPreview = event.isPreview))
+                is DisplayEvent.NavigateBack ->
+                    if (event.isPreview) {
+                        // Preview back: restore fields then return to NewDetail
+                        val task = displayState.task
+                        if (task != null) {
+                            newTaskVm.onIntent(
+                                NewTaskIntent.ReturnFromPreview(
+                                    title  = task.title,
+                                    script = task.description,
+                                )
+                            )
+                        }
+                        nav.push(Destination.NewDetail)
+                    } else {
+                        nav.pop()
+                    }
+            }
+        }
+    }
+
+    // Observe split-screen / multi-window mode → PlayerViewModel
+    LaunchedEffect(playerVm) {
+        WindowModeObserver.isMultiWindow.collect { isMultiWindow ->
+            playerVm.onIntent(
+                if (isMultiWindow) PlayerIntent.EnterPip else PlayerIntent.ExitPip
+            )
+        }
+    }
+
+    // Collect Player events                                            ← STEP 4
+    LaunchedEffect(playerVm) {
+        playerVm.events.collect { event ->
+            when (event) {
+                is PlayerEvent.NavigateToDetail ->
+                    nav.push(Destination.Detail(taskId = event.taskId, isPreview = event.isPreview))
+                is PlayerEvent.NavigateToRoot ->
+                    nav.popToRoot()
+                is PlayerEvent.RequestEnterPip -> { /* platform layer handles */ }
+                is PlayerEvent.RequestExitPip  -> { /* platform layer handles */ }
+            }
+        }
+    }
+
+    // ── Screen layout ──────────────────────────────────────────────────────
 
     ScreenLayout(
-        destination   = destination,
+        destination  = destination,
+        lastNavEvent = lastNavEvent,
         staticContent = { dest ->
             when (dest) {
-                is Destination.TaskList  -> TaskScreenStatic(
-                    searchActive  = searchActive,
-                    query         = query,
-                    onQueryChange = { query = it },
-                    onClear       = { query = "" },
-                    onBack        = { searchActive = false; query = "" },
-                    onSearchOpen  = { searchActive = true },
+                is Destination.TaskList -> TaskScreenStatic(
+                    searchActive  = taskListState.isSearchActive,
+                    query         = taskListState.query,
+                    onQueryChange = { taskListVm.onIntent(TaskListIntent.QueryChanged(it)) },
+                    onClear       = { taskListVm.onIntent(TaskListIntent.QueryChanged("")) },
+                    onBack        = { taskListVm.onIntent(TaskListIntent.SearchClosed) },
+                    onSearchOpen  = { taskListVm.onIntent(TaskListIntent.SearchOpened) },
                 )
-                is Destination.Detail    -> DisplayScreenStatic(
-                    onBack = if (dest.isPreview)
-                        { -> onPreviewBack(dest.task.title, dest.task.description) }
-                    else
-                        { -> destination = Destination.TaskList },
+                is Destination.Detail -> DisplayScreenStatic(
+                    // ← STEP 4: back handled via intent, not inline lambda
+                    onBack = { displayVm.onIntent(DisplayIntent.BackClicked) },
                 )
-                is Destination.NewDetail -> NewTaskScreenStatic(onBack = onNewTaskBack)
+                is Destination.NewDetail -> NewTaskScreenStatic(
+                    onBack = { newTaskVm.onIntent(NewTaskIntent.BackPressed) },
+                )
                 is Destination.PlayDetail -> PlayerScreenStatic(
-                    taskId         = dest.task.id,
-                    toolbarVisible = playerToolbarVisible,
-                    onToolbarTap   = onToolbarTap,
-                    onBack         = { destination = Destination.Detail(dest.task, isPreview = dest.isPreview) },
-                    onClose        = { destination = Destination.TaskList },
+                    // ← STEP 4: taskId from destination, toolbar from playerState
+                    taskId         = dest.taskId,
+                    toolbarVisible = playerState.toolbarVisible,
+                    onToolbarTap   = { playerVm.onIntent(PlayerIntent.ScreenTapped) },
+                    onBack         = { playerVm.onIntent(PlayerIntent.BackClicked) },
+                    onClose        = { playerVm.onIntent(PlayerIntent.CloseClicked) },
                 )
             }
         },
         dynamicContent = { dest ->
             when (dest) {
-                is Destination.TaskList  -> TaskScreenBody(
-                    visibleTasks = visibleTasks,
-                    onDismiss    = { removeTask(it) },
-                    onItemClick  = { task ->
-                        editingTaskId = task.id
-                        newTaskState.prefill(topic = task.title, script = task.description)
-                        destination = Destination.NewDetail
+                is Destination.TaskList -> TaskScreenBody(
+                    visibleTasks = taskListState.visibleTasks.map { item ->
+                        Task(
+                            id           = item.id,
+                            title        = item.title,
+                            description  = item.description,
+                            leadingShape = LeadingShapeType.entries
+                                .getOrElse(item.leadingShapeOrdinal) { LeadingShapeType.HEART },
+                        )
                     },
-                    onNewClick   = {
-                        editingTaskId = null
-                        newTaskState.clear()
-                        destination   = Destination.NewDetail
+                    onDismiss   = { task ->
+                        taskListVm.onIntent(TaskListIntent.TaskDismissed(
+                            TaskListItem(task.id, task.title, task.description, task.leadingShape.ordinal)
+                        ))
                     },
-                    modifier     = Modifier.fillMaxSize(),
+                    onItemClick = { task ->
+                        taskListVm.onIntent(TaskListIntent.TaskClicked(
+                            TaskListItem(task.id, task.title, task.description, task.leadingShape.ordinal)
+                        ))
+                    },
+                    onNewClick  = { taskListVm.onIntent(TaskListIntent.NewTaskClicked) },
+                    modifier    = Modifier.fillMaxSize(),
                 )
-                is Destination.Detail    -> DisplayScreenBody(
-                    task     = dest.task,
-                    onPlayClick = {
-                        destination = Destination.PlayDetail(dest.task, dest.isPreview)
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                )
-                is Destination.PlayDetail -> PlayerScreenBody(
-                    task     = dest.task,
-                    onReadingComplete = { playerToolbarVisible = true },
-                    modifier = Modifier.fillMaxSize(),
-                )
-                is Destination.NewDetail -> NewTaskScreenBody(
-                    state           = newTaskState,
-                    onBack          = onNewTaskBack,
-                    onNextClick     = onNextClick,
-                    showSaveDialog  = showSaveDialog,
-                    onDismissDialog = { showSaveDialog = false },
-                    onSave          = {
-                        showSaveDialog = false
-                        commitNewTask()
-                        destination = Destination.TaskList
-                    },
-                    onDiscard       = {
-                        showSaveDialog = false
-                        editingTaskId  = null
-                        isPreviewMode  = false
-                        newTaskState.clear()
-                        destination = Destination.TaskList
-                    },
-                    modifier        = Modifier.fillMaxSize(),
-                )
+                is Destination.Detail -> {
+                    // ← STEP 4: build Task from displayState for DisplayScreenBody.
+                    // DisplayScreenBody signature is unchanged — no edits to DisplayScreen.kt.
+                    // While task is loading the body renders nothing (handled by isLoading).
+                    val task = displayState.task?.let { dt ->
+                        Task(
+                            id           = dt.id,
+                            title        = dt.title,
+                            description  = dt.description,
+                            leadingShape = LeadingShapeType.entries
+                                .getOrElse(dt.shapeOrdinal) { LeadingShapeType.HEART },
+                        )
+                    }
+                    if (task != null) {
+                        DisplayScreenBody(
+                            task        = task,
+                            onPlayClick = { displayVm.onIntent(DisplayIntent.PlayClicked) },
+                            modifier    = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                is Destination.PlayDetail -> {
+                    // ← STEP 4: build Task from playerState for PlayerScreenBody.
+                    val task = playerState.task?.let { pt ->
+                        Task(
+                            id           = pt.id,
+                            title        = pt.title,
+                            description  = pt.description,
+                            leadingShape = LeadingShapeType.entries
+                                .getOrElse(pt.shapeOrdinal) { LeadingShapeType.HEART },
+                        )
+                    }
+                    if (task != null) {
+                        PlayerScreenBody(
+                            task              = task,
+                            onReadingComplete = { playerVm.onIntent(PlayerIntent.ReadingCompleted) },
+                            modifier          = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                is Destination.NewDetail -> {
+                    val screenState = remember(topicFieldState, scriptFieldState, settings) {
+                        NewTaskScreenState(
+                            topicState  = topicFieldState,
+                            scriptState = scriptFieldState,
+                            settings    = settings,
+                        )
+                    }
+                    NewTaskScreenBody(
+                        state           = screenState,
+                        onBack          = { newTaskVm.onIntent(NewTaskIntent.BackPressed) },
+                        onNextClick     = { newTaskVm.onIntent(NewTaskIntent.NextClicked) },
+                        showSaveDialog  = newTaskState.showSaveDialog,
+                        onDismissDialog = { newTaskVm.onIntent(NewTaskIntent.DialogDismissed) },
+                        onSave          = { newTaskVm.onIntent(NewTaskIntent.SaveConfirmed) },
+                        onDiscard       = { newTaskVm.onIntent(NewTaskIntent.DiscardConfirmed) },
+                        modifier        = Modifier.fillMaxSize(),
+                    )
+                }
             }
         },
         modifier = modifier,
     )
 }
 
-// ── layout ────────────────────────────────────────────────────────────────────
+// ── ScreenLayout (unchanged from Step 3) ─────────────────────────────────────
 
 @Composable
 private fun ScreenLayout(
-    destination: Destination,
-    staticContent: @Composable (Destination) -> Unit,
+    destination:    Destination,
+    lastNavEvent:   NavigationUiEvent<Destination>?,
+    staticContent:  @Composable (Destination) -> Unit,
     dynamicContent: @Composable (Destination) -> Unit,
-    modifier: Modifier = Modifier,
+    modifier:       Modifier = Modifier,
 ) {
     SafeAreaLayout {
         Box(modifier = modifier.fillMaxSize()) {
+
             AnimatedContent(
-                targetState = destination,
+                targetState    = destination,
                 transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
-                label = "staticLayer",
-                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                label          = "staticLayer",
+                modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
             ) { dest -> staticContent(dest) }
 
             AnimatedContent(
                 targetState = destination,
                 transitionSpec = {
+                    val isBack = lastNavEvent is NavigationUiEvent.TransitionBack ||
+                                 lastNavEvent is NavigationUiEvent.PopToRoot
                     when {
-                        // Back from Detail(isPreview) to NewDetail: slide right-to-left (reverse)
                         initialState is Destination.Detail &&
-                                (initialState as Destination.Detail).isPreview &&
-                                targetState is Destination.NewDetail ->
+                        (initialState as Destination.Detail).isPreview &&
+                        targetState is Destination.NewDetail ->
                             slideInHorizontally(tween(350)) { -it } togetherWith
-                                    slideOutHorizontally(tween(350)) { it }
-                        // Back to TaskList: slide right-to-left
-                        targetState is Destination.TaskList ->
-                            slideInHorizontally(tween(350)) { -it } togetherWith
-                                    slideOutHorizontally(tween(350)) { it }
+                            slideOutHorizontally(tween(350)) { it }
 
-                        // Back from PlayDetail
-                        initialState is Destination.PlayDetail && targetState is Destination.Detail ->
+                        isBack || targetState is Destination.TaskList ->
                             slideInHorizontally(tween(350)) { -it } togetherWith
-                                    slideOutHorizontally(tween(350)) { it } using
-                                    SizeTransform(clip = true)
+                            slideOutHorizontally(tween(350)) { it }
 
-                        // Forward: slide left-to-right
+                        initialState is Destination.PlayDetail &&
+                        targetState is Destination.Detail ->
+                            slideInHorizontally(tween(350)) { -it } togetherWith
+                            slideOutHorizontally(tween(350)) { it } using
+                            SizeTransform(clip = true)
+
                         else ->
                             slideInHorizontally(tween(350)) { it } togetherWith
-                                    slideOutHorizontally(tween(350)) { -it } using
-                                    SizeTransform(clip = true)
+                            slideOutHorizontally(tween(350)) { -it } using
+                            SizeTransform(clip = true)
                     }
                 },
-                label = "dynamicLayer",
-                modifier = Modifier
-                    .fillMaxSize(),
+                label    = "dynamicLayer",
+                modifier = Modifier.fillMaxSize(),
             ) { dest -> dynamicContent(dest) }
         }
     }
