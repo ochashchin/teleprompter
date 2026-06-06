@@ -23,52 +23,38 @@ import com.example.kotlinmultiplatform.features.tasklist.LocalTaskListViewModel
 import com.example.kotlinmultiplatform.features.tasklist.SettingsTaskListRepository
 import com.example.kotlinmultiplatform.features.tasklist.TaskListViewModel
 import com.example.kotlinmultiplatform.navigation.NavigationViewModel
+import com.example.kotlinmultiplatform.navigation.RootViewModel
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
 import com.russhwolf.settings.Settings
 
-// ── CompositionLocals ─────────────────────────────────────────────────────────
-//
-// LocalSettings is defined in AppSettings.kt — same package, no import needed.
-// All others are defined in their respective feature packages.
-//
-// !! DEPLOYMENT NOTE !!
-// App.kt and AppNavigation.kt import symbols from four sub-packages:
-//   • features/display/
-//   • features/player/
-//   • features/newtask/
-//   • features/tasklist/
-//   • navigation/
-//
-// ALL of those package files must exist in the project before this file
-// will compile.  If any sub-package is absent the Kotlin compiler rejects
-// the entire com.example.kotlinmultiplatform package, which makes Task,
-// LeadingShapeType, TaskScreenBody, NewTaskScreenBody, PlayerScreenBody and
-// LocalSettings appear as "Unresolved reference" even though those symbols
-// are completely unchanged.  Add every file in this zip first, then build.
-
+// Keep LocalNavViewModel so any other file that references it still compiles.
 val LocalNavViewModel = compositionLocalOf {
     NavigationViewModel(Destination.TaskList as Destination)
 }
 
+/**
+ * @param rootViewModel  Optional — iOS hoists it in MainViewController so the
+ *                       same instance is used for gesture registration.
+ *                       Android passes null and App() creates it internally.
+ * @param onExitApp      Android: { finishAffinity() }. iOS: no-op default.
+ */
 @Composable
-fun App() {
+fun App(
+    rootViewModel: RootViewModel? = null,
+    onExitApp: () -> Unit = {},
+) {
     val settings = remember { Settings() }
 
-    val navViewModel: NavigationViewModel<Destination> = remember { NavigationViewModel(Destination.TaskList) }
+    val vm                = rootViewModel ?: remember { RootViewModel() }
     val taskListViewModel = remember { TaskListViewModel(SettingsTaskListRepository(settings)) }
-    val newTaskViewModel = remember { NewTaskViewModel(SettingsNewTaskRepository(settings)) }
-    val displayViewModel = remember { DisplayViewModel(SettingsDisplayRepository(settings)) }
-    val playerViewModel = remember { PlayerViewModel(SettingsPlayerRepository(settings)) }
+    val newTaskViewModel  = remember { NewTaskViewModel(SettingsNewTaskRepository(settings)) }
+    val displayViewModel  = remember { DisplayViewModel(SettingsDisplayRepository(settings)) }
+    val playerViewModel   = remember { PlayerViewModel(SettingsPlayerRepository(settings)) }
 
-    DisposableEffect(
-        navViewModel,
-        taskListViewModel,
-        newTaskViewModel,
-        displayViewModel,
-        playerViewModel
-    ) {
+    DisposableEffect(vm, taskListViewModel, newTaskViewModel, displayViewModel, playerViewModel) {
         onDispose {
-            navViewModel.clear()
+            // Only clear the VM if App() owns it (rootViewModel param was null).
+            if (rootViewModel == null) vm.clear()
             taskListViewModel.clear()
             newTaskViewModel.clear()
             displayViewModel.clear()
@@ -78,22 +64,22 @@ fun App() {
 
     AppTheme {
         CompositionLocalProvider(
-            // ── Infrastructure ─────────────────────────────────────────────
-            LocalSettings provides settings,        // AppSettings.kt
-            LocalNavViewModel provides navViewModel,    // this file
-
-            // ── Feature ViewModels — screen-stack order ────────────────────
+            LocalSettings          provides settings,
             LocalTaskListViewModel provides taskListViewModel,
-            LocalNewTaskViewModel provides newTaskViewModel,
-            LocalDisplayViewModel provides displayViewModel,
-            LocalPlayerViewModel provides playerViewModel,
+            LocalNewTaskViewModel  provides newTaskViewModel,
+            LocalDisplayViewModel  provides displayViewModel,
+            LocalPlayerViewModel   provides playerViewModel,
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surfaceContainerLow)
             )
-            AppNavigation(modifier = Modifier.fillMaxSize())
+            AppRoot(
+                viewModel = vm,
+                onExitApp = onExitApp,
+                modifier  = Modifier.fillMaxSize(),
+            )
         }
     }
 }
