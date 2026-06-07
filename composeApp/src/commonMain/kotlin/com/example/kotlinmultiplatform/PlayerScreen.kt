@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import kotlinmultiplatform.composeapp.generated.resources.Res
@@ -54,17 +55,15 @@ fun PlayerScreenStatic(
         (displayState.selectedIndex(orientationItem) ?: orientationItem.defaultIndex) == 1
 
     Box(Modifier.fillMaxSize()) {
-        if (toolbarVisible.not()) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication        = null,
-                        onClick           = onToolbarTap,
-                    )
-            )
-        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication        = null,
+                    onClick           = onToolbarTap,
+                )
+        )
 
         AnimatedVisibility(
             visible  = toolbarVisible,
@@ -121,6 +120,9 @@ fun PlayerScreenStatic(
 fun PlayerScreenBody(
     task: Task,
     modifier: Modifier = Modifier,
+    styleSpans: List<StyleSpan> = emptyList(),
+    isFillColorActive: Boolean = false,
+    fillColor: Color? = null,
     onReadingComplete: () -> Unit = {},
 ) {
     val displayState = rememberDisplayTaskState(task.id)
@@ -201,6 +203,9 @@ fun PlayerScreenBody(
                 distortionMode      = distortionMode,
                 animationMode       = animationMode,
                 transitionMode      = transitionMode,
+                styleSpans          = styleSpans,
+                isFillColorActive   = isFillColorActive,
+                fillColor           = null,
                 preview             = false,
                 modifier            = modifier,
                 onAnimationComplete = onReadingComplete,

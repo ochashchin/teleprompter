@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,8 +41,8 @@ fun NewTaskScreenStatic(
     onBack: () -> Unit,
 ) {
     ToolBar(
-        title = stringResource(Res.string.screen_new_task),
-        onLeadingClick = onBack,
+        title           = stringResource(Res.string.screen_new_task),
+        onLeadingClick  = onBack,
         leadingIcon = {
             Icon(
                 imageVector        = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -53,37 +54,54 @@ fun NewTaskScreenStatic(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Body — fields + dialog overlay
+// Body — fields + style bar + dialog overlay
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 fun NewTaskScreenBody(
-    state: NewTaskScreenState,
-    onBack: () -> Unit,
-    onNextClick: () -> Unit,
+    state:          NewTaskScreenState,
+    onBack:         () -> Unit,
+    onNextClick:    () -> Unit,
     showSaveDialog: Boolean,
     onDismissDialog: () -> Unit,
-    onSave: () -> Unit,
-    onDiscard: () -> Unit,
-    modifier: Modifier = Modifier,
+    onSave:         () -> Unit,
+    onDiscard:      () -> Unit,
+    modifier:       Modifier = Modifier,
+    styleState:     ScriptTextStyleState? = null,
 ) {
-    val focusRequester = remember { FocusRequester() }
-
     // Track whether the user has attempted "Next" with an empty script field.
-    // Reset whenever the script becomes non-empty so the error clears naturally.
     var scriptError by remember { mutableStateOf(false) }
 
-    // Clear the error as soon as the user starts typing in the script field.
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
     LaunchedEffect(state.scriptState.text) {
         if (state.scriptText.isNotEmpty()) scriptError = false
     }
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    // ── Live selection tracking ───────────────────────────────────────────────
+    //
+    // TextFieldState.selection is a SnapshotState — read it inside a
+    // derivedStateOf so recompositions stay scoped to the bar only.
+
+    val selStart by remember {
+        derivedStateOf { state.scriptState.selection.start }
+    }
+    val selEnd by remember {
+        derivedStateOf { state.scriptState.selection.end }
+    }
+
+    // Derive active-state flags for the style bar from the current selection
+    val hasSelection   by remember { derivedStateOf { selStart < selEnd } }
+    val isBoldActive   by remember { derivedStateOf { styleState?.isRangeBold(selStart, selEnd) == true } }
+    val isItalicActive by remember { derivedStateOf { styleState?.isRangeItalic(selStart, selEnd) == true } }
+    val isUnderActive  by remember { derivedStateOf { styleState?.isRangeUnderline(selStart, selEnd) == true } }
+    val activeColor    by remember { derivedStateOf { styleState?.rangeTextColor(selStart, selEnd) } }
 
     Box(
         modifier = Modifier
             .padding(top = 64.dp)
-            .fillMaxSize()
+            .fillMaxSize(),
     ) {
         Column(
             modifier = modifier
@@ -93,29 +111,44 @@ fun NewTaskScreenBody(
             TopicTextField(
                 state          = state.topicState,
                 focusRequester = focusRequester,
-                isError     = scriptError,
+                isError        = scriptError,
             )
 
             ScriptStyleBar(
-                onBoldClick      = {},
-                onItalicClick    = {},
-                onUnderlineClick = {},
-                onTextColorClick = {},
-                onFillColorClick = {},
+                onBoldClick      = {
+                    if (hasSelection) styleState?.toggleBold(selStart, selEnd)
+                },
+                onItalicClick    = {
+                    if (hasSelection) styleState?.toggleItalic(selStart, selEnd)
+                },
+                onUnderlineClick = {
+                    if (hasSelection) styleState?.toggleUnderline(selStart, selEnd)
+                },
+                // Text colour: pick directly from the colour palette
+                onTextColorPick  = { color ->
+                    if (hasSelection) styleState?.setTextColor(selStart, selEnd, color)
+                },
+                onFillColorPick  = { color -> styleState?.setFillColor(color) },
                 onMoreClick      = {},
+                // Active state reflects current selection
+                isBoldActive      = isBoldActive,
+                isItalicActive    = isItalicActive,
+                isUnderlineActive = isUnderActive,
+                activeTextColor   = activeColor,
+                activeFillColor   = styleState?.activeFillColor,
             )
 
             ScriptTextField(
-                state       = state.scriptState,
-                isError     = scriptError,
+                state      = state.scriptState,
+                styleState = styleState,
+                isError    = scriptError,
             )
         }
 
         FabBarLayout(
-            text = stringResource(Res.string.fab_next),
+            text    = stringResource(Res.string.fab_next),
             onClick = {
                 if (state.scriptText.trim().isEmpty()) {
-                    // Show error on the script field — do not navigate.
                     scriptError = true
                 } else {
                     scriptError = false
@@ -127,12 +160,12 @@ fun NewTaskScreenBody(
                 .imePadding(),
             icon = {
                 Icon(
-                    modifier = Modifier.size(24.dp),
+                    modifier           = Modifier.size(24.dp),
                     imageVector        = Icons.AutoMirrored.Rounded.ArrowForward,
                     contentDescription = stringResource(Res.string.cd_next),
                     tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
+            },
         )
     }
 
@@ -145,7 +178,6 @@ fun NewTaskScreenBody(
         )
     }
 }
-
 
 
 // ─────────────────────────────────────────────────────────────────────────────

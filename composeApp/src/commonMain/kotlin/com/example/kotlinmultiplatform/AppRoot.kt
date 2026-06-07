@@ -8,9 +8,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -98,8 +100,38 @@ fun AppRoot(
     val playerState by playerVm.state.collectAsState()
 
     // TextFieldStates live above AnimatedContent — survive screen transitions.
-    val topicFieldState  = rememberTextFieldState()
-    val scriptFieldState = rememberTextFieldState()
+    val topicFieldState   = rememberTextFieldState()
+    val scriptFieldState  = rememberTextFieldState()
+    // Style state lives here so it survives screen transitions (same as field states)
+    // and is backed by Settings for persistence across app restarts.
+    val scriptStyleState  = rememberScriptTextStyleState()
+
+    // Display/Player style states are lifted here (above AnimatedContent) so they are
+    // never re-created on recomposition.  loadForTaskId() is called via LaunchedEffect
+    // when the active task id changes, ensuring we always read from Settings AFTER
+    // migrateToTaskId() has written the spans under the real key.
+    val displayStyleState = rememberScriptTextStyleState()
+    val playerStyleState  = rememberScriptTextStyleState()
+
+    // Reload display style whenever the displayed task changes.
+    LaunchedEffect(displayState.task?.id) {
+        val id = displayState.task?.id ?: return@LaunchedEffect
+        displayStyleState.loadForTaskId(id)
+    }
+
+    // Reload player style whenever the played task changes.
+    LaunchedEffect(playerState.task?.id) {
+        val id = playerState.task?.id ?: return@LaunchedEffect
+        playerStyleState.loadForTaskId(id)
+    }
+
+    // ── Mirror style unsaved-changes into the VM so back-press shows dialog ──
+
+    LaunchedEffect(scriptStyleState.hasUnsavedChanges) {
+        if (scriptStyleState.hasUnsavedChanges) {
+            newTaskVm.onIntent(NewTaskIntent.StyleChanged)
+        }
+    }
 
     // ── Initial load ──────────────────────────────────────────────────────────
 
@@ -167,21 +199,49 @@ fun AppRoot(
                 is NewTaskEvent.PrefillFields -> {
                     topicFieldState.edit  { replace(0, length, event.topic)  }
                     scriptFieldState.edit { replace(0, length, event.script) }
+                    // Load style for the task being edited (editingTaskId is already in VM state)
+                    val editId = newTaskState.editingTaskId
+                    if (editId != null) {
+                        scriptStyleState.loadForTaskId(editId)
+                    }
                 }
                 is NewTaskEvent.ClearFields -> {
                     topicFieldState.edit  { replace(0, length, "") }
                     scriptFieldState.edit { replace(0, length, "") }
+                    scriptStyleState.clear()
+                    newTaskVm.onIntent(NewTaskIntent.StyleSaved)
                 }
                 is NewTaskEvent.DismissKeyboard -> {
                     focusManager.clearFocus(force = true)
                     delay(500)
                 }
                 is NewTaskEvent.NavigateToDetail -> {
+                    // Migrate style from temp key to the real taskId, then mark saved
+                    scriptStyleState.migrateToTaskId(event.taskId)
+                    scriptStyleState.markSaved()
+                    newTaskVm.onIntent(NewTaskIntent.StyleSaved)
+                    // Eagerly reload displayStyleState so spans are ready before
+                    // DisplayScreen renders — LaunchedEffect on task id won't refire
+                    // if the same task is previewed a second time (id unchanged).
+                    displayStyleState.loadForTaskId(event.taskId)
                     taskListVm.onIntent(TaskListIntent.Load)
                     displayVm.onIntent(DisplayIntent.Load(event.taskId, event.isPreview))
                     viewModel.goToDisplay()
                 }
+                is NewTaskEvent.NavigateBackAfterSave -> {
+                    // Migrate spans to the real task key BEFORE ClearFields arrives.
+                    // ClearFields is emitted immediately after this event by the VM;
+                    // it will call scriptStyleState.clear() which resets everything.
+                    val id = event.savedTaskId
+                    if (id != null) scriptStyleState.migrateToTaskId(id)
+                    newTaskVm.onIntent(NewTaskIntent.StyleSaved)
+                    taskListVm.onIntent(TaskListIntent.Load)
+                    viewModel.navStack.reset()
+                }
                 is NewTaskEvent.NavigateBack -> {
+                    // Discard path — just clear style state without migrating.
+                    scriptStyleState.clear()
+                    newTaskVm.onIntent(NewTaskIntent.StyleSaved)
                     taskListVm.onIntent(TaskListIntent.Load)
                     viewModel.navStack.reset()
                 }
@@ -196,6 +256,9 @@ fun AppRoot(
             when (event) {
                 is DisplayEvent.NavigateToPlay -> {
                     playerVm.onIntent(PlayerIntent.Load(event.taskId, event.isPreview))
+                    // Eagerly reload player style here too — LaunchedEffect on task id
+                    // won't refire if the same task is replayed (id unchanged).
+                    playerStyleState.loadForTaskId(event.taskId)
                     viewModel.goToPlayer()
                 }
                 is DisplayEvent.NavigateBack -> {
@@ -269,9 +332,10 @@ fun AppRoot(
     // ── Screen layout ─────────────────────────────────────────────────────────
 
     ScreenLayout(
-        screen     = screen,
-        prevScreen = prevScreen,
-        staticContent = { s ->
+        screen           = screen,
+        prevScreen       = prevScreen,
+        playerStyleState = playerStyleState,
+        staticContent    = { s ->
             when (s) {
                 is Screen.TaskScreen    -> TaskScreenStatic(
                     searchActive  = taskListState.isSearchActive,
@@ -296,7 +360,7 @@ fun AppRoot(
                 )
             }
         },
-        dynamicContent = { s ->
+        dynamicContent   = { s ->
             when (s) {
                 is Screen.TaskScreen -> TaskScreenBody(
                     visibleTasks = taskListState.visibleTasks.map { item ->
@@ -338,6 +402,7 @@ fun AppRoot(
                         onSave          = { newTaskVm.onIntent(NewTaskIntent.SaveConfirmed) },
                         onDiscard       = { newTaskVm.onIntent(NewTaskIntent.DiscardConfirmed) },
                         modifier        = Modifier.fillMaxSize(),
+                        styleState      = scriptStyleState,
                     )
                 }
                 is Screen.DisplayScreen -> {
@@ -351,10 +416,15 @@ fun AppRoot(
                         )
                     }
                     if (task != null) {
+                        // displayStyleState is loaded above via LaunchedEffect(displayState.task?.id)
+                        // so spans are always fresh after migrateToTaskId() writes to Settings.
                         DisplayScreenBody(
-                            task        = task,
-                            onPlayClick = { displayVm.onIntent(DisplayIntent.PlayClicked) },
-                            modifier    = Modifier.fillMaxSize(),
+                            task              = task,
+                            onPlayClick       = { displayVm.onIntent(DisplayIntent.PlayClicked) },
+                            modifier          = Modifier.fillMaxSize(),
+                            styleSpans        = displayStyleState.spans,
+                            isFillColorActive = displayStyleState.isFillColorActive,
+                            fillColor         = displayStyleState.activeFillColor,
                         )
                     }
                 }
@@ -369,10 +439,14 @@ fun AppRoot(
                         )
                     }
                     if (task != null) {
+                        // playerStyleState is loaded above via LaunchedEffect(playerState.task?.id)
                         PlayerScreenBody(
                             task              = task,
                             onReadingComplete = { playerVm.onIntent(PlayerIntent.ReadingCompleted) },
                             modifier          = Modifier.fillMaxSize(),
+                            styleSpans        = playerStyleState.spans,
+                            isFillColorActive = playerStyleState.isFillColorActive,
+                            fillColor         = playerStyleState.activeFillColor,
                         )
                     }
                 }
@@ -388,58 +462,83 @@ fun AppRoot(
 
 @Composable
 private fun ScreenLayout(
-    screen:         Screen,
-    prevScreen:     Screen,
-    staticContent:  @Composable (Screen) -> Unit,
-    dynamicContent: @Composable (Screen) -> Unit,
-    modifier:       Modifier = Modifier,
+    screen:           Screen,
+    prevScreen:       Screen,
+    playerStyleState: ScriptTextStyleState,
+    staticContent:    @Composable (Screen) -> Unit,
+    dynamicContent:   @Composable (Screen) -> Unit,
+    modifier:         Modifier = Modifier,
 ) {
-    SafeAreaLayout {
-        Box(modifier = modifier.fillMaxSize()) {
+    val defaultBgColor   = MaterialTheme.colorScheme.surfaceContainerLow
+    val playerFillColor  = playerStyleState.activeFillColor
 
-            // Static layer — top-bar fades on destination change.
-            AnimatedContent(
-                targetState    = screen,
-                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
-                label          = "staticLayer",
-                modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-            ) { s -> staticContent(s) }
+    Box(modifier = modifier.fillMaxSize()) {
 
-            // Dynamic layer — body slides.
-            AnimatedContent(
-                targetState    = screen,
-                transitionSpec = {
-                    val isBack = targetState.ordinal < initialState.ordinal
+        AnimatedContent(
+            targetState    = screen,
+            transitionSpec = { fadeIn(tween(1000)) togetherWith fadeOut(tween(1000)) },
+            label          = "staticBackground",
+            modifier       = Modifier.fillMaxSize(),
+        ) { targetScreen ->
+            val bgColor = if (targetScreen is Screen.PlayerScreen && playerFillColor != null) {
+                playerFillColor
+            } else {
+                defaultBgColor
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(bgColor)
+            )
+        }
 
-                    when {
-                        // Preview-back: DisplayScreen(preview) → NewTaskScreen slides right-to-left
-                        initialState is Screen.DisplayScreen &&
-                        targetState  is Screen.NewTaskScreen ->
-                            slideInHorizontally(tween(350)) { -it } togetherWith
-                            slideOutHorizontally(tween(350)) { it }
+        SafeAreaLayout {
+            Box(modifier = Modifier.fillMaxSize()) {
 
-                        // Any back navigation slides right-to-left
-                        isBack ->
-                            slideInHorizontally(tween(350)) { -it } togetherWith
-                            slideOutHorizontally(tween(350)) { it }
+                // Static layer — top-bar fades on destination change.
+                AnimatedContent(
+                    targetState    = screen,
+                    transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
+                    label          = "staticLayer",
+                    modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+                ) { s -> staticContent(s) }
 
-                        // PlayerScreen → DisplayScreen (back from player)
-                        initialState is Screen.PlayerScreen &&
-                        targetState  is Screen.DisplayScreen ->
-                            slideInHorizontally(tween(350)) { -it } togetherWith
-                            slideOutHorizontally(tween(350)) { it } using
-                            SizeTransform(clip = true)
+                // Dynamic layer — body slides.
+                AnimatedContent(
+                    targetState    = screen,
+                    transitionSpec = {
+                        val isBack = targetState.ordinal < initialState.ordinal
 
-                        // Forward navigation slides left-to-right
-                        else ->
-                            slideInHorizontally(tween(350)) { it } togetherWith
-                            slideOutHorizontally(tween(350)) { -it } using
-                            SizeTransform(clip = true)
-                    }
-                },
-                label    = "dynamicLayer",
-                modifier = Modifier.fillMaxSize(),
-            ) { s -> dynamicContent(s) }
+                        when {
+                            // Preview-back: DisplayScreen(preview) → NewTaskScreen slides right-to-left
+                            initialState is Screen.DisplayScreen &&
+                                    targetState  is Screen.NewTaskScreen ->
+                                slideInHorizontally(tween(350)) { -it } togetherWith
+                                        slideOutHorizontally(tween(350)) { it }
+
+                            // Any back navigation slides right-to-left
+                            isBack ->
+                                slideInHorizontally(tween(350)) { -it } togetherWith
+                                        slideOutHorizontally(tween(350)) { it }
+
+                            // PlayerScreen → DisplayScreen (back from player)
+                            initialState is Screen.PlayerScreen &&
+                                    targetState  is Screen.DisplayScreen ->
+                                slideInHorizontally(tween(350)) { -it } togetherWith
+                                        slideOutHorizontally(tween(350)) { it } using
+                                        SizeTransform(clip = true)
+
+                            // Forward navigation slides left-to-right
+                            else ->
+                                slideInHorizontally(tween(350)) { it } togetherWith
+                                        slideOutHorizontally(tween(350)) { -it } using
+                                        SizeTransform(clip = true)
+                        }
+                    },
+                    label    = "dynamicLayer",
+                    modifier = Modifier.fillMaxSize(),
+                ) { s -> dynamicContent(s) }
+            }
         }
     }
 }

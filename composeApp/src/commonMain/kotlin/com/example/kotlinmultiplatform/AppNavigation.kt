@@ -191,6 +191,11 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                     taskListVm.onIntent(TaskListIntent.Load)
                     nav.popToRoot()
                 }
+                is NewTaskEvent.NavigateBackAfterSave -> {
+                    // Style migration is handled by AppRoot; AppNavigation only needs to pop.
+                    taskListVm.onIntent(TaskListIntent.Load)
+                    nav.popToRoot()
+                }
             }
         }
     }

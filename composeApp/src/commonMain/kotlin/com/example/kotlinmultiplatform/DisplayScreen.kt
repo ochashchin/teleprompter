@@ -39,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -172,6 +173,10 @@ fun TextFitPlayer(
     isHorizontal:        Boolean,
     animationMode:       AnimationMode  = AnimationMode.Frame,
     transitionMode:      TransitionMode = TransitionMode.None,
+    styleSpans:          List<StyleSpan> = emptyList(),
+    isFillColorActive:   Boolean        = false,
+    fillColor:           Color?          = null,
+    fullText:            String         = "",
     preview:             Boolean        = false,
     modifier:            Modifier       = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
@@ -191,6 +196,9 @@ fun TextFitPlayer(
                     isHorizontal = isHorizontal,
                     wpm = wpm,
                     transitionMode = transitionMode,
+                    styleSpans = styleSpans,
+                    isFillColorActive = isFillColorActive,
+                    fillColor         = fillColor,
                     preview = preview,
                     modifier = Modifier.fillMaxSize(),
                     onAnimationComplete = onAnimationComplete,
@@ -206,6 +214,10 @@ fun TextFitPlayer(
                     padding = padding,
                     isHorizontal = isHorizontal,
                     transitionMode = transitionMode,
+                    styleSpans = styleSpans,
+                    isFillColorActive = isFillColorActive,
+                    fillColor         = fillColor,
+                    fullText = fullText,
                     preview = preview,
                     modifier = Modifier.fillMaxSize(),
                     onAnimationComplete = onAnimationComplete,
@@ -221,6 +233,9 @@ fun TextFitPlayer(
                     transitionMode = transitionMode,
                     isHorizontal = isHorizontal,
                     padding = padding,
+                    styleSpans = styleSpans,
+                    isFillColorActive = isFillColorActive,
+                    fillColor         = fillColor,
                     preview = preview,
                     modifier = Modifier.fillMaxSize(),
                     onAnimationComplete = onAnimationComplete,
@@ -259,6 +274,9 @@ fun DisplayScreenBody(
     task: Task,
     onPlayClick: () -> Unit,
     modifier: Modifier = Modifier,
+    styleSpans: List<StyleSpan> = emptyList(),
+    isFillColorActive: Boolean = false,
+    fillColor: Color? = null,
 ) {
 
     val displayState = rememberDisplayTaskState(task.id)
@@ -354,17 +372,20 @@ fun DisplayScreenBody(
                     color = MaterialTheme.colorScheme.surface,
                 ) {
                     DisplayTextBar(
-                        task           = task,
-                        wpm            = wpm,
-                        textStyle      = textStyle,
-                        padding        = previewPadding,
-                        isHorizontal   = isHorizontal,
-                        isMirror       = isMirror,
-                        distortionMode = distortionMode,
-                        animationMode  = animationMode,
-                        transitionMode = transitionMode,
-                        preview        = true,
-                        modifier       = modifier,
+                        task              = task,
+                        wpm               = wpm,
+                        textStyle         = textStyle,
+                        padding           = previewPadding,
+                        isHorizontal      = isHorizontal,
+                        isMirror          = isMirror,
+                        distortionMode    = distortionMode,
+                        animationMode     = animationMode,
+                        transitionMode    = transitionMode,
+                        styleSpans        = styleSpans,
+                        isFillColorActive = isFillColorActive,
+                        fillColor         = fillColor,
+                        preview           = true,
+                        modifier          = modifier,
                     )
                 }
             }

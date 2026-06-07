@@ -40,6 +40,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.graphicsLayer
@@ -83,6 +84,7 @@ data class ScrollLineData(
     val nextFadeInOffset: Float,
     val layout:           TextLayoutResult,
     val charBounds:       Array<Rect>,
+    val annotatedLine:    androidx.compose.ui.text.AnnotatedString = androidx.compose.ui.text.AnnotatedString(""),
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -94,7 +96,8 @@ data class ScrollLineData(
                 fadeOutOffset    == other.fadeOutOffset    &&
                 nextFadeInOffset == other.nextFadeInOffset &&
                 layout           == other.layout           &&
-                charBounds.contentEquals(other.charBounds)
+                charBounds.contentEquals(other.charBounds)   &&
+                annotatedLine    == other.annotatedLine
     }
     override fun hashCode(): Int {
         var r = lineText.hashCode()
@@ -105,6 +108,7 @@ data class ScrollLineData(
         r = 31 * r + nextFadeInOffset.hashCode()
         r = 31 * r + layout.hashCode()
         r = 31 * r + charBounds.contentHashCode()
+        r = 31 * r + annotatedLine.hashCode()
         return r
     }
 }
@@ -227,6 +231,9 @@ fun TextFitBox(
     padding:             Dp             = 10.dp,
     isHorizontal:        Boolean        = false,
     transitionMode:      TransitionMode = TransitionMode.None,
+    styleSpans:          List<StyleSpan> = emptyList(),
+    isFillColorActive:   Boolean        = false,
+    fillColor:           Color?          = null,
     preview:             Boolean        = false,
     modifier:            Modifier       = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
@@ -295,8 +302,28 @@ fun TextFitBox(
 
     val pageText = pages.getOrElse(currentPage) { pages.first() }
 
+    // Build an AnnotatedString for the current page, offsetting spans by the
+    // page's start position within the full text so character indices align.
+    val pageOffset = remember(pages, currentPage) {
+        pages.take(currentPage).sumOf { it.length + 1 }.coerceAtLeast(0) // +1 for separator
+    }
+    val annotatedPageText = remember(pageText, pageOffset, styleSpans) {
+        if (styleSpans.isEmpty()) {
+            androidx.compose.ui.text.AnnotatedString(pageText)
+        } else {
+            androidx.compose.ui.text.buildAnnotatedString {
+                append(pageText)
+                styleSpans.forEach { span ->
+                    val s = (span.start - pageOffset).coerceAtLeast(0)
+                    val e = (span.end   - pageOffset).coerceAtMost(pageText.length)
+                    if (s < e) addStyle(span.toSpanStyle(), s, e)
+                }
+            }
+        }
+    }
+
     BoxWithConstraints(
-        modifier         = rotatedModifier
+        modifier         = modifier.background(fillColor ?: Color.Transparent)
             .padding(padding)
             .graphicsLayer(alpha = alpha)
             .fillMaxSize(),
@@ -304,7 +331,7 @@ fun TextFitBox(
     ) {
         when (transitionMode) {
             TransitionMode.None -> Text(
-                text     = pageText,
+                text     = annotatedPageText,
                 style    = textStyle,
                 maxLines = linesPerParent,
                 overflow = TextOverflow.Clip,
@@ -318,10 +345,10 @@ fun TextFitBox(
                 val contentColor = textStyle.color.takeOrElse { LocalContentColor.current }
 
                 // ── Build-time state (unchanged from original) ──────────────────────
-                val drawState = remember(pageText, textStyle, contentWidthPx, linesPerParent, wpm) {
+                val drawState = remember(pageText, textStyle, contentWidthPx, linesPerParent, wpm, styleSpans) {
 
                     val layout = textMeasurer.measure(
-                        text = pageText,
+                        text = annotatedPageText,
                         style = textStyle,
                         constraints = Constraints(maxWidth = contentWidthPx),
                         overflow = TextOverflow.Clip,
@@ -497,6 +524,9 @@ fun TextHorizontalScrollBox(
     transitionMode:      TransitionMode,
     isHorizontal:        Boolean,
     padding:             Dp       = 10.dp,
+    styleSpans:          List<StyleSpan> = emptyList(),
+    isFillColorActive:   Boolean  = false,
+    fillColor:           Color?    = null,
     preview:             Boolean  = false,
     modifier:            Modifier = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
@@ -511,7 +541,7 @@ fun TextHorizontalScrollBox(
     var alpha by remember { mutableFloatStateOf(1f) }
 
     BoxWithConstraints(
-        modifier = modifier
+        modifier = modifier.background(fillColor ?: Color.Transparent)
             .fillMaxSize()
             .clipToBounds()
     ) {
@@ -519,8 +549,23 @@ fun TextHorizontalScrollBox(
             if (isHorizontal) constraints.maxHeight.toFloat()
             else constraints.maxWidth.toFloat()
 
-        val measured = remember(text, textStyle) {
-            textMeasurer.measure(text = text, style = textStyle)
+        val annotatedScrollText = remember(text, styleSpans) {
+            if (styleSpans.isEmpty()) {
+                androidx.compose.ui.text.AnnotatedString(text)
+            } else {
+                androidx.compose.ui.text.buildAnnotatedString {
+                    append(text)
+                    styleSpans.forEach { span ->
+                        val s = span.start.coerceIn(0, text.length)
+                        val e = span.end.coerceIn(s, text.length)
+                        if (s < e) addStyle(span.toSpanStyle(), s, e)
+                    }
+                }
+            }
+        }
+
+        val measured = remember(text, textStyle, styleSpans) {
+            textMeasurer.measure(text = annotatedScrollText, style = textStyle)
         }
 
         val textWidthPx = remember(measured) {
@@ -582,8 +627,22 @@ fun TextHorizontalScrollBox(
             when (transitionMode) {
 
                 TransitionMode.None -> {
+                    val annotatedText = remember(text, styleSpans) {
+                        if (styleSpans.isEmpty()) {
+                            androidx.compose.ui.text.AnnotatedString(text)
+                        } else {
+                            androidx.compose.ui.text.buildAnnotatedString {
+                                append(text)
+                                styleSpans.forEach { span ->
+                                    val s = span.start.coerceIn(0, text.length)
+                                    val e = span.end.coerceIn(s, text.length)
+                                    if (s < e) addStyle(span.toSpanStyle(), s, e)
+                                }
+                            }
+                        }
+                    }
                     Text(
-                        text     = text,
+                        text     = annotatedText,
                         maxLines = 1,
                         style    = textStyle,
                         modifier = Modifier
@@ -718,6 +777,10 @@ fun TextCentreVerticalScrollBox(
     isHorizontal:   Boolean,
     transitionMode:      TransitionMode = TransitionMode.None,
     padding:             Dp             = 10.dp,
+    styleSpans:          List<StyleSpan> = emptyList(),
+    isFillColorActive:   Boolean        = false,
+    fillColor:           Color?          = null,
+    fullText:            String         = "",
     preview:             Boolean        = false,
     trim:                Boolean        = true,
     modifier:            Modifier       = Modifier,
@@ -727,7 +790,7 @@ fun TextCentreVerticalScrollBox(
     var alpha by remember { mutableFloatStateOf(1f) }
 
     BoxWithConstraints(
-        modifier = modifier
+        modifier = modifier.background(fillColor ?: Color.Transparent)
             .fillMaxSize()
             .clipToBounds()
     ) {
@@ -750,7 +813,7 @@ fun TextCentreVerticalScrollBox(
         // Measure every visual line. Compute fade window per line using the reading region
         // centred exactly on containerHeightPx/2.
         val lineDataList: List<ScrollLineData> = remember(
-            fullText, textStyle, measuredWidthPx, containerHeightPx
+            fullText, textStyle, measuredWidthPx, containerHeightPx, styleSpans
         ) {
             if (fullText.isBlank() || measuredWidthPx <= 0 || containerHeightPx <= 0f)
                 return@remember emptyList()
@@ -787,6 +850,40 @@ fun TextCentreVerticalScrollBox(
                     Array(lineText.length) { i -> lineLayout.getBoundingBox(i) }
                 } else emptyArray()
 
+                // Compute the character offset of this line within the full text so
+                // span indices (which are relative to fullText) can be re-mapped.
+                val lineStart = measured.getLineStart(idx)
+                val annotatedLine = if (styleSpans.isEmpty() || lineText.isEmpty()) {
+                    androidx.compose.ui.text.AnnotatedString(lineText)
+                } else {
+                    androidx.compose.ui.text.buildAnnotatedString {
+                        append(lineText)
+                        styleSpans.forEach { span ->
+                            val s = (span.start - lineStart).coerceAtLeast(0)
+                            val e = (span.end   - lineStart).coerceAtMost(lineText.length)
+                            if (s < e) addStyle(span.toSpanStyle(), s, e)
+                        }
+                    }
+                }
+
+                // Re-measure the line using AnnotatedString so span styles are baked
+                // into the layout (bold/italic affect glyph positions).
+                val styledLineLayout = if (styleSpans.isEmpty() || lineText.isEmpty()) {
+                    lineLayout
+                } else {
+                    textMeasurer.measure(
+                        text        = annotatedLine,
+                        style       = textStyle,
+                        constraints = Constraints(maxWidth = measuredWidthPx),
+                        overflow    = TextOverflow.Clip,
+                        maxLines    = 1,
+                    )
+                }
+
+                val styledBounds: Array<Rect> = if (lineText.isNotEmpty() && styleSpans.isNotEmpty()) {
+                    Array(lineText.length) { i -> styledLineLayout.getBoundingBox(i) }
+                } else bounds
+
                 ScrollLineData(
                     lineText         = lineText,
                     lineTopPx        = lineTopPx,
@@ -794,8 +891,9 @@ fun TextCentreVerticalScrollBox(
                     fadeInOffset     = fadeInOffset,
                     fadeOutOffset    = fadeOutOffset,
                     nextFadeInOffset = fadeOutOffset,
-                    layout           = lineLayout,
-                    charBounds       = bounds,
+                    layout           = styledLineLayout,
+                    charBounds       = styledBounds,
+                    annotatedLine    = annotatedLine,
                 )
             }
 
@@ -978,6 +1076,7 @@ fun TextCentreVerticalScrollBox(
                     lines      = normalizedLines,
                     offsetAnim = offsetAnim,
                     fadeOut    = true,
+                    styleSpans = styleSpans,
                     modifier   = scrollModifier,
                 )
 
@@ -987,15 +1086,32 @@ fun TextCentreVerticalScrollBox(
                     lines      = normalizedLines,
                     offsetAnim = offsetAnim,
                     fadeOut    = false,
+                    styleSpans = styleSpans,
                     modifier   = scrollModifier,
                 )
 
-                TransitionMode.None -> Text(
-                    text     = fullText,
-                    style    = textStyle,
-                    overflow = TextOverflow.Clip,
-                    modifier = scrollModifier,
-                )
+                TransitionMode.None -> {
+                    val annotatedFull = remember(fullText, styleSpans) {
+                        if (styleSpans.isEmpty()) {
+                            androidx.compose.ui.text.AnnotatedString(fullText)
+                        } else {
+                            androidx.compose.ui.text.buildAnnotatedString {
+                                append(fullText)
+                                styleSpans.forEach { span ->
+                                    val s = span.start.coerceIn(0, fullText.length)
+                                    val e = span.end.coerceIn(s, fullText.length)
+                                    if (s < e) addStyle(span.toSpanStyle(), s, e)
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        text     = annotatedFull,
+                        style    = textStyle,
+                        overflow = TextOverflow.Clip,
+                        modifier = scrollModifier,
+                    )
+                }
             }
         }
     }
@@ -1008,6 +1124,7 @@ fun ScrollAnimText(
     lines:      List<ScrollLineData>,
     offsetAnim: Animatable<Float, *>,
     fadeOut:    Boolean,
+    styleSpans: List<StyleSpan> = emptyList(),
     modifier:   Modifier = Modifier,
 ) {
     val fullText     = remember(pages) { pages.joinToString(" ") }
@@ -1036,6 +1153,7 @@ fun ScrollAnimText(
                     colorR     = colorR,
                     colorG     = colorG,
                     colorB     = colorB,
+                    styleSpans = styleSpans,
                 )
             }
         }
@@ -1066,6 +1184,7 @@ private fun LineAnimCanvas(
     colorR:     Float,
     colorG:     Float,
     colorB:     Float,
+    styleSpans: List<StyleSpan> = emptyList(),
 ) {
     if (lineData.lineText.isEmpty()) return
 
@@ -1213,6 +1332,9 @@ fun DisplayTextBar(
     distortionMode:      Float,
     animationMode:       AnimationMode,
     transitionMode:      TransitionMode,
+    styleSpans:          List<StyleSpan> = emptyList(),
+    isFillColorActive:   Boolean        = false,
+    fillColor:           Color?          = null,
     preview:             Boolean        = true,
     modifier:            Modifier       = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
@@ -1221,6 +1343,25 @@ fun DisplayTextBar(
 
     var alpha by remember { mutableFloatStateOf(1f) }
 
+    // When fill is active, override text colour to white so it's readable on #404040.
+    val effectiveTextStyle = textStyle
+
+    // Compose an AnnotatedString from the span list for plain Text() rendering.
+    val annotatedDescription = remember(task.description, styleSpans) {
+        if (styleSpans.isEmpty()) {
+            androidx.compose.ui.text.AnnotatedString(task.description)
+        } else {
+            androidx.compose.ui.text.buildAnnotatedString {
+                append(task.description)
+                styleSpans.forEach { span ->
+                    val s = span.start.coerceIn(0, task.description.length)
+                    val e = span.end.coerceIn(s, task.description.length)
+                    if (s < e) addStyle(span.toSpanStyle(), s, e)
+                }
+            }
+        }
+    }
+
     BoxWithConstraints(
         modifier = Modifier
             .graphicsLayer {
@@ -1228,6 +1369,12 @@ fun DisplayTextBar(
                 scaleX = if (isHorizontal) distortionMode else 1f
                 scaleY = if (isHorizontal) 1f else distortionMode
             }
+            .then(
+                if (isFillColorActive)
+                    Modifier.background(fillColor ?: Color.Transparent)
+                else
+                    Modifier
+            )
             .fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
@@ -1245,8 +1392,8 @@ fun DisplayTextBar(
         ) {
             TextFitCalculator(
                 text = task.description,
-                fontSize = textStyle.fontSize,
-                lineHeight = textStyle.lineHeight,
+                fontSize = effectiveTextStyle.fontSize,
+                lineHeight = effectiveTextStyle.lineHeight,
                 padding = padding,
                 isHorizontal = isHorizontal,
                 modifier = playerSize,
@@ -1261,11 +1408,15 @@ fun DisplayTextBar(
                     result = r,
                     pages = pages,
                     wpm = wpm,
-                    textStyle = textStyle,
+                    textStyle = effectiveTextStyle,
                     padding = padding,
                     isHorizontal = isHorizontal,
                     animationMode = animationMode,
                     transitionMode = transitionMode,
+                    styleSpans = styleSpans,
+                    isFillColorActive = isFillColorActive,
+                    fillColor         = fillColor,
+                    fullText = task.description,
                     preview = preview,
                     modifier = playerSize,
                     onAnimationComplete = onAnimationComplete,

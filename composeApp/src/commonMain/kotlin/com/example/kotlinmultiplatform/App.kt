@@ -70,11 +70,6 @@ fun App(
             LocalDisplayViewModel  provides displayViewModel,
             LocalPlayerViewModel   provides playerViewModel,
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            )
             AppRoot(
                 viewModel = vm,
                 onExitApp = onExitApp,

@@ -8,31 +8,21 @@ import kotlinx.coroutines.launch
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-/**
- * Immutable state for the new-task / edit-task screen.
- *
- * [topicText] and [scriptText] are the canonical text values.
- * The composable's [TextFieldState] objects are the visual layer — they sync
- * their content into the VM via [NewTaskIntent.TopicChanged] /
- * [NewTaskIntent.ScriptChanged] on every keystroke, and the VM pushes back
- * via [NewTaskEvent.PrefillFields] / [NewTaskEvent.ClearFields] events only
- * when a bulk rewrite is needed (edit mode load, prefill from preview-back,
- * draft restore, discard).  This avoids fighting Compose's text engine.
- */
 data class NewTaskState(
-    val topicText:      String  = "",
-    val scriptText:     String  = "",
-    val editingTaskId:  Int?    = null,
-    val isPreviewMode:  Boolean = false,
-    val showSaveDialog: Boolean = false,
-    val draftTitle:     String  = "",
-    val isBusy:         Boolean = false,
+    val topicText:       String  = "",
+    val scriptText:      String  = "",
+    val editingTaskId:   Int?    = null,
+    val isPreviewMode:   Boolean = false,
+    val showSaveDialog:  Boolean = false,
+    val draftTitle:      String  = "",
+    val isBusy:          Boolean = false,
+    /** True when style-only changes have been made (no text edit needed to trigger dialog). */
+    val hasStyleChanges: Boolean = false,
 ) : UiState {
 
     val hasContent: Boolean
         get() = topicText.isNotBlank() || scriptText.isNotBlank()
 
-    /** The title to persist: typed topic, falling back to the localised draft string. */
     val effectiveTitle: String
         get() = topicText.trim().ifBlank { draftTitle }
 }
@@ -40,92 +30,53 @@ data class NewTaskState(
 // ── Events ────────────────────────────────────────────────────────────────────
 
 sealed interface NewTaskEvent : UiEvent {
-
-    // ── Field control events ─────────────────────────────────────────────────
-    //
-    // These tell the composable to rewrite its TextFieldState objects in bulk.
-    // Normal keystroke changes flow the other way (Intent → VM).
-
-    /** Overwrite both fields with the supplied content. */
     data class PrefillFields(val topic: String, val script: String) : NewTaskEvent
-
-    /** Clear both fields to empty strings. */
     data object ClearFields : NewTaskEvent
-
-    // ── Navigation events ────────────────────────────────────────────────────
-
-    /**
-     * Navigate forward to the Detail/preview screen for this task.
-     * [task] is the full Task object so Destination.Detail can carry it
-     * during the Step 3 migration (Step 4 removes the Task from Destination).
-     */
     data class NavigateToDetail(
-        val taskId:      Int,
-        val taskTitle:   String,
-        val taskScript:  String,
+        val taskId:       Int,
+        val taskTitle:    String,
+        val taskScript:   String,
         val shapeOrdinal: Int,
-        val isPreview:   Boolean,
+        val isPreview:    Boolean,
     ) : NewTaskEvent
-
-    /** Pop back to TaskList (save or discard completed). */
-    data object NavigateBack : NewTaskEvent
-
-    /** Dismiss keyboard (composable acts on this immediately). */
+    data object NavigateBack    : NewTaskEvent
+    /** Emitted after Save-confirmed back: carries the id of the task that was saved (or null if nothing was saved). */
+    data class NavigateBackAfterSave(val savedTaskId: Int?) : NewTaskEvent
     data object DismissKeyboard : NewTaskEvent
 }
 
 // ── Intents ───────────────────────────────────────────────────────────────────
 
 sealed interface NewTaskIntent : UiIntent {
-
-    /**
-     * Open the screen.
-     *
-     * @param editingTaskId   null = create mode; non-null = edit existing task.
-     * @param isPreviewReturn true when navigating back from Detail preview
-     *                        (fields already populated — skip draft restore).
-     * @param draftTitle      Localised fallback title string from the composable.
-     */
     data class Init(
         val editingTaskId:   Int?    = null,
         val isPreviewReturn: Boolean = false,
         val draftTitle:      String  = "",
     ) : NewTaskIntent
-
-    // Text field sync — fired on every keystroke
     data class TopicChanged(val text: String)  : NewTaskIntent
     data class ScriptChanged(val text: String) : NewTaskIntent
-
     data object NextClicked      : NewTaskIntent
     data object BackPressed      : NewTaskIntent
-
-    // Save-dialog responses
+    data object StyleChanged     : NewTaskIntent
+    data object StyleSaved       : NewTaskIntent
     data object SaveConfirmed    : NewTaskIntent
     data object DiscardConfirmed : NewTaskIntent
     data object DialogDismissed  : NewTaskIntent
-
-    /**
-     * Called when returning from the Detail/preview screen via its Back button.
-     * The Detail screen passes back the current title + script so the fields
-     * can be restored exactly as the user left them.
-     */
     data class ReturnFromPreview(val title: String, val script: String) : NewTaskIntent
 }
 
 // ── Repository interface ──────────────────────────────────────────────────────
 
-/** Persistence contract for new-task creation and draft management. */
 interface NewTaskRepository {
-    /** All per-task Settings helpers and nextId live here. */
     fun nextId(): Int
-    fun consumeNextId(): Int          // reads then increments the counter
+    fun consumeNextId(): Int
     fun saveTask(title: String, desc: String, shapeOrdinal: Int): SavedTask
     fun updateTask(id: Int, title: String, desc: String)
     fun loadTask(id: Int): SavedTask?
     fun saveDraft(topic: String, script: String)
     fun loadDraft(): DraftData?
     fun clearDraft()
-    fun ensureSeeded()                // idempotent first-run seed
+    fun ensureSeeded()
 }
 
 data class SavedTask(
@@ -149,24 +100,23 @@ class NewTaskViewModel(
 ) {
     override fun onIntent(intent: UiIntent) {
         when (intent) {
-            is NewTaskIntent.Init            -> init(intent)
-            is NewTaskIntent.TopicChanged    -> updateState { it.copy(topicText  = intent.text) }
-            is NewTaskIntent.ScriptChanged   -> updateState { it.copy(scriptText = intent.text) }
-            is NewTaskIntent.NextClicked     -> onNext()
-            is NewTaskIntent.BackPressed     -> onBack()
-            is NewTaskIntent.SaveConfirmed   -> onSaveConfirmed()
+            is NewTaskIntent.Init             -> init(intent)
+            is NewTaskIntent.TopicChanged     -> updateState { it.copy(topicText  = intent.text) }
+            is NewTaskIntent.ScriptChanged    -> updateState { it.copy(scriptText = intent.text) }
+            is NewTaskIntent.NextClicked      -> onNext()
+            is NewTaskIntent.BackPressed      -> onBack()
+            is NewTaskIntent.StyleChanged     -> updateState { it.copy(hasStyleChanges = true) }
+            is NewTaskIntent.StyleSaved       -> updateState { it.copy(hasStyleChanges = false) }
+            is NewTaskIntent.SaveConfirmed    -> onSaveConfirmed()
             is NewTaskIntent.DiscardConfirmed -> onDiscardConfirmed()
-            is NewTaskIntent.DialogDismissed -> updateState { it.copy(showSaveDialog = false) }
+            is NewTaskIntent.DialogDismissed  -> updateState { it.copy(showSaveDialog = false) }
             is NewTaskIntent.ReturnFromPreview -> onReturnFromPreview(intent.title, intent.script)
             else -> Unit
         }
     }
 
-    // ── Init ──────────────────────────────────────────────────────────────────
-
     private fun init(intent: NewTaskIntent.Init) {
         repository.ensureSeeded()
-
         updateState {
             it.copy(
                 draftTitle    = intent.draftTitle,
@@ -174,24 +124,18 @@ class NewTaskViewModel(
                 isPreviewMode = false,
             )
         }
-
         when {
             intent.isPreviewReturn -> {
-                // Back from preview: fields already populated by ReturnFromPreview intent,
-                // just mark mode — no field event needed.
                 updateState { it.copy(isPreviewMode = true) }
             }
             intent.editingTaskId != null -> {
                 val task = repository.loadTask(intent.editingTaskId)
                 if (task != null) {
-                    updateState {
-                        it.copy(topicText = task.title, scriptText = task.description)
-                    }
+                    updateState { it.copy(topicText = task.title, scriptText = task.description) }
                     emitEvent(NewTaskEvent.PrefillFields(task.title, task.description))
                 }
             }
             else -> {
-                // Create mode: restore draft if one exists
                 val draft = repository.loadDraft()
                 if (draft != null) {
                     updateState { it.copy(topicText = draft.topic, scriptText = draft.script) }
@@ -204,24 +148,14 @@ class NewTaskViewModel(
         }
     }
 
-    // ── ReturnFromPreview ─────────────────────────────────────────────────────
-
     private fun onReturnFromPreview(title: String, script: String) {
-        updateState {
-            it.copy(
-                topicText     = title,
-                scriptText    = script,
-                isPreviewMode = true,
-            )
-        }
+        updateState { it.copy(topicText = title, scriptText = script, isPreviewMode = true) }
         emitEvent(NewTaskEvent.PrefillFields(title, script))
     }
 
-    // ── Next ──────────────────────────────────────────────────────────────────
-
     private fun onNext() {
         val state = currentState
-        if (state.scriptText.trim().isEmpty()) return   // guard: composable also checks
+        if (state.scriptText.trim().isEmpty()) return
 
         updateState { it.copy(isBusy = true) }
 
@@ -235,23 +169,13 @@ class NewTaskViewModel(
                     title != existing.title ||
                     script != existing.description
             if (changed) repository.updateTask(editId, title, script)
-            repository.loadTask(editId)
-                ?: SavedTask(editId, title, script, 0)
+            repository.loadTask(editId) ?: SavedTask(editId, title, script, 0)
         } else {
-            val task = repository.saveTask(title, script, shapeOrdinal = randomShapeOrdinal())
-            task
+            repository.saveTask(title, script, shapeOrdinal = randomShapeOrdinal())
         }
 
         repository.clearDraft()
-
-        updateState {
-            it.copy(
-                editingTaskId = saved.id,
-                isPreviewMode = false,
-                isBusy        = false,
-            )
-        }
-
+        updateState { it.copy(editingTaskId = saved.id, isPreviewMode = false, isBusy = false) }
         emitEvent(
             NewTaskEvent.NavigateToDetail(
                 taskId       = saved.id,
@@ -263,17 +187,15 @@ class NewTaskViewModel(
         )
     }
 
-    // ── Back ──────────────────────────────────────────────────────────────────
-
     private fun onBack() {
         emitEvent(NewTaskEvent.DismissKeyboard)
-
         val state = currentState
-
         when {
             state.isPreviewMode -> {
-                // Returning to TaskList after having previewed — commit silently
                 viewModelScope.launch { commitAndReturn() }
+            }
+            state.hasStyleChanges && !state.hasContent -> {
+                updateState { it.copy(showSaveDialog = true) }
             }
             !state.hasContent -> {
                 clearAndReturn()
@@ -283,7 +205,7 @@ class NewTaskViewModel(
                 val unchanged = existing != null &&
                         state.effectiveTitle == existing.title &&
                         state.scriptText.trim() == existing.description
-                if (unchanged) clearAndReturn()
+                if (unchanged && !state.hasStyleChanges) clearAndReturn()
                 else updateState { it.copy(showSaveDialog = true) }
             }
             else -> {
@@ -304,6 +226,7 @@ class NewTaskViewModel(
 
     private fun commitAndReturn() {
         val state = currentState
+        var savedTaskId: Int? = state.editingTaskId
         if (state.hasContent) {
             if (state.editingTaskId != null) {
                 repository.updateTask(
@@ -312,17 +235,22 @@ class NewTaskViewModel(
                     state.scriptText.trim(),
                 )
             } else {
-                repository.saveTask(
+                val saved = repository.saveTask(
                     state.effectiveTitle,
                     state.scriptText.trim(),
                     shapeOrdinal = randomShapeOrdinal(),
                 )
+                savedTaskId = saved.id
             }
         }
         repository.clearDraft()
         resetState()
+        // Emit NavigateBackAfterSave FIRST so AppRoot migrates style spans before
+        // ClearFields fires — ClearFields resets scriptFieldState to length 0 which
+        // triggers onTextChanged(0) in ScriptTextField, wiping all spans from memory.
+        // Migration must read the non-empty _spans, so it must happen first.
+        emitEvent(NewTaskEvent.NavigateBackAfterSave(savedTaskId))
         emitEvent(NewTaskEvent.ClearFields)
-        emitEvent(NewTaskEvent.NavigateBack)
     }
 
     private fun clearAndReturn() {
@@ -333,15 +261,8 @@ class NewTaskViewModel(
     }
 
     private fun resetState() {
-        updateState {
-            NewTaskState(draftTitle = it.draftTitle)
-        }
+        updateState { NewTaskState(draftTitle = it.draftTitle, hasStyleChanges = false) }
     }
-
-    // ── Draft auto-save ───────────────────────────────────────────────────────
-    //
-    // Called from a LaunchedEffect in the composable on text changes, and from
-    // the platform layer on app-backgrounded lifecycle events.
 
     fun saveDraft() {
         val state = currentState
@@ -350,15 +271,9 @@ class NewTaskViewModel(
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private fun randomShapeOrdinal(): Int =
-        (0 until LEADING_SHAPE_COUNT).random()
+    private fun randomShapeOrdinal(): Int = (0 until LEADING_SHAPE_COUNT).random()
 
     companion object {
-        // Total entries in LeadingShapeType — keep in sync with the enum.
-        // Using a constant avoids importing the @ExperimentalMaterial3ExpressiveApi
-        // annotated enum into this commonMain ViewModel.
         private const val LEADING_SHAPE_COUNT = 30
     }
 }
