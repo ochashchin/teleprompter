@@ -88,6 +88,13 @@
     <string name="option_disabled">Disabled</string>
     <string name="option_enabled">Enabled</string>
 
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->\r
+    <string name="style_bold">Bold</string>
+    <string name="style_italic">Italic</string>
+    <string name="style_underline">Underline</string>
+    <string name="style_text_color">Text color</string>
+    <string name="style_fill_color">Fill color</string>
+
     <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
     <string name="draft_title">Draft</string>
 

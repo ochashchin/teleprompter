@@ -129,7 +129,6 @@ fun NewTaskScreenBody(
                     if (hasSelection) styleState?.setTextColor(selStart, selEnd, color)
                 },
                 onFillColorPick  = { color -> styleState?.setFillColor(color) },
-                onMoreClick      = {},
                 // Active state reflects current selection
                 isBoldActive      = isBoldActive,
                 isItalicActive    = isItalicActive,
