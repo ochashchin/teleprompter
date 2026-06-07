@@ -33,7 +33,7 @@ private const val TOOLBAR_VISIBLE_MS = 3_000L
 data class PlayerState(
     val task:           PlayerTask? = null,
     val isPreview:      Boolean     = false,
-    val isLoading:      Boolean     = true,
+    val isLoading:      Boolean     = false,
     val toolbarVisible: Boolean     = true,
     val pipActive:      Boolean     = false,
 ) : UiState
@@ -102,7 +102,6 @@ class PlayerViewModel(
     // ── Handlers ──────────────────────────────────────────────────────────────
 
     private fun load(taskId: Int, isPreview: Boolean) {
-        updateState { it.copy(isLoading = true) }
         val task = repository.loadTask(taskId)
         updateState {
             it.copy(

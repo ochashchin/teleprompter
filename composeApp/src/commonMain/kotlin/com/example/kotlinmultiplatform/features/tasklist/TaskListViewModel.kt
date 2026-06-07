@@ -21,7 +21,7 @@ data class TaskListState(
     val visibleTasks:  List<TaskListItem> = emptyList(),
     val query:         String             = "",
     val isSearchActive: Boolean           = false,
-    val isLoading:     Boolean            = true,
+    val isLoading:     Boolean            = false,
 ) : UiState
 
 /**
@@ -89,7 +89,9 @@ interface TaskListRepository {
 class TaskListViewModel(
     private val repository: TaskListRepository,
 ) : BaseViewModel<TaskListState, TaskListEvent>(
-    initialState = TaskListState(),
+    initialState = repository.loadAll().let { tasks ->
+        TaskListState(allTasks = tasks, visibleTasks = tasks)
+    },
 ) {
     override fun onIntent(intent: UiIntent) {
         when (intent) {
@@ -108,7 +110,6 @@ class TaskListViewModel(
     // ── Handlers ──────────────────────────────────────────────────────────────
 
     private fun load() {
-        updateState { it.copy(isLoading = true) }
         val tasks = repository.loadAll()
         updateState { state ->
             state.copy(
@@ -174,6 +175,6 @@ class TaskListViewModel(
         if (query.isBlank()) this
         else filter {
             it.title.contains(query, ignoreCase = true) ||
-            it.description.contains(query, ignoreCase = true)
+                    it.description.contains(query, ignoreCase = true)
         }
 }

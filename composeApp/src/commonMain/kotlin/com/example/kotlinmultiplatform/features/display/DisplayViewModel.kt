@@ -33,7 +33,7 @@ data class DisplayTask(
 data class DisplayState(
     val task:      DisplayTask? = null,
     val isPreview: Boolean      = false,
-    val isLoading: Boolean      = true,
+    val isLoading: Boolean      = false,
 ) : UiState
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -85,7 +85,6 @@ class DisplayViewModel(
     }
 
     private fun load(taskId: Int, isPreview: Boolean) {
-        updateState { it.copy(isLoading = true) }
         val task = repository.loadTask(taskId)
         updateState {
             it.copy(
