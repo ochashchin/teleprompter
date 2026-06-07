@@ -38,7 +38,11 @@ sealed interface RootIntent : UiIntent {
  * • Provides named actions: [goToNewTask], [goToDisplay], [goToPlayer], [goBack].
  * • Calls [registerBackGesture] in init so iOS left-edge swipe routes through
  *   the same [handleBack] as Android's BackHandler.
- * • [handleBack] pops the stack or emits [RootEvent.ExitApp] at root.
+ * • [handleBack] first offers the gesture to [backInterceptor] (if set); only
+ *   pops the stack when no interceptor claims it.  This lets individual screens
+ *   (e.g. NewTaskScreen) show a save-changes dialog before navigation happens,
+ *   whether the user taps the toolbar back button, triggers Android's system
+ *   back, or performs the iOS left-edge swipe gesture.
  *
  * `with(currentState)` in [onIntent] lets intent guards read state fields
  * without the `currentState.` prefix, keeping the when-block clean.
@@ -56,6 +60,27 @@ class RootViewModel : BaseViewModel<RootState, RootEvent>(
      * No state duplication; collect with `collectAsState()` in AppRoot.
      */
     val currentScreen: StateFlow<Screen> = navStack.current
+
+    // ── Back interceptor ──────────────────────────────────────────────────────
+    //
+    // A screen-level guard that runs before [handleBack] pops the stack.
+    // Return true to consume the event (back handled by the screen, e.g. a
+    // dialog was shown); return false to fall through to the normal pop.
+    //
+    // Set via [setBackInterceptor]; cleared (set to null) when leaving the
+    // screen that registered it.
+
+    private var backInterceptor: (() -> Boolean)? = null
+
+    /**
+     * Register (or clear) a back-press interceptor for the currently active screen.
+     *
+     * Called from AppRoot's LaunchedEffect(screen) whenever the destination
+     * changes. Pass null to clear.
+     */
+    fun setBackInterceptor(interceptor: (() -> Boolean)?) {
+        backInterceptor = interceptor
+    }
 
     // ── Register platform back gesture ────────────────────────────────────────
     //
@@ -91,13 +116,21 @@ class RootViewModel : BaseViewModel<RootState, RootEvent>(
 
     /**
      * Single back-navigation gate — called by:
-     *   • Android  → AppRoot's BackHandler
+     *   • Android  → AppRoot's PlatformBackHandler
      *   • iOS      → registerBackGesture lambda (UIScreenEdgePanGestureRecognizer)
      *   • In-app   → goBack() / toolbar back buttons
      *
-     * @return true if consumed (stack popped); false if at root (app should exit).
+     * Offers the event to [backInterceptor] first. If the interceptor returns
+     * true the event is consumed and the stack is not popped — the interceptor
+     * is responsible for navigating away (e.g. by showing a dialog and then
+     * emitting NavigateBack on confirm).
+     *
+     * @return true if consumed (intercepted or stack popped); false if at root.
      */
     fun handleBack(): Boolean {
+        // Let the active screen intercept first (e.g. to show a save dialog).
+        if (backInterceptor?.invoke() == true) return true
+
         val consumed = navStack.pop()
         return if (consumed) {
             syncState()

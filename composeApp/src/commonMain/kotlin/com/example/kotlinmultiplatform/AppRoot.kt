@@ -162,6 +162,27 @@ fun AppRoot(
         }
     }
 
+    // ── Back interceptor — routes gesture/system back through the active screen ──
+    //
+    // NewTaskScreen needs to show the save-changes dialog before navigation,
+    // regardless of whether the back originates from the toolbar button, the
+    // Android system back, or the iOS left-edge swipe gesture.
+    //
+    // The interceptor is registered when NewTaskScreen becomes active and
+    // cleared when any other screen becomes active, so it never fires on the
+    // wrong screen.
+
+    LaunchedEffect(screen) {
+        if (screen == Screen.NewTaskScreen) {
+            viewModel.setBackInterceptor {
+                newTaskVm.onIntent(NewTaskIntent.BackPressed)
+                true // consumed — VM drives dialog and eventual navigation
+            }
+        } else {
+            viewModel.setBackInterceptor(null)
+        }
+    }
+
     // ── Dispatch Load to Display/Player VMs when their screen becomes active ──
 
     LaunchedEffect(screen) {

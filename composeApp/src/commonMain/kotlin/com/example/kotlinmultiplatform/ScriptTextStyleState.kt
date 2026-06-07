@@ -134,6 +134,15 @@ val ScriptFillColors: List<Color> = listOf(
  * After the task is first saved, call [migrateToTaskId] to move the data
  * to the permanent key; the in-memory state is preserved unchanged.
  *
+ * ### Write strategy
+ *
+ * All style mutations are **memory-only**. Settings are written to disk
+ * only when the user confirms saving, via [migrateToTaskId] (new task /
+ * edit-then-save) or [flushToDisk] (called internally by those paths).
+ * This means Discard never leaves stale data on disk for either new or
+ * existing tasks — [clear] simply resets in-memory state and removes the
+ * temporary NEW_TASK_ID draft keys.
+ *
  * ### Unsaved-changes tracking
  *
  * [hasUnsavedChanges] becomes true as soon as any style toggle is applied
@@ -182,24 +191,23 @@ class ScriptTextStyleState(
 
     /**
      * Called after a new task is first saved to disk.
-     * Moves the style data from the temporary [NEW_TASK_ID] key to the real
-     * [newTaskId] key, then updates the internal [taskId].
-     * No-op if [taskId] already equals [newTaskId].
+     * Flushes the current in-memory style state to Settings under [newTaskId],
+     * removes the temporary [NEW_TASK_ID] draft keys if applicable, and
+     * updates the internal [taskId].
+     * No-op (flush only) if [taskId] already equals [newTaskId].
      */
     fun migrateToTaskId(newTaskId: Int) {
         if (taskId == newTaskId) {
-            // Already on the right key — still flush current in-memory state to disk
+            // Already on the right key — flush current in-memory state to disk
             // in case styles were modified since the last loadForTaskId.
-            settings[scriptStyleSpansKey(newTaskId)] = _spans.serialise()
-            settings[scriptStyleFillKey(newTaskId)]  = _fillColorValue
+            flushToDisk(newTaskId)
             return
         }
 
-        // Persist under the new key
-        settings[scriptStyleSpansKey(newTaskId)] = _spans.serialise()
-        settings[scriptStyleFillKey(newTaskId)]  = _fillColorValue
+        // Flush under the new key
+        flushToDisk(newTaskId)
 
-        // Remove the old temporary key
+        // Remove the old temporary draft key (never remove a real task key here)
         if (taskId == NEW_TASK_ID) {
             settings.remove(scriptStyleSpansKey(NEW_TASK_ID))
             settings.remove(scriptStyleFillKey(NEW_TASK_ID))
@@ -213,10 +221,9 @@ class ScriptTextStyleState(
      * Loads from disk and resets the dirty flag.
      */
     fun loadForTaskId(newTaskId: Int) {
-        taskId            = newTaskId
-        val loaded        = settings.getStringOrNull(scriptStyleSpansKey(newTaskId))
+        taskId          = newTaskId
+        _spans          = settings.getStringOrNull(scriptStyleSpansKey(newTaskId))
             ?.deserialiseSpans() ?: emptyList()
-        _spans            = loaded
         _fillColorValue = settings.getLongOrDefault(scriptStyleFillKey(newTaskId), 0L)
         hasUnsavedChanges = false
     }
@@ -271,10 +278,13 @@ class ScriptTextStyleState(
         return if (color != 0L) Color(color.toULong()) else null
     }
 
-    /** Set the fill colour. Pass null to clear fill. */
+    /**
+     * Set the fill colour. Pass null to clear fill.
+     *
+     * Memory-only — disk write is deferred to [migrateToTaskId] on save.
+     */
     fun setFillColor(color: Color?) {
         _fillColorValue = color?.value?.toLong() ?: 0L
-        settings[scriptStyleFillKey(taskId)] = _fillColorValue
         hasUnsavedChanges = true
     }
 
@@ -308,21 +318,32 @@ class ScriptTextStyleState(
                 }
             }
             .filter { it.hasAnyStyle }
-        if (cleaned != _spans) persist(cleaned)
+        if (cleaned != _spans) _spans = cleaned
     }
 
-    /** Wipe all style data and reset the dirty flag (discard / new task). */
+    /**
+     * Wipe all style data and reset the dirty flag (discard / new task).
+     *
+     * For new tasks ([taskId] == [NEW_TASK_ID]): removes the temporary draft
+     * keys from disk.
+     * For existing tasks: reloads the last-saved state from disk, so any
+     * in-progress (unsaved) style changes are rolled back cleanly.
+     */
     fun clear() {
-        // Reset in-memory state only — do NOT write to disk for a real task id.
-        // Writing persist(emptyList()) here would overwrite the permanently saved
-        // style for that task every time the user discards or navigates away.
-        // Only the temporary NEW_TASK_ID key is safe to remove from disk.
-        _spans = emptyList()
-        _fillColorValue   = 0L
+        if (taskId == NEW_TASK_ID) {
+            // Remove the temporary draft keys — nothing permanent to restore.
+            settings.remove(scriptStyleSpansKey(NEW_TASK_ID))
+            settings.remove(scriptStyleFillKey(NEW_TASK_ID))
+            _spans          = emptyList()
+            _fillColorValue = 0L
+        } else {
+            // Existing task: reload the last persisted state so the on-disk
+            // data is unchanged and in-memory reflects what was actually saved.
+            _spans          = settings.getStringOrNull(scriptStyleSpansKey(taskId))
+                ?.deserialiseSpans() ?: emptyList()
+            _fillColorValue = settings.getLongOrDefault(scriptStyleFillKey(taskId), 0L)
+        }
         hasUnsavedChanges = false
-        // Remove the temporary draft key (NEW_TASK_ID = -1) from disk.
-        settings.remove(scriptStyleSpansKey(NEW_TASK_ID))
-        settings.remove(scriptStyleFillKey(NEW_TASK_ID))
         taskId = NEW_TASK_ID
     }
 
@@ -370,7 +391,8 @@ class ScriptTextStyleState(
         }
         val newSpan = transform(base)
         if (newSpan.hasAnyStyle) result.add(newSpan)
-        persist(mergeSame(result.sortedWith(compareBy({ it.start }, { it.end }))))
+        // Memory-only: disk write is deferred to migrateToTaskId on save.
+        _spans = mergeSame(result.sortedWith(compareBy({ it.start }, { it.end })))
         hasUnsavedChanges = true
     }
 
@@ -393,9 +415,10 @@ class ScriptTextStyleState(
         return out
     }
 
-    private fun persist(spans: List<StyleSpan>) {
-        _spans = spans
-        settings[scriptStyleSpansKey(taskId)] = spans.serialise()
+    /** Write current in-memory state to Settings under [id]. */
+    private fun flushToDisk(id: Int) {
+        settings[scriptStyleSpansKey(id)] = _spans.serialise()
+        settings[scriptStyleFillKey(id)]  = _fillColorValue
     }
 }
 
