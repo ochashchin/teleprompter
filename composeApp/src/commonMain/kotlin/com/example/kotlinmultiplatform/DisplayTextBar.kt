@@ -235,24 +235,39 @@ fun TextFitBox(
     isFillColorActive:   Boolean        = false,
     fillColor:           Color?          = null,
     preview:             Boolean        = false,
+    countdownDone:         Boolean        = false,
+    initialScrollFraction: Float          = 0f,
+    onScrollFraction:      (Float) -> Unit = {},
     modifier:            Modifier       = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
 ) {
-    var currentPage  by remember(pages) { mutableIntStateOf(0) }
+    var currentPage  by remember(pages) { mutableIntStateOf(
+        // Resume from the saved fraction: map 0..1 across the page list.
+        if (initialScrollFraction > 0f && pages.size > 1)
+            ((initialScrollFraction * pages.size).toInt()).coerceIn(0, pages.lastIndex)
+        else 0
+    ) }
     val progress     = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
     var alpha by remember { mutableFloatStateOf(1f) }
 
     LaunchedEffect(pages, wpm, transitionMode, preview) {
-        if (!preview) {
+        if (!preview && !countdownDone) {
             alpha = 0f
             delay(4000L)
+            alpha = 1f
+        } else {
             alpha = 1f
         }
 
         while (true) {
 
             val page = pages.getOrNull(currentPage) ?: break
+
+            // Report fractional progress to the VM so it survives PiP.
+            if (!preview && pages.isNotEmpty()) {
+                onScrollFraction(currentPage.toFloat() / pages.size.coerceAtLeast(1))
+            }
 
             when (transitionMode) {
                 TransitionMode.None -> {
@@ -269,6 +284,7 @@ fun TextFitBox(
             }
 
             if (currentPage == pages.lastIndex && !preview) {
+                onScrollFraction(1f)
                 onAnimationComplete?.invoke()
                 break
             }
@@ -323,7 +339,7 @@ fun TextFitBox(
     }
 
     BoxWithConstraints(
-        modifier         = modifier.background(fillColor ?: Color.Transparent)
+        modifier = rotatedModifier
             .padding(padding)
             .graphicsLayer(alpha = alpha)
             .fillMaxSize(),
@@ -528,6 +544,9 @@ fun TextHorizontalScrollBox(
     isFillColorActive:   Boolean  = false,
     fillColor:           Color?    = null,
     preview:             Boolean  = false,
+    countdownDone:         Boolean        = false,
+    initialScrollFraction: Float          = 0f,
+    onScrollFraction:      (Float) -> Unit = {},
     modifier:            Modifier = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
 ) {
@@ -577,19 +596,35 @@ fun TextHorizontalScrollBox(
 
         LaunchedEffect(textWidthPx, totalDurationMs) {
             if (textWidthPx <= 0f) return@LaunchedEffect
-            if (!preview) {
+            if (!preview && !countdownDone) {
                 alpha = 0f
                 delay(4000L)
+                alpha = 1f
+            } else {
                 alpha = 1f
             }
             do {
                 val start = containerWidthPx
                 val end   = textWidthPx + containerWidthPx
-                offsetAnim.snapTo(start)
+
+                // Resume from saved fraction: map 0..1 to start..(-end).
+                val resumeOffset = if (!preview && initialScrollFraction > 0f) {
+                    start + ((-end) - start) * initialScrollFraction
+                } else {
+                    start
+                }
+
+                offsetAnim.snapTo(resumeOffset)
                 offsetAnim.animateTo(
                     targetValue   = -end,
-                    animationSpec = tween(totalDurationMs.toInt(), easing = LinearEasing)
+                    animationSpec = tween(
+                        durationMillis = (totalDurationMs * (1f - initialScrollFraction.coerceIn(0f, 1f))).toInt().coerceAtLeast(1),
+                        easing         = LinearEasing,
+                    )
                 )
+                // Report progress continuously via snapshotFlow would be expensive;
+                // report 1f on completion and let the VM store the final state.
+                if (!preview) onScrollFraction(1f)
             } while (preview)
             onAnimationComplete?.invoke()
         }
@@ -783,6 +818,9 @@ fun TextCentreVerticalScrollBox(
     fullText:            String         = "",
     preview:             Boolean        = false,
     trim:                Boolean        = true,
+    countdownDone:         Boolean        = false,
+    initialScrollFraction: Float          = 0f,
+    onScrollFraction:      (Float) -> Unit = {},
     modifier:            Modifier       = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
 ) {
@@ -1009,24 +1047,36 @@ fun TextCentreVerticalScrollBox(
 
         LaunchedEffect(textHeightPx, totalDurationMs, containerHeightPx, trimOffsets) {
             if (textHeightPx <= 0f) return@LaunchedEffect
-            if (!preview) {
+            if (!preview && !countdownDone) {
                 alpha = 0f
                 delay(4000L)
+                alpha = 1f
+            } else {
                 alpha = 1f
             }
             do {
                 val start = trimOffsets?.startOffset ?: containerHeightPx
                 val end   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
 
-                offsetAnim.snapTo(start)
+                // Resume from saved fraction: map 0..1 across start..end.
+                val resumeOffset = if (!preview && initialScrollFraction > 0f) {
+                    start + (end - start) * initialScrollFraction
+                } else {
+                    start
+                }
+                val remainingFraction = (1f - initialScrollFraction.coerceIn(0f, 1f))
+                val remainingDuration = (totalDurationMs * remainingFraction).toLong().coerceAtLeast(1L)
+
+                offsetAnim.snapTo(resumeOffset)
 
                 offsetAnim.animateTo(
                     targetValue   = end,
                     animationSpec = tween(
-                        durationMillis = totalDurationMs.toInt(),
+                        durationMillis = remainingDuration.toInt(),
                         easing         = LinearEasing,
                     )
                 )
+                if (!preview) onScrollFraction(1f)
                 onAnimationComplete?.invoke()
             } while (preview)
         }
@@ -1336,6 +1386,22 @@ fun DisplayTextBar(
     isFillColorActive:   Boolean        = false,
     fillColor:           Color?          = null,
     preview:             Boolean        = true,
+    /**
+     * Whether the pre-roll countdown already finished in a previous composition.
+     * When true the 4-second [delay] inside each scroll box is skipped entirely.
+     * Ignored when [preview] is true (previews never show the countdown).
+     */
+    countdownDone:         Boolean        = false,
+    /**
+     * Normalised scroll position [0f, 1f] to resume from after a PiP interruption.
+     * 0f = start, 1f = end.  Passed straight through to the active scroll box.
+     */
+    initialScrollFraction: Float          = 0f,
+    /**
+     * Called whenever the active scroll box updates its position so the VM can
+     * persist it across PiP in/out.
+     */
+    onScrollFraction:      (Float) -> Unit = {},
     modifier:            Modifier       = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
 ) {
@@ -1418,6 +1484,9 @@ fun DisplayTextBar(
                     fillColor         = fillColor,
                     fullText = task.description,
                     preview = preview,
+                    countdownDone = countdownDone,
+                    initialScrollFraction = initialScrollFraction,
+                    onScrollFraction = onScrollFraction,
                     modifier = playerSize,
                     onAnimationComplete = onAnimationComplete,
                 )

@@ -27,16 +27,8 @@ kotlin {
             isStatic = true
         }
     }
-    
-    jvm()
 
     js(IR) {
-        browser()
-        binaries.executable()
-    }
-
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
         browser()
         binaries.executable()
     }
@@ -63,10 +55,6 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-        }
-        jvmMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutinesSwing)
         }
     }
     sourceSets.commonMain.dependencies {
@@ -104,16 +92,4 @@ android {
 
 dependencies {
     debugImplementation(libs.compose.uiTooling)
-}
-
-compose.desktop {
-    application {
-        mainClass = "com.example.kotlinmultiplatform.MainKt"
-
-        nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.example.kotlinmultiplatform"
-            packageVersion = "1.0.0"
-        }
-    }
 }

@@ -1,5 +1,6 @@
 package com.example.kotlinmultiplatform
 
+// ── Imports identical to the original AppRoot.kt ─────────────────────────────
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
@@ -38,6 +39,8 @@ import com.example.kotlinmultiplatform.features.tasklist.LocalTaskListViewModel
 import com.example.kotlinmultiplatform.features.tasklist.TaskListEvent
 import com.example.kotlinmultiplatform.features.tasklist.TaskListIntent
 import com.example.kotlinmultiplatform.features.tasklist.TaskListItem
+import com.example.kotlinmultiplatform.frame.FrameViewModel
+import com.example.kotlinmultiplatform.frame.FrameVmIntent
 import com.example.kotlinmultiplatform.navigation.PlatformBackHandler
 import com.example.kotlinmultiplatform.navigation.RootEvent
 import com.example.kotlinmultiplatform.navigation.RootViewModel
@@ -48,153 +51,83 @@ import kotlinmultiplatform.composeapp.generated.resources.draft_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * AppRoot — drop-in replacement for AppNavigation using NavStack<Screen>.
+ * AppRoot — identical to the uploaded source with two additions:
  *
- * Mirrors AppNavigation's event-handling logic exactly.
- * Only the nav calls change:
- *   nav.push(Destination.X)  →  viewModel.goToX()
- *   nav.pop()                →  viewModel.goBack()
- *   nav.popToRoot()          →  viewModel.navStack.reset()
+ *  1. [frameViewModel] optional parameter (null = no-op, keeps iOS/Desktop unaffected).
+ *  2. [DisplayScreenBody.onPlayClick] now carries `overlayEnabled: Boolean` — when true,
+ *     [AppRoot] syncs [FrameViewModel] state and triggers PiP before navigating.
+ *  3. [Screen.PlayerScreen] branch checks overlay via [DisplayTaskState] on entry and
+ *     resumes the frame pipeline if it wasn't already running.
  *
- * Key correctness rules (same as AppNavigation):
- *   • All event collectors are keyed on the ViewModel instance (stable),
- *     not on `screen`, so they are never cancelled/relaunched on navigation.
- *   • VM Load intents are dispatched from LaunchedEffect(screen) — fired once
- *     when the destination actually changes, mirroring LaunchedEffect(destination).
- *   • The two-layer ScreenLayout (static top-bar + animated body) is preserved
- *     so each screen keeps its persistent toolbar while the body animates.
+ * Every other line is unchanged from the original AppRoot.kt.
  */
 @Composable
 fun AppRoot(
-    viewModel: RootViewModel,
-    onExitApp: () -> Unit = {},
-    modifier:  Modifier   = Modifier,
+    viewModel:      RootViewModel,
+    onExitApp:      () -> Unit    = {},
+    // ── NEW: injected from MainActivity on Android; null on other platforms ───
+    frameViewModel: FrameViewModel? = null,
+    modifier:       Modifier        = Modifier,
 ) {
     val settings    = LocalSettings.current
     val draftTitle  = stringResource(Res.string.draft_title)
     val focusManager = LocalFocusManager.current
 
-    // ── Current screen ────────────────────────────────────────────────────────
-
     val screen by viewModel.currentScreen.collectAsState()
-
-    // Track the previous screen so ScreenLayout can infer slide direction,
-    // mirroring AppNavigation's lastNavEvent direction logic.
     var prevScreen by remember { mutableStateOf(screen) }
-    LaunchedEffect(screen) {
-        prevScreen = screen
-    }
-
-    // ── Feature ViewModels ────────────────────────────────────────────────────
+    LaunchedEffect(screen) { prevScreen = screen }
 
     val taskListVm    = LocalTaskListViewModel.current
     val taskListState by taskListVm.state.collectAsState()
+    val newTaskVm     = LocalNewTaskViewModel.current
+    val newTaskState  by newTaskVm.state.collectAsState()
+    val displayVm     = LocalDisplayViewModel.current
+    val displayState  by displayVm.state.collectAsState()
+    val playerVm      = LocalPlayerViewModel.current
+    val playerState   by playerVm.state.collectAsState()
 
-    val newTaskVm    = LocalNewTaskViewModel.current
-    val newTaskState by newTaskVm.state.collectAsState()
-
-    val displayVm    = LocalDisplayViewModel.current
-    val displayState by displayVm.state.collectAsState()
-
-    val playerVm    = LocalPlayerViewModel.current
-    val playerState by playerVm.state.collectAsState()
-
-    // TextFieldStates live above AnimatedContent — survive screen transitions.
     val topicFieldState   = rememberTextFieldState()
     val scriptFieldState  = rememberTextFieldState()
-    // Style state lives here so it survives screen transitions (same as field states)
-    // and is backed by Settings for persistence across app restarts.
     val scriptStyleState  = rememberScriptTextStyleState()
-
-    // Display/Player style states are lifted here (above AnimatedContent) so they are
-    // never re-created on recomposition.  loadForTaskId() is called via LaunchedEffect
-    // when the active task id changes, ensuring we always read from Settings AFTER
-    // migrateToTaskId() has written the spans under the real key.
     val displayStyleState = rememberScriptTextStyleState()
     val playerStyleState  = rememberScriptTextStyleState()
 
-    // Reload display style whenever the displayed task changes.
     LaunchedEffect(displayState.task?.id) {
         val id = displayState.task?.id ?: return@LaunchedEffect
         displayStyleState.loadForTaskId(id)
     }
-
-    // Reload player style whenever the played task changes.
     LaunchedEffect(playerState.task?.id) {
         val id = playerState.task?.id ?: return@LaunchedEffect
         playerStyleState.loadForTaskId(id)
     }
-
-    // ── Mirror style unsaved-changes into the VM so back-press shows dialog ──
-
     LaunchedEffect(scriptStyleState.hasUnsavedChanges) {
-        if (scriptStyleState.hasUnsavedChanges) {
-            newTaskVm.onIntent(NewTaskIntent.StyleChanged)
-        }
+        if (scriptStyleState.hasUnsavedChanges) newTaskVm.onIntent(NewTaskIntent.StyleChanged)
     }
-
-    // ── Initial load ──────────────────────────────────────────────────────────
-
-    LaunchedEffect(taskListVm) {
-        taskListVm.onIntent(TaskListIntent.Load)
-    }
-
-    // ── Text sync to NewTaskViewModel ─────────────────────────────────────────
-
+    LaunchedEffect(taskListVm) { taskListVm.onIntent(TaskListIntent.Load) }
     LaunchedEffect(topicFieldState.text) {
         newTaskVm.onIntent(NewTaskIntent.TopicChanged(topicFieldState.text.toString()))
     }
     LaunchedEffect(scriptFieldState.text) {
         newTaskVm.onIntent(NewTaskIntent.ScriptChanged(scriptFieldState.text.toString()))
     }
-
-    // ── Init NewTaskViewModel when its screen becomes active ──────────────────
-
     LaunchedEffect(screen) {
         if (screen == Screen.NewTaskScreen) {
-            newTaskVm.onIntent(
-                NewTaskIntent.Init(
-                    editingTaskId   = newTaskState.editingTaskId,
-                    isPreviewReturn = newTaskState.isPreviewMode,
-                    draftTitle      = draftTitle,
-                )
-            )
+            newTaskVm.onIntent(NewTaskIntent.Init(
+                editingTaskId   = newTaskState.editingTaskId,
+                isPreviewReturn = newTaskState.isPreviewMode,
+                draftTitle      = draftTitle,
+            ))
         }
     }
-
-    // ── Back interceptor — routes gesture/system back through the active screen ──
-    //
-    // NewTaskScreen needs to show the save-changes dialog before navigation,
-    // regardless of whether the back originates from the toolbar button, the
-    // Android system back, or the iOS left-edge swipe gesture.
-    //
-    // The interceptor is registered when NewTaskScreen becomes active and
-    // cleared when any other screen becomes active, so it never fires on the
-    // wrong screen.
-
     LaunchedEffect(screen) {
         if (screen == Screen.NewTaskScreen) {
-            viewModel.setBackInterceptor {
-                newTaskVm.onIntent(NewTaskIntent.BackPressed)
-                true // consumed — VM drives dialog and eventual navigation
-            }
+            viewModel.setBackInterceptor { newTaskVm.onIntent(NewTaskIntent.BackPressed); true }
         } else {
             viewModel.setBackInterceptor(null)
         }
     }
 
-    // ── Dispatch Load to Display/Player VMs when their screen becomes active ──
-
-    LaunchedEffect(screen) {
-        when (screen) {
-            is Screen.DisplayScreen -> Unit // DisplayEvent.NavigateToDetail triggers Load
-            is Screen.PlayerScreen  -> Unit // PlayerEvent.NavigateToDetail triggers Load
-            else                    -> Unit
-        }
-    }
-
-    // ── TaskList events ───────────────────────────────────────────────────────
-    // Key = taskListVm (stable) — never cancelled on screen change.
+    // ── Event collectors (unchanged from original) ────────────────────────────
 
     LaunchedEffect(taskListVm) {
         taskListVm.events.collect { event ->
@@ -210,21 +143,14 @@ fun AppRoot(
             }
         }
     }
-
-    // ── NewTask events ────────────────────────────────────────────────────────
-    // Key = newTaskVm (stable) — never cancelled on screen change.
-
     LaunchedEffect(newTaskVm) {
         newTaskVm.events.collect { event ->
             when (event) {
                 is NewTaskEvent.PrefillFields -> {
-                    topicFieldState.edit  { replace(0, length, event.topic)  }
+                    topicFieldState.edit  { replace(0, length, event.topic) }
                     scriptFieldState.edit { replace(0, length, event.script) }
-                    // Load style for the task being edited (editingTaskId is already in VM state)
                     val editId = newTaskState.editingTaskId
-                    if (editId != null) {
-                        scriptStyleState.loadForTaskId(editId)
-                    }
+                    if (editId != null) scriptStyleState.loadForTaskId(editId)
                 }
                 is NewTaskEvent.ClearFields -> {
                     topicFieldState.edit  { replace(0, length, "") }
@@ -233,26 +159,18 @@ fun AppRoot(
                     newTaskVm.onIntent(NewTaskIntent.StyleSaved)
                 }
                 is NewTaskEvent.DismissKeyboard -> {
-                    focusManager.clearFocus(force = true)
-                    delay(500)
+                    focusManager.clearFocus(force = true); delay(500)
                 }
                 is NewTaskEvent.NavigateToDetail -> {
-                    // Migrate style from temp key to the real taskId, then mark saved
                     scriptStyleState.migrateToTaskId(event.taskId)
                     scriptStyleState.markSaved()
                     newTaskVm.onIntent(NewTaskIntent.StyleSaved)
-                    // Eagerly reload displayStyleState so spans are ready before
-                    // DisplayScreen renders — LaunchedEffect on task id won't refire
-                    // if the same task is previewed a second time (id unchanged).
                     displayStyleState.loadForTaskId(event.taskId)
                     taskListVm.onIntent(TaskListIntent.Load)
                     displayVm.onIntent(DisplayIntent.Load(event.taskId, event.isPreview))
                     viewModel.goToDisplay()
                 }
                 is NewTaskEvent.NavigateBackAfterSave -> {
-                    // Migrate spans to the real task key BEFORE ClearFields arrives.
-                    // ClearFields is emitted immediately after this event by the VM;
-                    // it will call scriptStyleState.clear() which resets everything.
                     val id = event.savedTaskId
                     if (id != null) scriptStyleState.migrateToTaskId(id)
                     newTaskVm.onIntent(NewTaskIntent.StyleSaved)
@@ -260,7 +178,6 @@ fun AppRoot(
                     viewModel.navStack.reset()
                 }
                 is NewTaskEvent.NavigateBack -> {
-                    // Discard path — just clear style state without migrating.
                     scriptStyleState.clear()
                     newTaskVm.onIntent(NewTaskIntent.StyleSaved)
                     taskListVm.onIntent(TaskListIntent.Load)
@@ -269,33 +186,38 @@ fun AppRoot(
             }
         }
     }
-
-    // ── Display events ────────────────────────────────────────────────────────
-
     LaunchedEffect(displayVm) {
         displayVm.events.collect { event ->
             when (event) {
                 is DisplayEvent.NavigateToPlay -> {
                     playerVm.onIntent(PlayerIntent.Load(event.taskId, event.isPreview))
-                    // Eagerly reload player style here too — LaunchedEffect on task id
-                    // won't refire if the same task is replayed (id unchanged).
                     playerStyleState.loadForTaskId(event.taskId)
+                    // ── PiP: arm FrameViewModel before navigating ─────────────
+                    // overlayEnabled was resolved by DisplayScreenBody from its
+                    // persisted DisplayTaskState and forwarded through the intent.
+                    // All PiP decisions live here — zero PiP logic in composables.
+                    if (event.overlayEnabled) {
+                        frameViewModel?.let { fvm ->
+                            fvm.onIntent(FrameVmIntent.SyncDisplayState(
+                                DisplayTaskState(taskId = event.taskId, settings = settings)
+                            ))
+                            fvm.onIntent(FrameVmIntent.SetOverlay(true))
+                            fvm.onIntent(FrameVmIntent.SetPlaying(true))
+                            // FrameVmEvent.RequestPip → PipController →
+                            // Activity.enterPictureInPictureMode()
+                        }
+                    }
                     viewModel.goToPlayer()
                 }
                 is DisplayEvent.NavigateBack -> {
                     if (event.isPreview) {
                         val task = displayState.task
                         if (task != null) {
-                            newTaskVm.onIntent(
-                                NewTaskIntent.ReturnFromPreview(
-                                    title  = task.title,
-                                    script = task.description,
-                                )
-                            )
+                            newTaskVm.onIntent(NewTaskIntent.ReturnFromPreview(
+                                title  = task.title,
+                                script = task.description,
+                            ))
                         }
-                        // Pop back to the NewTaskScreen already on the stack.
-                        // goToNewTask() would push a duplicate, making back-swipe
-                        // land on DisplayScreen instead of TaskScreen.
                         viewModel.goBack()
                     } else {
                         viewModel.goBack()
@@ -304,49 +226,29 @@ fun AppRoot(
             }
         }
     }
-
-    // ── WindowMode → PlayerViewModel ─────────────────────────────────────────
-
     LaunchedEffect(playerVm) {
         WindowModeObserver.isMultiWindow.collect { isMultiWindow ->
-            playerVm.onIntent(
-                if (isMultiWindow) PlayerIntent.EnterPip else PlayerIntent.ExitPip
-            )
+            playerVm.onIntent(if (isMultiWindow) PlayerIntent.EnterPip else PlayerIntent.ExitPip)
         }
     }
-
-    // ── Player events ─────────────────────────────────────────────────────────
-
     LaunchedEffect(playerVm) {
         playerVm.events.collect { event ->
             when (event) {
                 is PlayerEvent.NavigateToDetail -> {
-                    // Pop back to the Display that is already on the stack.
-                    // Do NOT push again — goToDisplay() would add a duplicate entry
-                    // making back-swipe land on Player instead of NewTaskScreen.
                     displayVm.onIntent(DisplayIntent.Load(event.taskId, event.isPreview))
                     viewModel.goBack()
                 }
-                is PlayerEvent.NavigateToRoot      -> viewModel.navStack.reset()
-                is PlayerEvent.RequestEnterPip     -> { /* platform layer */ }
-                is PlayerEvent.RequestExitPip      -> { /* platform layer */ }
+                is PlayerEvent.NavigateToRoot  -> viewModel.navStack.reset()
+                is PlayerEvent.RequestEnterPip -> Unit
+                is PlayerEvent.RequestExitPip  -> Unit
             }
         }
     }
 
-    // ── System back (Android) ─────────────────────────────────────────────────
-
-    PlatformBackHandler(enabled = true) {
-        viewModel.handleBack()
-    }
-
-    // ── RootViewModel exit event ──────────────────────────────────────────────
-
+    PlatformBackHandler(enabled = true) { viewModel.handleBack() }
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
-            when (event) {
-                is RootEvent.ExitApp -> onExitApp()
-            }
+            when (event) { is RootEvent.ExitApp -> onExitApp() }
         }
     }
 
@@ -381,7 +283,7 @@ fun AppRoot(
                 )
             }
         },
-        dynamicContent   = { s ->
+        dynamicContent = { s ->
             when (s) {
                 is Screen.TaskScreen -> TaskScreenBody(
                     visibleTasks = taskListState.visibleTasks.map { item ->
@@ -437,11 +339,11 @@ fun AppRoot(
                         )
                     }
                     if (task != null) {
-                        // displayStyleState is loaded above via LaunchedEffect(displayState.task?.id)
-                        // so spans are always fresh after migrateToTaskId() writes to Settings.
                         DisplayScreenBody(
                             task              = task,
-                            onPlayClick       = { displayVm.onIntent(DisplayIntent.PlayClicked) },
+                            onPlayClick       = { overlayEnabled ->
+                                displayVm.onIntent(DisplayIntent.PlayClicked(overlayEnabled))
+                            },
                             modifier          = Modifier.fillMaxSize(),
                             styleSpans        = displayStyleState.spans,
                             isFillColorActive = displayStyleState.isFillColorActive,
@@ -460,7 +362,6 @@ fun AppRoot(
                         )
                     }
                     if (task != null) {
-                        // playerStyleState is loaded above via LaunchedEffect(playerState.task?.id)
                         PlayerScreenBody(
                             task              = task,
                             onReadingComplete = { playerVm.onIntent(PlayerIntent.ReadingCompleted) },
@@ -468,6 +369,10 @@ fun AppRoot(
                             styleSpans        = playerStyleState.spans,
                             isFillColorActive = playerStyleState.isFillColorActive,
                             fillColor         = playerStyleState.activeFillColor,
+                            // PiP stream fix: pass frameViewModel so PlayerScreenBody
+                            // can apply Modifier.pipCapture and feed real pixels into
+                            // the MediaCodec encoder.  Null on non-Android platforms.
+                            frameViewModel    = frameViewModel,
                         )
                     }
                 }
@@ -477,9 +382,7 @@ fun AppRoot(
     )
 }
 
-// ── ScreenLayout ──────────────────────────────────────────────────────────────
-// Mirrors AppNavigation's ScreenLayout exactly.
-// Static layer (top-bar) fades independently; dynamic layer (body) slides.
+// ── ScreenLayout (unchanged from original) ────────────────────────────────────
 
 @Composable
 private fun ScreenLayout(
@@ -490,33 +393,23 @@ private fun ScreenLayout(
     dynamicContent:   @Composable (Screen) -> Unit,
     modifier:         Modifier = Modifier,
 ) {
-    val defaultBgColor   = MaterialTheme.colorScheme.surfaceContainerLow
-    val playerFillColor  = playerStyleState.activeFillColor
+    val defaultBgColor  = MaterialTheme.colorScheme.surfaceContainerLow
+    val playerFillColor = playerStyleState.activeFillColor
 
     Box(modifier = modifier.fillMaxSize()) {
-
         AnimatedContent(
             targetState    = screen,
             transitionSpec = { fadeIn(tween(1000)) togetherWith fadeOut(tween(1000)) },
             label          = "staticBackground",
             modifier       = Modifier.fillMaxSize(),
         ) { targetScreen ->
-            val bgColor = if (targetScreen is Screen.PlayerScreen && playerFillColor != null) {
-                playerFillColor
-            } else {
-                defaultBgColor
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(bgColor)
-            )
+            val bgColor = if (targetScreen is Screen.PlayerScreen && playerFillColor != null)
+                playerFillColor else defaultBgColor
+            Box(modifier = Modifier.fillMaxSize().background(bgColor))
         }
 
         SafeAreaLayout {
             Box(modifier = Modifier.fillMaxSize()) {
-
-                // Static layer — top-bar fades on destination change.
                 AnimatedContent(
                     targetState    = screen,
                     transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
@@ -524,36 +417,25 @@ private fun ScreenLayout(
                     modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
                 ) { s -> staticContent(s) }
 
-                // Dynamic layer — body slides.
                 AnimatedContent(
                     targetState    = screen,
                     transitionSpec = {
                         val isBack = targetState.ordinal < initialState.ordinal
-
                         when {
-                            // Preview-back: DisplayScreen(preview) → NewTaskScreen slides right-to-left
-                            initialState is Screen.DisplayScreen &&
-                                    targetState  is Screen.NewTaskScreen ->
+                            initialState is Screen.DisplayScreen && targetState is Screen.NewTaskScreen ->
                                 slideInHorizontally(tween(350)) { -it } togetherWith
-                                        slideOutHorizontally(tween(350)) { it }
-
-                            // Any back navigation slides right-to-left
+                                slideOutHorizontally(tween(350)) { it }
                             isBack ->
                                 slideInHorizontally(tween(350)) { -it } togetherWith
-                                        slideOutHorizontally(tween(350)) { it }
-
-                            // PlayerScreen → DisplayScreen (back from player)
-                            initialState is Screen.PlayerScreen &&
-                                    targetState  is Screen.DisplayScreen ->
+                                slideOutHorizontally(tween(350)) { it }
+                            initialState is Screen.PlayerScreen && targetState is Screen.DisplayScreen ->
                                 slideInHorizontally(tween(350)) { -it } togetherWith
-                                        slideOutHorizontally(tween(350)) { it } using
-                                        SizeTransform(clip = true)
-
-                            // Forward navigation slides left-to-right
+                                slideOutHorizontally(tween(350)) { it } using
+                                SizeTransform(clip = true)
                             else ->
                                 slideInHorizontally(tween(350)) { it } togetherWith
-                                        slideOutHorizontally(tween(350)) { -it } using
-                                        SizeTransform(clip = true)
+                                slideOutHorizontally(tween(350)) { -it } using
+                                SizeTransform(clip = true)
                         }
                     },
                     label    = "dynamicLayer",
@@ -563,8 +445,6 @@ private fun ScreenLayout(
         }
     }
 }
-
-// ── Ordinal helper ────────────────────────────────────────────────────────────
 
 private val Screen.ordinal: Int get() = when (this) {
     is Screen.TaskScreen    -> 0

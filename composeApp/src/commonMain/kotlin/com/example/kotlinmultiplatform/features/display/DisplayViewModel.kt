@@ -16,20 +16,6 @@ data class DisplayTask(
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-/**
- * Immutable state for the Detail / Display screen.
- *
- * [task] is null while loading — the composable shows nothing until it arrives.
- * [isPreview] drives back-navigation: preview back returns to NewDetail,
- * non-preview back pops to TaskList.
- *
- * Note: display option selections (text size, speed, animation…) are NOT
- * held here. They are persisted directly by [DisplayTaskState], which is a
- * composable-owned settings bridge — exactly the same pattern as
- * [NewTaskScreenState] for text fields. The VM does not need to own them
- * because they are both read and written inside [DisplayScreenBody] with no
- * business logic in between.
- */
 data class DisplayState(
     val task:      DisplayTask? = null,
     val isPreview: Boolean      = false,
@@ -39,30 +25,41 @@ data class DisplayState(
 // ── Events ────────────────────────────────────────────────────────────────────
 
 sealed interface DisplayEvent : UiEvent {
-    /** Navigate to the Player screen for this task. */
+    /**
+     * Navigate to the Player screen for this task.
+     *
+     * [overlayEnabled] is true when the user has the Overlay setting turned on.
+     * AppRoot reads this flag and arms the PiP pipeline (FrameViewModel) before
+     * pushing the PlayerScreen — keeping all PiP logic out of the composable layer.
+     */
     data class NavigateToPlay(
-        val taskId:    Int,
-        val isPreview: Boolean,
+        val taskId:         Int,
+        val isPreview:      Boolean,
+        val overlayEnabled: Boolean = false,
     ) : DisplayEvent
 
-    /** Navigate back (pop or return to NewDetail depending on [isPreview]). */
     data class NavigateBack(val isPreview: Boolean) : DisplayEvent
 }
 
 // ── Intents ───────────────────────────────────────────────────────────────────
 
 sealed interface DisplayIntent : UiIntent {
-    /**
-     * Load task data for [taskId].
-     * [isPreview] is true when reached via "Next" from NewDetail.
-     */
     data class Load(val taskId: Int, val isPreview: Boolean) : DisplayIntent
 
-    data object PlayClicked  : DisplayIntent
-    data object BackClicked  : DisplayIntent
+    /**
+     * Play button pressed.
+     *
+     * [overlayEnabled] is resolved inside [DisplayScreenBody] from the persisted
+     * [DisplayTaskState] (item id=8) and forwarded here so the VM can carry it
+     * through to [DisplayEvent.NavigateToPlay].  The composable itself does not
+     * act on it — it just reads the setting it already holds and passes it up.
+     */
+    data class PlayClicked(val overlayEnabled: Boolean) : DisplayIntent
+
+    data object BackClicked : DisplayIntent
 }
 
-// ── Repository interface ──────────────────────────────────────────────────────
+// ── Repository ────────────────────────────────────────────────────────────────
 
 interface DisplayRepository {
     fun loadTask(taskId: Int): DisplayTask?
@@ -78,7 +75,7 @@ class DisplayViewModel(
     override fun onIntent(intent: UiIntent) {
         when (intent) {
             is DisplayIntent.Load        -> load(intent.taskId, intent.isPreview)
-            is DisplayIntent.PlayClicked -> onPlay()
+            is DisplayIntent.PlayClicked -> onPlay(intent.overlayEnabled)
             is DisplayIntent.BackClicked -> onBack()
             else                         -> Unit
         }
@@ -86,19 +83,19 @@ class DisplayViewModel(
 
     private fun load(taskId: Int, isPreview: Boolean) {
         val task = repository.loadTask(taskId)
-        updateState {
-            it.copy(
-                task      = task,
-                isPreview = isPreview,
-                isLoading = false,
-            )
-        }
+        updateState { it.copy(task = task, isPreview = isPreview, isLoading = false) }
     }
 
-    private fun onPlay() {
-        val state = currentState
+    private fun onPlay(overlayEnabled: Boolean) {
+        val state  = currentState
         val taskId = state.task?.id ?: return
-        emitEvent(DisplayEvent.NavigateToPlay(taskId = taskId, isPreview = state.isPreview))
+        emitEvent(
+            DisplayEvent.NavigateToPlay(
+                taskId         = taskId,
+                isPreview      = state.isPreview,
+                overlayEnabled = overlayEnabled,
+            )
+        )
     }
 
     private fun onBack() {

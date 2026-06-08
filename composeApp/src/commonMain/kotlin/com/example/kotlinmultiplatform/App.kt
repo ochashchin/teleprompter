@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -22,6 +23,7 @@ import com.example.kotlinmultiplatform.features.player.SettingsPlayerRepository
 import com.example.kotlinmultiplatform.features.tasklist.LocalTaskListViewModel
 import com.example.kotlinmultiplatform.features.tasklist.SettingsTaskListRepository
 import com.example.kotlinmultiplatform.features.tasklist.TaskListViewModel
+import com.example.kotlinmultiplatform.frame.FrameViewModel
 import com.example.kotlinmultiplatform.navigation.NavigationViewModel
 import com.example.kotlinmultiplatform.navigation.RootViewModel
 import com.example.kotlinmultiplatform.ui.theme.AppTheme
@@ -33,15 +35,33 @@ val LocalNavViewModel = compositionLocalOf {
 }
 
 /**
- * @param rootViewModel  Optional — iOS hoists it in MainViewController so the
- *                       same instance is used for gesture registration.
- *                       Android passes null and App() creates it internally.
- * @param onExitApp      Android: { finishAffinity() }. iOS: no-op default.
+ * Application root composable.
+ *
+ * ### New optional parameters (Android PiP integration)
+ *
+ * - [frameViewModel]:     Injected from [MainActivity] with the platform-specific
+ *                         [AndroidFrameSink] already wired.  Defaults to null so
+ *                         iOS / Desktop continue to compile without changes.
+ *
+ * - [onViewModelsReady]:  Called once, after all feature ViewModels are created,
+ *                         so [MainActivity] can construct [PipController] with
+ *                         the [PlayerViewModel] reference — PipController needs
+ *                         both [FrameViewModel] and [PlayerViewModel].
+ *
+ * All existing call-sites (iOS MainViewController, previews) pass neither param
+ * and are unaffected.
+ *
+ * @param rootViewModel      Optional — iOS hoists it in MainViewController.
+ * @param onExitApp          Android: { finishAffinity() }. iOS: no-op.
+ * @param frameViewModel     Android: injected by MainActivity. Others: null.
+ * @param onViewModelsReady  Android: used to create PipController. Others: no-op.
  */
 @Composable
 fun App(
-    rootViewModel: RootViewModel? = null,
-    onExitApp: () -> Unit = {},
+    rootViewModel:      RootViewModel?          = null,
+    onExitApp:          () -> Unit              = {},
+    frameViewModel:     FrameViewModel?         = null,
+    onViewModelsReady:  ((PlayerViewModel) -> Unit) = {},
 ) {
     val settings = remember { Settings() }
 
@@ -51,14 +71,21 @@ fun App(
     val displayViewModel  = remember { DisplayViewModel(SettingsDisplayRepository(settings)) }
     val playerViewModel   = remember { PlayerViewModel(SettingsPlayerRepository(settings)) }
 
+    // Notify platform code (MainActivity → PipController) that ViewModels are ready.
+    // SideEffect runs after every successful composition; the lambda is guarded to
+    // be idempotent in practice because PipController checks for null before creating.
+    SideEffect {
+        onViewModelsReady(playerViewModel)
+    }
+
     DisposableEffect(vm, taskListViewModel, newTaskViewModel, displayViewModel, playerViewModel) {
         onDispose {
-            // Only clear the VM if App() owns it (rootViewModel param was null).
             if (rootViewModel == null) vm.clear()
             taskListViewModel.clear()
             newTaskViewModel.clear()
             displayViewModel.clear()
             playerViewModel.clear()
+            // frameViewModel is cleared by MainActivity.onDestroy; not here.
         }
     }
 
@@ -71,9 +98,10 @@ fun App(
             LocalPlayerViewModel   provides playerViewModel,
         ) {
             AppRoot(
-                viewModel = vm,
-                onExitApp = onExitApp,
-                modifier  = Modifier.fillMaxSize(),
+                viewModel      = vm,
+                onExitApp      = onExitApp,
+                frameViewModel = frameViewModel,
+                modifier       = Modifier.fillMaxSize(),
             )
         }
     }

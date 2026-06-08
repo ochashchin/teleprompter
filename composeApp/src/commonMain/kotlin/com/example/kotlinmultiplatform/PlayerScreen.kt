@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.example.kotlinmultiplatform.features.player.LocalPlayerViewModel
+import com.example.kotlinmultiplatform.features.player.PlayerIntent
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.cd_back
 import kotlinmultiplatform.composeapp.generated.resources.cd_close
@@ -124,10 +127,15 @@ fun PlayerScreenBody(
     isFillColorActive: Boolean = false,
     fillColor: Color? = null,
     onReadingComplete: () -> Unit = {},
+    // PiP stream fix: inject the FrameViewModel so we can capture frames.
+    // Null on non-Android platforms and when overlay is disabled.
+    frameViewModel: com.example.kotlinmultiplatform.frame.FrameViewModel? = null,
 ) {
     val displayState = rememberDisplayTaskState(task.id)
 
     // ── Resolve settings from persisted state ─────────────────────────────────
+    // Orientation-fix: these reads now track MutableState inside DisplayTaskState,
+    // so they recompose automatically when setSelection() is called.
 
     val textSizeItem    = DisplayTaskList.first { it.id == 1 }
     val orientationItem = DisplayTaskList.first { it.id == 2 }
@@ -165,21 +173,33 @@ fun PlayerScreenBody(
     val wpm            = speedIndexToWpm(selectedSpeedIndex)
     val previewPadding = 10.dp
 
+    // Android PiP shows the Activity window (PlayerScreen Compose UI) directly.
+    // No pixel capture needed — pipCapture is a no-op stub.
+
     // ── Countdown state ───────────────────────────────────────────────────────
+    // State is hoisted into PlayerViewModel so it survives PiP in/out.
+    // The VM holds `countdownDone` and `scrollFraction`; composables below
+    // read from there and report back via intents.
+
+    val vm             = LocalPlayerViewModel.current
+    val playerState    by vm.state.collectAsState()
+    val countdownDone  = playerState.countdownDone
+    val scrollFraction = playerState.scrollFraction
 
     val countdownDurationMs = 3000L
-    val progress            = remember { Animatable(1f) }
-    var countdownFinished   by remember { mutableStateOf(false) }
+    val progress            = remember { Animatable(if (countdownDone) 0f else 1f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(countdownDone) {
+        if (countdownDone) {
+            progress.snapTo(0f)
+            return@LaunchedEffect
+        }
         progress.animateTo(
             targetValue   = 0f,
             animationSpec = tween(durationMillis = countdownDurationMs.toInt(), easing = LinearEasing),
         )
-        countdownFinished = true
+        vm.onIntent(PlayerIntent.CountdownDone)
     }
-
-    // ── Full-screen player ────────────────────────────────────────────────────
 
     Box(
         modifier = modifier
@@ -189,7 +209,7 @@ fun PlayerScreenBody(
 
         Box(
             modifier = modifier
-                .graphicsLayer { alpha = if (countdownFinished) 1f else 0f }
+                .graphicsLayer { alpha = if (countdownDone) 1f else 0f }
                 .fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
@@ -207,6 +227,9 @@ fun PlayerScreenBody(
                 isFillColorActive   = isFillColorActive,
                 fillColor           = null,
                 preview             = false,
+                countdownDone       = countdownDone,
+                initialScrollFraction = scrollFraction,
+                onScrollFraction    = { vm.onIntent(PlayerIntent.ScrollProgress(it)) },
                 modifier            = modifier,
                 onAnimationComplete = onReadingComplete,
             )
@@ -216,7 +239,7 @@ fun PlayerScreenBody(
             progress = { progress.value },
             modifier = Modifier.size(100.dp)
                 .graphicsLayer {
-                    alpha = if (countdownFinished) 0f else 1f
+                    alpha = if (countdownDone) 0f else 1f
                     rotationZ = if (isHorizontal) 90f else 0f
                 },
             color = MaterialTheme.colorScheme.primary,

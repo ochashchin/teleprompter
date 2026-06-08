@@ -36,6 +36,8 @@ import com.example.kotlinmultiplatform.features.tasklist.TaskListEvent
 import com.example.kotlinmultiplatform.features.tasklist.TaskListIntent
 import com.example.kotlinmultiplatform.features.tasklist.TaskListItem
 import com.example.kotlinmultiplatform.core.WindowModeObserver
+import com.example.kotlinmultiplatform.frame.FrameViewModel
+import com.example.kotlinmultiplatform.frame.FrameVmIntent
 import com.example.kotlinmultiplatform.navigation.NavigationUiEvent
 import kotlinx.coroutines.delay
 import kotlinmultiplatform.composeapp.generated.resources.Res
@@ -76,7 +78,10 @@ sealed interface Destination {
 // └─────────────────────────────────────────────────────────────────────────┘
 
 @Composable
-fun AppNavigation(modifier: Modifier = Modifier) {
+fun AppNavigation(
+    modifier:       Modifier        = Modifier,
+    frameViewModel: FrameViewModel? = null,
+) {
     val settings   = LocalSettings.current
     val draftTitle = stringResource(Res.string.draft_title)
 
@@ -204,8 +209,18 @@ fun AppNavigation(modifier: Modifier = Modifier) {
     LaunchedEffect(displayVm) {
         displayVm.events.collect { event ->
             when (event) {
-                is DisplayEvent.NavigateToPlay ->
+                is DisplayEvent.NavigateToPlay -> {
+                    if (event.overlayEnabled) {
+                        frameViewModel?.let { fvm ->
+                            fvm.onIntent(FrameVmIntent.SyncDisplayState(
+                                DisplayTaskState(taskId = event.taskId, settings = settings)
+                            ))
+                            fvm.onIntent(FrameVmIntent.SetOverlay(true))
+                            fvm.onIntent(FrameVmIntent.SetPlaying(true))
+                        }
+                    }
                     nav.push(Destination.PlayDetail(taskId = event.taskId, isPreview = event.isPreview))
+                }
                 is DisplayEvent.NavigateBack ->
                     if (event.isPreview) {
                         // Preview back: restore fields then return to NewDetail
@@ -320,9 +335,19 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                         )
                     }
                     if (task != null) {
+                        val displayTaskState = remember(task.id, settings) {
+                            DisplayTaskState(taskId = task.id, settings = settings)
+                        }
+                        val overlayItem    = remember { DisplayTaskList.first { it.id == 8 } }
+                        val overlayEnabled = remember(task.id) {
+                            (displayTaskState.selectedIndex(overlayItem)
+                                ?: overlayItem.defaultIndex) == 1
+                        }
                         DisplayScreenBody(
                             task        = task,
-                            onPlayClick = { displayVm.onIntent(DisplayIntent.PlayClicked) },
+                            onPlayClick = {
+                                displayVm.onIntent(DisplayIntent.PlayClicked(overlayEnabled))
+                            },
                             modifier    = Modifier.fillMaxSize(),
                         )
                     }

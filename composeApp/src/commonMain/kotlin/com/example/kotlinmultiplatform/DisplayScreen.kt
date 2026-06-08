@@ -178,6 +178,9 @@ fun TextFitPlayer(
     fillColor:           Color?          = null,
     fullText:            String         = "",
     preview:             Boolean        = false,
+    countdownDone:         Boolean        = false,
+    initialScrollFraction: Float          = 0f,
+    onScrollFraction:      (Float) -> Unit = {},
     modifier:            Modifier       = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
 ) {
@@ -200,6 +203,9 @@ fun TextFitPlayer(
                     isFillColorActive = isFillColorActive,
                     fillColor         = fillColor,
                     preview = preview,
+                    countdownDone = countdownDone,
+                    initialScrollFraction = initialScrollFraction,
+                    onScrollFraction = onScrollFraction,
                     modifier = Modifier.fillMaxSize(),
                     onAnimationComplete = onAnimationComplete,
                 )
@@ -219,6 +225,9 @@ fun TextFitPlayer(
                     fillColor         = fillColor,
                     fullText = fullText,
                     preview = preview,
+                    countdownDone = countdownDone,
+                    initialScrollFraction = initialScrollFraction,
+                    onScrollFraction = onScrollFraction,
                     modifier = Modifier.fillMaxSize(),
                     onAnimationComplete = onAnimationComplete,
                 )
@@ -237,6 +246,9 @@ fun TextFitPlayer(
                     isFillColorActive = isFillColorActive,
                     fillColor         = fillColor,
                     preview = preview,
+                    countdownDone = countdownDone,
+                    initialScrollFraction = initialScrollFraction,
+                    onScrollFraction = onScrollFraction,
                     modifier = Modifier.fillMaxSize(),
                     onAnimationComplete = onAnimationComplete,
                 )
@@ -272,7 +284,7 @@ fun DisplayScreenStatic(onBack: () -> Unit) {
 @Composable
 fun DisplayScreenBody(
     task: Task,
-    onPlayClick: () -> Unit,
+    onPlayClick: (overlayEnabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     styleSpans: List<StyleSpan> = emptyList(),
     isFillColorActive: Boolean = false,
@@ -288,6 +300,7 @@ fun DisplayScreenBody(
     val transitionItem  = DisplayTaskList.first { it.id == 5 }
     val distortionItem  = DisplayTaskList.first { it.id == 6 }
     val mirrorItem      = DisplayTaskList.first { it.id == 7 }
+    val overlayItem     = DisplayTaskList.first { it.id == 8 }
 
     var selectedSizeIndex        by remember {
         mutableStateOf(
@@ -328,6 +341,12 @@ fun DisplayScreenBody(
     var selectedMirrorIndex      by remember {
         mutableStateOf(
             displayState.selectedIndex(mirrorItem) ?: mirrorItem.defaultIndex
+        )
+    }
+
+    var selectedOverlayIndex     by remember {
+        mutableStateOf(
+            displayState.selectedIndex(overlayItem) ?: overlayItem.defaultIndex
         )
     }
 
@@ -403,6 +422,7 @@ fun DisplayScreenBody(
                         5 -> selectedTransitionIndex  = index
                         6 -> selectedDistortionIndex  = index
                         7 -> selectedMirrorIndex      = index
+                        8 -> selectedOverlayIndex     = index
                     }
                 }
             )
@@ -411,7 +431,7 @@ fun DisplayScreenBody(
         // ── Play FAB ─────────────────────────────────────────────────────────
         FabBarLayout(
             text    = stringResource(Res.string.fab_play),
-            onClick = onPlayClick,
+            onClick = { onPlayClick(selectedOverlayIndex == 1) },
             modifier = Modifier.fillMaxSize(),
             icon = {
                 Icon(
@@ -724,7 +744,7 @@ private val previewTask2 = Task(
 private fun DisplayScreenPreview(task: Task) {
     Column(modifier = Modifier.fillMaxWidth()) {
         DisplayScreenStatic(onBack = {})
-        DisplayScreenBody(task = task, onPlayClick = {}, modifier = Modifier.fillMaxWidth())
+        DisplayScreenBody(task = task, onPlayClick = { _ -> }, modifier = Modifier.fillMaxWidth())
     }
 }
 

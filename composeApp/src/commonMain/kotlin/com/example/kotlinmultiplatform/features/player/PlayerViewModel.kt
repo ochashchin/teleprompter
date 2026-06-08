@@ -36,6 +36,18 @@ data class PlayerState(
     val isLoading:      Boolean     = false,
     val toolbarVisible: Boolean     = true,
     val pipActive:      Boolean     = false,
+    /**
+     * Set to true the first time the 4-second pre-roll countdown finishes.
+     * Persists across PiP in/out so the countdown never replays mid-session.
+     */
+    val countdownDone:  Boolean     = false,
+    /**
+     * Normalised scroll position in [0f, 1f].
+     * 0f = animation not yet started, 1f = fully complete.
+     * Composables use this to resume the offsetAnim from the correct position
+     * after a PiP interruption.
+     */
+    val scrollFraction: Float       = 0f,
 ) : UiState
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -64,6 +76,11 @@ sealed interface PlayerIntent : UiIntent {
     // PiP — sent from platform-specific lifecycle callbacks
     data object EnterPip : PlayerIntent
     data object ExitPip  : PlayerIntent
+
+    // Playback state persistence — sent by composables so the VM can survive
+    // PiP in/out and pass the position back on re-entry.
+    data object CountdownDone : PlayerIntent
+    data class  ScrollProgress(val fraction: Float) : PlayerIntent
 }
 
 // ── Repository interface ──────────────────────────────────────────────────────
@@ -87,9 +104,11 @@ class PlayerViewModel(
             is PlayerIntent.ScreenTapped  -> onTap()
             is PlayerIntent.ReadingCompleted -> onReadingComplete()
             is PlayerIntent.BackClicked   -> onBack()
-            is PlayerIntent.CloseClicked  -> emitEvent(PlayerEvent.NavigateToRoot)
+            is PlayerIntent.CloseClicked  -> { resetPlaybackState(); emitEvent(PlayerEvent.NavigateToRoot) }
             is PlayerIntent.EnterPip      -> updateState { it.copy(pipActive = true) }
             is PlayerIntent.ExitPip       -> updateState { it.copy(pipActive = false) }
+            is PlayerIntent.CountdownDone -> updateState { it.copy(countdownDone = true) }
+            is PlayerIntent.ScrollProgress -> updateState { it.copy(scrollFraction = intent.fraction.coerceIn(0f, 1f)) }
             else                          -> Unit
         }
     }
@@ -109,6 +128,8 @@ class PlayerViewModel(
                 isPreview      = isPreview,
                 isLoading      = false,
                 toolbarVisible = true,
+                countdownDone  = false,
+                scrollFraction = 0f,
             )
         }
         scheduleToolbarHide()
@@ -140,9 +161,17 @@ class PlayerViewModel(
         updateState { it.copy(toolbarVisible = true) }
     }
 
+    private fun resetPlaybackState() {
+        viewModelScope.launch {
+            delay(1000L)
+            updateState { it.copy(countdownDone = false, scrollFraction = 0f) }
+        }
+    }
+
     private fun onBack() {
         val state = currentState
         val taskId = state.task?.id ?: return
+        resetPlaybackState()
         emitEvent(PlayerEvent.NavigateToDetail(taskId = taskId, isPreview = state.isPreview))
     }
 }
