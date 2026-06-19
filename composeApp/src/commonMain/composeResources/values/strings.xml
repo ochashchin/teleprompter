@@ -14,10 +14,13 @@
     <string name="cd_delete">Delete</string>
     <string name="cd_open">Open</string>
     <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_replay">Replay</string>
     <string name="cd_next">Next</string>
     <string name="cd_more_options">More options</string>
     <string name="cd_topic_required">Topic is required</string>
     <string name="cd_script_required">Script is required</string>
+    <string name="cd_help">Help</string>
 
     <!-- ── FAB / button labels ─────────────────────────────────────────── -->
     <string name="fab_new">New</string>
@@ -88,7 +91,7 @@
     <string name="option_disabled">Disabled</string>
     <string name="option_enabled">Enabled</string>
 
-    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->\r
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->
     <string name="style_bold">Bold</string>
     <string name="style_italic">Italic</string>
     <string name="style_underline">Underline</string>
@@ -98,4 +101,23 @@
     <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
     <string name="draft_title">Draft</string>
 
+    <!-- ── Help strings ────────────────────────────────────────────────── -->
+    <string name="help_bold">Bold — Emphasize important words, headings, or key talking points.</string>
+    <string name="help_italic">Italic — Mark notes, cues, or phrases that require a different tone or emphasis.</string>
+    <string name="help_underline">Underline — Highlight critical information that should not be overlooked.</string>
+    <string name="help_text_color">Text Color — Choose a color from the palette to emphasize selected text or organize your script visually.</string>
+    <string name="help_fill_color">Fill Color — Choose a color from the palette to highlight page background color to improve comfort and contrast.</string>
+    <string name="help_text_size">Text Size — Select a text size from Small to Massive for comfortable reading.</string>
+    <string name="help_orientation">Orientation — Select a reading direction: Vertical or Horizontal for a wider view.</string>
+    <string name="help_speed">Speed — Select a speaking rhythm: from Slow to Fast for natural delivery.</string>
+    <string name="help_animation">Animation — Select a reading style: Frame-by-frame, vertical Scroll, and horizontal Inline for readability.</string>
+    <string name="help_transition">Transition — Select visual effects: None for distraction-free, Fade for memory and pacing, or Print for focus and synchronizations.</string>
+    <string name="help_distortion">Distortion — Select anti-distortion perspective: 0°, 45°, or 70° for a smoother off-angle reading.</string>
+    <string name="help_mirror">Mirror — Enable instant reverse the text for reflective teleprompter rigs.</string>
+    <string name="help_overlay">Overlay — Keep your script visible in a floating PiP window while using other apps.</string>
+
+    <string name="rate_us_title">Please rate us!</string>
+    <string name="rate_us_supporting_text">Your feedback means a lot to us! Please drop a comment on the store page.</string>
+    <string name="rate_us_rate_now">Rate now</string>
+    <string name="rate_us_later">Later</string>
 </resources>

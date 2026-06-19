@@ -1,9 +1,9 @@
 package com.example.kotlinmultiplatform.core
 
-import com.example.kotlinmultiplatform.features.tasklist.TaskListIntent
-import com.example.kotlinmultiplatform.features.tasklist.TaskListItem
-import com.example.kotlinmultiplatform.features.tasklist.TaskListRepository
-import com.example.kotlinmultiplatform.features.tasklist.TaskListViewModel
+import com.oprojectview.features.tasklist.TaskListIntent
+import com.oprojectview.features.tasklist.TaskListItem
+import com.oprojectview.features.tasklist.TaskListRepository
+import com.oprojectview.features.tasklist.TaskListViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle

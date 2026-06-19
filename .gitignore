@@ -1,6 +1,10 @@
 *.iml
 .kotlin
 .gradle
+keystore.properties
+keystore/
+*.jks
+*.keystore
 **/build/
 xcuserdata
 !src/**/build/
