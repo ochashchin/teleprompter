@@ -18,7 +18,7 @@
     <string name="cd_replay">Ripeti</string>
     <string name="cd_next">Avanti</string>
     <string name="cd_more_options">Altre opzioni</string>
-    <string name="cd_topic_required">L\'argomento è obbligatorio</string>
+    <string name="cd_topic_required">L'argomento è obbligatorio</string>
     <string name="cd_script_required">Lo script è obbligatorio</string>
     <string name="cd_help">Guida</string>
     <string name="cd_loop">Ripeti</string>
@@ -111,11 +111,11 @@
     <string name="help_fill_color">Colore Riempimento — Scegli un colore di sfondo per migliorare comfort e contrasto.</string>
     <string name="help_text_size">Dimensione Testo — Seleziona una dimensione da Piccolo a Massiccio per una lettura confortevole.</string>
     <string name="help_orientation">Orientamento — Seleziona una direzione di lettura: Verticale o Orizzontale.</string>
-    <string name="help_speed">Velocità — Seleziona un ritmo: da Lenta a Veloce per un\'esposizione naturale.</string>
+    <string name="help_speed">Velocità — Seleziona un ritmo: da Lenta a Veloce per un'esposizione naturale.</string>
     <string name="help_animation">Animazione — Seleziona uno stile di lettura. Ripetizione disponibile.</string>
     <string name="help_transition">Transizione — Seleziona effetti visivi: Nessuna, Dissolvenza o Stampa.</string>
     <string name="help_distortion">Distorsione — Seleziona la prospettiva anti-distorsione: 0°, 45° o 70°.</string>
-    <string name="help_mirror">Specchio — Abilita l\'inversione immediata del testo per i dispositivi teleprompter.</string>
+    <string name="help_mirror">Specchio — Abilita l'inversione immediata del testo per i dispositivi teleprompter.</string>
     <string name="help_overlay">Sovrapposizione — Mantieni il tuo script visibile in una finestra fluttuante (PiP).</string>
 
     <string name="rate_us_title">Per favore valutaci!</string>
@@ -126,7 +126,7 @@
 
     <!-- ── Mock Data ────────────────────────────────────────────────────── -->
     <string name="seed_task1_title">Vlog di viaggio</string>
-    <string name="seed_task1_desc">Unisciti a me per esplorare destinazioni nascoste, cibo locale ed esperienze indimenticabili.\n\nVivi le culture attraverso gli occhi della gente del posto.\n\nAssaggia piatti incredibili e scopri storie straordinarie.\n\nL\'avventura ti aspetta in ogni angolo.</string>
+    <string name="seed_task1_desc">Unisciti a me per esplorare destinazioni nascoste, cibo locale ed esperienze indimenticabili.\n\nVivi le culture attraverso gli occhi della gente del posto.\n\nAssaggia piatti incredibili e scopri storie straordinarie.\n\nL'avventura ti aspetta in ogni angolo.</string>
     <string name="seed_task1_spans">0|13|1|0|0|-1;66|76|1|1|1|0;95|99|1|0|0|1;156|164|1|0|0|2;216|227|1|0|0|3</string>
     <string name="seed_task2_title">Podcast di produttività</string>
     <string name="seed_task2_desc">Oggi stiamo discutendo di concentrazione, routine e strategie pratiche per fare di più senza esaurirsi.\n\nEsamineremo piccole abitudini che fanno una grande differenza se praticate con costanza.\n\nImparerai come dare priorità a ciò che conta, gestire le distrazioni e proteggere la tua energia durante il giorno.\n\nEntro la fine, avrai un semplice schema che potrai adattare al tuo lavoro e al tuo stile di vita.</string>

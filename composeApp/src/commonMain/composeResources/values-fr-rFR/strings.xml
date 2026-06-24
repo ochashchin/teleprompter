@@ -17,7 +17,7 @@
     <string name="cd_pause">Pause</string>
     <string name="cd_replay">Rejouer</string>
     <string name="cd_next">Suivant</string>
-    <string name="cd_more_options">Plus d\'options</string>
+    <string name="cd_more_options">Plus d'options</string>
     <string name="cd_topic_required">Le sujet est requis</string>
     <string name="cd_script_required">Le script est requis</string>
     <string name="cd_help">Aide</string>
@@ -108,14 +108,14 @@
     <string name="help_italic">Italique — Marquez les notes, les indices ou les phrases qui nécessitent un ton différent.</string>
     <string name="help_underline">Souligné — Mettez en évidence les informations critiques à ne pas négliger.</string>
     <string name="help_text_color">Couleur du texte — Choisissez une couleur dans la palette pour souligner le texte ou organiser visuellement votre script.</string>
-    <string name="help_fill_color">Couleur de remplissage — Choisissez une couleur d\'arrière-plan pour améliorer le confort et le contraste.</string>
+    <string name="help_fill_color">Couleur de remplissage — Choisissez une couleur d'arrière-plan pour améliorer le confort et le contraste.</string>
     <string name="help_text_size">Taille du texte — Sélectionnez une taille allant de Petit à Massif pour une lecture confortable.</string>
     <string name="help_orientation">Orientation — Sélectionnez un sens de lecture : Vertical ou Horizontal pour une vue plus large.</string>
     <string name="help_speed">Vitesse — Sélectionnez un rythme de parole : de Lent à Rapide pour une élocution naturelle.</string>
     <string name="help_animation">Animation — Sélectionnez un style de lecture. Boucle disponible.</string>
     <string name="help_transition">Transition — Sélectionnez des effets visuels : Aucune, Fondu ou Impression.</string>
     <string name="help_distortion">Distorsion — Sélectionnez la perspective anti-distorsion : 0°, 45° ou 70°.</string>
-    <string name="help_mirror">Miroir — Activez l\'inversion instantanée du texte pour les prompteurs réfléchissants.</string>
+    <string name="help_mirror">Miroir — Activez l'inversion instantanée du texte pour les prompteurs réfléchissants.</string>
     <string name="help_overlay">Superposition — Gardez votre script visible dans une fenêtre flottante (PiP).</string>
 
     <string name="rate_us_title">Veuillez nous évaluer !</string>
@@ -126,16 +126,16 @@
 
     <!-- ── Mock Data ────────────────────────────────────────────────────── -->
     <string name="seed_task1_title">Vlog de voyage</string>
-    <string name="seed_task1_desc">Rejoignez-moi pour explorer des destinations cachées, la cuisine locale et des expériences inoubliables.\n\nVivez les cultures à travers les locaux.\n\nGoûtez des plats incroyables et découvrez des histoires remarquables.\n\nL\'aventure vous attend partout.</string>
+    <string name="seed_task1_desc">Rejoignez-moi pour explorer des destinations cachées, la cuisine locale et des expériences inoubliables.\n\nVivez les cultures à travers les locaux.\n\nGoûtez des plats incroyables et découvrez des histoires remarquables.\n\nL'aventure vous attend partout.</string>
     <string name="seed_task1_spans">0|13|1|0|0|-1;79|90|1|1|1|0;106|111|1|0|0|1;148|154|1|0|0|2;219|229|1|0|0|3</string>
     <string name="seed_task2_title">Podcast de productivité</string>
-    <string name="seed_task2_desc">Aujourd\'hui, nous discutons de la concentration, des routines et des stratégies pratiques pour en faire plus sans s\'épuiser.\n\nNous examinerons de petites habitudes qui font une grande différence lorsqu\'elles sont pratiquées régulièrement.\n\nVous apprendrez comment prioriser ce qui compte, gérer les distractions et protéger votre énergie tout au long de la journée.\n\nÀ la fin, vous disposerez d\'un cadre simple que vous pourrez adapter à votre propre travail et à votre style de vie.</string>
+    <string name="seed_task2_desc">Aujourd'hui, nous discutons de la concentration, des routines et des stratégies pratiques pour en faire plus sans s'épuiser.\n\nNous examinerons de petites habitudes qui font une grande différence lorsqu'elles sont pratiquées régulièrement.\n\nVous apprendrez comment prioriser ce qui compte, gérer les distractions et protéger votre énergie tout au long de la journée.\n\nÀ la fin, vous disposerez d'un cadre simple que vous pourrez adapter à votre propre travail et à votre style de vie.</string>
     <string name="seed_task2_spans">0|11|1|0|0|-1;114|123|1|1|1|0;126|142|1|0|0|1;240|255|1|0|0|2;367|375|1|0|0|3</string>
     <string name="seed_task3_title">Diffusion communautaire</string>
-    <string name="seed_task3_desc">Merci de vous être joint à la diffusion d\'aujourd\'hui. Nous allons discuter, répondre aux questions et jeter un premier coup d\'œil aux dernières mises à jour.\n\nNous passerons en revue les points forts, partagerons quelques détails en coulisses et explorerons ce qui s\'en vient.\n\nN\'hésitez pas à laisser vos questions et vos réflexions dans le chat au fur et à mesure.\n\nCommençons et faisons de cette session un moment interactif.</string>
+    <string name="seed_task3_desc">Merci de vous être joint à la diffusion d'aujourd'hui. Nous allons discuter, répondre aux questions et jeter un premier coup d'œil aux dernières mises à jour.\n\nNous passerons en revue les points forts, partagerons quelques détails en coulisses et explorerons ce qui s'en vient.\n\nN'hésitez pas à laisser vos questions et vos réflexions dans le chat au fur et à mesure.\n\nCommençons et faisons de cette session un moment interactif.</string>
     <string name="seed_task3_spans">0|24|1|0|0|-1;135|157|1|1|1|0;160|183|1|0|0|1;279|292|1|0|0|2;369|379|1|0|0|3</string>
     <string name="seed_task4_title">Diffusion en direct</string>
-    <string name="seed_task4_desc">Bienvenue à tous sur la diffusion d\'aujourd\'hui ! Nous aborderons les mises à jour, répondrons aux questions du chat et partagerons ce qui s\'en vient.\n\nQue vous nous rejoigniez en direct ou que vous regardiez plus tard, nous sommes ravis de vous avoir ici.\n\nN\'hésitez pas à laisser vos questions dans le chat et à rejoindre la conversation.\n\nPlongeons-nous et commençons.</string>
+    <string name="seed_task4_desc">Bienvenue à tous sur la diffusion d'aujourd'hui ! Nous aborderons les mises à jour, répondrons aux questions du chat et partagerons ce qui s'en vient.\n\nQue vous nous rejoigniez en direct ou que vous regardiez plus tard, nous sommes ravis de vous avoir ici.\n\nN'hésitez pas à laisser vos questions dans le chat et à rejoindre la conversation.\n\nPlongeons-nous et commençons.</string>
     <string name="seed_task4_spans">0|16|1|0|0|-1;132|149|1|1|1|0;152|186|1|0|0|1;258|271|1|0|0|2;342|356|1|0|0|3</string>
     <string name="seed_task5_title">Promotion intégrée</string>
     <string name="seed_task5_desc">Lisez • Enregistrez • Publiez • Répétez • Restez concentré • Soyez naturel • Créez en toute confiance</string>
