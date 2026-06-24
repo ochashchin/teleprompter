@@ -335,7 +335,7 @@ fun TextFitBox(
     // Build an AnnotatedString for the current page, offsetting spans by the
     // page's start position within the full text so character indices align.
     val pageOffset = remember(pages, currentPage) {
-        pages.take(currentPage).sumOf { it.length }.coerceAtLeast(0)
+        pages.take(currentPage).sumOf { it.length + 1 }.coerceAtLeast(0) // +1 for separator
     }
     val annotatedPageText = remember(pageText, pageOffset, styleSpans) {
         if (styleSpans.isEmpty()) {
