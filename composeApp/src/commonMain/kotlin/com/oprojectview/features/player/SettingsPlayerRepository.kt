@@ -18,7 +18,7 @@ class SettingsPlayerRepository(
 
     override fun loadTask(taskId: Int): PlayerTask? {
         val title   = settings.getStringOrNull(keyTitle(taskId)) ?: return null
-        val desc    = settings.getStringOrNull(keyDesc(taskId))  ?: ""
+        val desc    = (settings.getStringOrNull(keyDesc(taskId)) ?: "").replace("\\'", "'")
         val ordinal = settings.getIntOrNull(keyIcon(taskId))     ?: return null
         return PlayerTask(
             id           = taskId,

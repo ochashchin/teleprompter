@@ -28,7 +28,7 @@ class SettingsTaskListRepository(
         val ids = loadIds()
         return ids.mapNotNull { id ->
             val title   = settings.getStringOrNull(keyTitle(id)) ?: return@mapNotNull null
-            val desc    = settings.getStringOrNull(keyDesc(id))  ?: ""
+            val desc    = (settings.getStringOrNull(keyDesc(id)) ?: "").replace("\\'", "'")
             val ordinal = settings.getIntOrNull(keyIcon(id))     ?: return@mapNotNull null
             TaskListItem(
                 id                  = id,

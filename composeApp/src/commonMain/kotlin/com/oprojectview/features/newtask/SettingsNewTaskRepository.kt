@@ -99,7 +99,7 @@ class SettingsNewTaskRepository(
 
     override fun loadTask(id: Int): SavedTask? {
         val title   = settings.getStringOrNull(keyTitle(id)) ?: return null
-        val desc    = settings.getStringOrNull(keyDesc(id))  ?: ""
+        val desc    = (settings.getStringOrNull(keyDesc(id)) ?: "").replace("\\'", "'")
         val ordinal = settings.getIntOrNull(keyIcon(id))     ?: 0
         return SavedTask(id, title, desc, ordinal)
     }
