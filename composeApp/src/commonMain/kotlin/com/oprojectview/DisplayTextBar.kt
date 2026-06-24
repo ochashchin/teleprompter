@@ -570,7 +570,7 @@ fun TextHorizontalScrollBox(
 ) {
     val totalDurationMs = remember(pages, wpm) { inlinePlayerDurationMs(pages, wpm) }
     val text            = pages
-        .joinToString(separator = " ")
+        .joinToString(separator = "")
         .replace("\r", " ")
         .replace("\n", " ")
 
@@ -919,7 +919,7 @@ fun TextCentreVerticalScrollBox(
 
 
 
-        val fullText = remember(pages) { pages.joinToString(" ") }
+        val fullText = remember(pages) { pages.joinToString("") }
 
         // Measure every visual line. Compute fade window per line using the reading region
         // centred exactly on containerHeightPx/2.
@@ -1215,7 +1215,7 @@ fun ScrollAnimText(
     styleSpans: List<StyleSpan> = emptyList(),
     modifier:   Modifier = Modifier,
 ) {
-    val fullText     = remember(pages) { pages.joinToString(" ") }
+    val fullText     = remember(pages) { pages.joinToString("") }
     val contentColor = textStyle.color.takeOrElse { LocalContentColor.current }
     val colorR       = contentColor.red
     val colorG       = contentColor.green
