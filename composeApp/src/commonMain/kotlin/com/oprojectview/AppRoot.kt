@@ -45,6 +45,10 @@ import androidx.compose.ui.platform.LocalUriHandler
 import com.oprojectview.frame.FrameViewModel
 import com.oprojectview.frame.FrameVmIntent
 import com.oprojectview.navigation.PlatformBackHandler
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.unit.dp
 import com.oprojectview.navigation.RootEvent
 import com.oprojectview.navigation.RootViewModel
 import com.oprojectview.navigation.Screen
@@ -110,7 +114,7 @@ fun AppRoot(
     LaunchedEffect(activeFillColor, frameViewModel) {
         frameViewModel?.onIntent(
             FrameVmIntent.SetFillColor(
-                fillColorVal = activeFillColor?.value?.toLong() ?: 0L
+                fillColorVal = activeFillColor.value.toLong()
             )
         )
     }
@@ -118,11 +122,15 @@ fun AppRoot(
     // ── Pass MaterialTheme default colors to PiP renderer ───
     val defaultTextVal = MaterialTheme.colorScheme.onSurfaceVariant.value.toLong()
     val defaultFillVal = MaterialTheme.colorScheme.surfaceContainerLow.value.toLong()
-    LaunchedEffect(defaultTextVal, defaultFillVal, frameViewModel) {
+    val primaryVal = MaterialTheme.colorScheme.primary.value.toLong()
+    val surfaceVariantVal = MaterialTheme.colorScheme.surfaceVariant.value.toLong()
+    LaunchedEffect(defaultTextVal, defaultFillVal, primaryVal, surfaceVariantVal, frameViewModel) {
         frameViewModel?.onIntent(
             FrameVmIntent.SetDefaultColors(
                 textColorVal = defaultTextVal,
-                defaultFillColorVal = defaultFillVal
+                defaultFillColorVal = defaultFillVal,
+                primaryColorVal = primaryVal,
+                surfaceVariantColorVal = surfaceVariantVal
             )
         )
     }
@@ -184,6 +192,8 @@ fun AppRoot(
     LaunchedEffect(screen) {
         if (screen == Screen.NewTaskScreen) {
             viewModel.setBackInterceptor { newTaskVm.onIntent(NewTaskIntent.BackPressed); true }
+        } else if (screen == Screen.PlayerScreen) {
+            viewModel.setBackInterceptor { playerVm.onIntent(com.oprojectview.features.player.PlayerIntent.BackClicked); true }
         } else {
             viewModel.setBackInterceptor(null)
         }
@@ -302,7 +312,25 @@ fun AppRoot(
             when (event) {
                 is PlayerEvent.NavigateToDetail -> {
                     displayVm.onIntent(DisplayIntent.Load(event.taskId, event.isPreview))
-                    viewModel.goBack()
+                    if (event.wasAutoSwitched) {
+                        newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = event.taskId, isPreviewReturn = false))
+                        viewModel.navStack.reset()
+                        viewModel.goToNewTask()
+                        viewModel.goToDisplay()
+                    } else {
+                        val hasDisplayScreen = Screen.DisplayScreen in viewModel.navStack.snapshot()
+                        if (hasDisplayScreen) {
+                            while (viewModel.navStack.current.value != Screen.DisplayScreen && viewModel.navStack.canPop) {
+                                viewModel.navStack.pop()
+                            }
+                        } else {
+                            viewModel.navStack.pop()
+                            viewModel.goToDisplay()
+                        }
+                    }
+                }
+                is PlayerEvent.PreloadNextTaskStyles -> {
+                    playerStyleState.loadForTaskId(event.taskId)
                 }
                 is PlayerEvent.NavigateToRoot  -> viewModel.navStack.reset()
                 is PlayerEvent.RequestEnterPip -> frameViewModel?.onIntent(FrameVmIntent.RequestPip)
@@ -324,6 +352,7 @@ fun AppRoot(
         screen           = screen,
         prevScreen       = prevScreen,
         playerStyleState = playerStyleState,
+        onEdgeSwipeBack  = { viewModel.handleBack() },
         staticContent    = { s ->
             when (s) {
                 is Screen.TaskScreen    -> TaskScreenStatic(
@@ -351,8 +380,8 @@ fun AppRoot(
                             onBack         = { playerVm.onIntent(PlayerIntent.BackClicked) },
                             onClose        = { playerVm.onIntent(PlayerIntent.CloseClicked) },
                             onPlayPauseClick = { playerVm.onIntent(PlayerIntent.SetPlaying(!playerState.isPlaying)) },
-                            onReplayClick  = { playerVm.onIntent(PlayerIntent.ReplayClicked) },
-                            fillColor      = if (playerStyleState.isFillColorActive && playerStyleState.resolveActiveFillColor() != null) playerStyleState.resolveActiveFillColor() else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+                            onReplayClick  = { playerVm.onIntent(PlayerIntent.ReplayClicked(isManual = true)) },
+                            fillColor      = playerStyleState.resolveActiveFillColor(),
                         )
                     }
                 }
@@ -421,7 +450,6 @@ fun AppRoot(
                             },
                             modifier          = Modifier.fillMaxSize(),
                             styleSpans        = displayStyleState.spans,
-                            isFillColorActive = displayStyleState.isFillColorActive,
                             fillColor         = displayStyleState.resolveActiveFillColor(),
                         )
                     }
@@ -437,12 +465,17 @@ fun AppRoot(
                         )
                     }
                     if (task != null) {
+                        var activeSpans by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(playerStyleState.spans) }
+                        androidx.compose.runtime.LaunchedEffect(task.id, playerStyleState.spans, playerStyleState.taskId) {
+                            if (playerStyleState.taskId == task.id) {
+                                activeSpans = playerStyleState.spans
+                            }
+                        }
                         PlayerScreenBody(
                             task              = task,
                             onReadingComplete = { playerVm.onIntent(PlayerIntent.ReadingCompleted) },
                             modifier          = Modifier.fillMaxSize(),
-                            styleSpans        = playerStyleState.spans,
-                            isFillColorActive = playerStyleState.isFillColorActive,
+                            styleSpans        = activeSpans,
                             fillColor         = playerStyleState.resolveActiveFillColor(),
                             frameViewModel    = frameViewModel,
                         )
@@ -461,22 +494,51 @@ private fun ScreenLayout(
     screen:           Screen,
     prevScreen:       Screen,
     playerStyleState: ScriptTextStyleState,
+    onEdgeSwipeBack:  () -> Unit,
     staticContent:    @Composable (Screen) -> Unit,
     dynamicContent:   @Composable (Screen) -> Unit,
     modifier:         Modifier = Modifier,
 ) {
-    val defaultBgColor  = MaterialTheme.colorScheme.surfaceContainerLow
+    val defaultBgColor  = MaterialTheme.colorScheme.surfaceContainer
     val playerFillColor = playerStyleState.resolveActiveFillColor()
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    // Only intercept if the gesture starts within 40dp of the left edge
+                    if (down.position.x < 40.dp.toPx()) {
+                        var dragAmount = 0f
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull()
+                            if (change != null && change.pressed) {
+                                dragAmount += change.position.x - change.previousPosition.x
+                                // If user swiped right by more than 50px, trigger back
+                                if (dragAmount > 50f) {
+                                    change.consume()
+                                    onEdgeSwipeBack()
+                                    break
+                                }
+                            }
+                        } while (event.changes.any { it.pressed })
+                    }
+                }
+            }
+    ) {
         AnimatedContent(
             targetState    = screen,
             transitionSpec = { fadeIn(tween(1000)) togetherWith fadeOut(tween(1000)) },
             label          = "staticBackground",
             modifier       = Modifier.fillMaxSize(),
         ) { targetScreen ->
-            val bgColor = if (targetScreen is Screen.PlayerScreen && playerStyleState.isFillColorActive && playerFillColor != null)
-                playerFillColor else defaultBgColor
+            val targetColor = if (targetScreen is Screen.PlayerScreen) playerFillColor else defaultBgColor
+            val bgColor by androidx.compose.animation.animateColorAsState(
+                targetValue = targetColor,
+                animationSpec = tween(1000)
+            )
             Box(modifier = Modifier.fillMaxSize().background(bgColor))
         }
 

@@ -267,7 +267,8 @@ fun AppNavigation(
                     onBack         = { playerVm.onIntent(PlayerIntent.BackClicked) },
                     onClose        = { playerVm.onIntent(PlayerIntent.CloseClicked) },
                     onPlayPauseClick = { playerVm.onIntent(PlayerIntent.SetPlaying(!playerState.isPlaying)) },
-                    onReplayClick  = { playerVm.onIntent(PlayerIntent.ReplayClicked) },
+                    onReplayClick  = { playerVm.onIntent(PlayerIntent.ReplayClicked(isManual = true)) },
+                    fillColor      = rememberScriptTextStyleState(dest.taskId).resolveActiveFillColor(),
                 )
             }
         },
@@ -321,6 +322,7 @@ fun AppNavigation(
                             displayVm.onIntent(DisplayIntent.PlayClicked(overlayEnabled))
                         },
                         modifier    = Modifier.fillMaxSize(),
+                        fillColor   = rememberScriptTextStyleState(task.id).resolveActiveFillColor(),
                     )
                 }
             } else if (dest is Destination.PlayDetail) {
@@ -338,6 +340,7 @@ fun AppNavigation(
                         task              = task,
                         onReadingComplete = { playerVm.onIntent(PlayerIntent.ReadingCompleted) },
                         modifier          = Modifier.fillMaxSize(),
+                        fillColor         = rememberScriptTextStyleState(task.id).resolveActiveFillColor(),
                     )
                 }
             } else if (dest is Destination.NewDetail) {

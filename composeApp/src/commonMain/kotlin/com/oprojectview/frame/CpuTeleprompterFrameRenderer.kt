@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.AnnotatedString
@@ -27,6 +28,7 @@ import com.oprojectview.TextFitResult
 import com.oprojectview.TransitionMode
 import com.oprojectview.calculateTextFit
 import com.oprojectview.speedIndexToWpm
+import kotlin.concurrent.Volatile
 import kotlin.math.ceil
 import kotlin.time.TimeSource
 
@@ -45,8 +47,17 @@ class CpuTeleprompterFrameRenderer(
     private val drawScope = CanvasDrawScope()
 
     // Set dynamically from the Compose UI composition
-    @kotlin.concurrent.Volatile
+    @Volatile
     var fontFamilyResolver: FontFamily.Resolver? = null
+        set(value) {
+            if (field != value) {
+                field = value
+                textMeasurer = null
+                cachedTextLayoutResult = null
+                cachedTextFitResult = null
+                cachedPageGlyphCache = null
+            }
+        }
 
     private var textMeasurer: TextMeasurer? = null
 
@@ -119,9 +130,10 @@ class CpuTeleprompterFrameRenderer(
 
         // 2. Resolve Text/Layout Constraints
         if (state.scriptText.isNotEmpty()) {
-            val paddingPx = 20f
-            val contentWidth = (bitmap.width - paddingPx * 2).toInt().coerceAtLeast(1)
-            val contentHeight = (bitmap.height - paddingPx * 2).toInt().coerceAtLeast(1)
+            val hPaddingPx = with(density) { 10.dp.toPx() }
+            val vPaddingPx = with(density) { 5.dp.toPx() }
+            val contentWidth = (bitmap.width - hPaddingPx * 2).toInt().coerceAtLeast(1)
+            val contentHeight = (bitmap.height - vPaddingPx * 2).toInt().coerceAtLeast(1)
 
             val textStyle = createTextStyle(state.textSizeIndex, state.textColorVal)
 
@@ -147,23 +159,28 @@ class CpuTeleprompterFrameRenderer(
 
             val measurer = getOrCreateTextMeasurer()
 
+            var drawSpinner = false
             if (!state.countdownDone && state.countdownStartUs > 0L) {
-                val nowUs = kotlin.time.TimeSource.Monotonic.markNow().elapsedNow().inWholeMicroseconds + epoch.elapsedNow().inWholeMicroseconds
+                val nowUs = com.oprojectview.core.MonotonicClock.currentTimeUs()
                 val elapsedMs = if (state.isPlaying) {
                     (nowUs - state.countdownStartUs) / 1000L
                 } else {
                     state.pausedCountdownElapsedUs / 1000L
                 }
-                if (elapsedMs < 3000L) {
-                    val progress = 1f - (elapsedMs.toFloat() / 3000f).coerceIn(0f, 1f)
+                if (elapsedMs < 5000L) {
+                    drawSpinner = true
+                    val progress = 1f - (elapsedMs.toFloat() / 5000f).coerceIn(0f, 1f)
+                    val pColor = if (state.primaryColorVal != 0L) Color(state.primaryColorVal.toULong()) else Color(0xFF1E88E5)
+                    val bgArcColor = if (state.surfaceVariantColorVal != 0L) Color(state.surfaceVariantColorVal.toULong()) else Color.LightGray
+
                     val arcPaint = Paint().apply {
-                        color = Color(0xFF1E88E5) // primary color approx
-                        style = androidx.compose.ui.graphics.PaintingStyle.Stroke
+                        color = pColor
+                        style = PaintingStyle.Stroke
                         strokeWidth = with(density) { 8.dp.toPx() }
                     }
                     val bgArcPaint = Paint().apply {
-                        color = Color.LightGray
-                        style = androidx.compose.ui.graphics.PaintingStyle.Stroke
+                        color = bgArcColor
+                        style = PaintingStyle.Stroke
                         strokeWidth = with(density) { 8.dp.toPx() }
                     }
                     val center = Offset(bitmap.width / 2f, bitmap.height / 2f)
@@ -189,7 +206,9 @@ class CpuTeleprompterFrameRenderer(
                         paint = arcPaint
                     )
                 }
-            } else if (measurer != null) {
+            }
+            
+            if (!drawSpinner && measurer != null) {
 
                     when (state.animationMode) {
                         AnimationMode.Scroll -> {
@@ -206,9 +225,9 @@ class CpuTeleprompterFrameRenderer(
 
                             // Start at vertical center and scroll until text is fully off screen at the top
                             val startY = bitmap.height / 2f
-                            val endY = -(layoutResult.size.height.toFloat() + paddingPx)
+                            val endY = -(layoutResult.size.height.toFloat() + vPaddingPx)
                             val yOffset = startY + (endY - startY) * state.scrollFraction
-                            val xOffset = (bitmap.width - layoutResult.size.width) / 2f
+                            val xOffset = hPaddingPx
 
                             if (state.transitionMode == TransitionMode.None) {
                                 drawScope.draw(
@@ -443,8 +462,8 @@ class CpuTeleprompterFrameRenderer(
                                     overflow = TextOverflow.Clip
                                 )
 
-                                val xOffset = paddingPx
-                                val yOffset = paddingPx
+                                val xOffset = hPaddingPx
+                                val yOffset = vPaddingPx
 
                                 when (state.transitionMode) {
                                     TransitionMode.None -> {
@@ -630,12 +649,13 @@ class CpuTeleprompterFrameRenderer(
 
     private fun createTextStyle(textSizeIndex: Int, textColorVal: Long): TextStyle {
         val (fontSizeDp, lineHeightDp) = when (textSizeIndex) {
-            0 -> Pair(16.dp, 21.dp)
-            1 -> Pair(24.dp, 27.dp)
-            2 -> Pair(32.dp, 35.dp)
-            3 -> Pair(40.dp, 45.dp)
-            4 -> Pair(56.dp, 68.dp)
-            else -> Pair(24.dp, 27.dp)
+            0 -> Pair(17.dp, 23.dp)
+            1 -> Pair(23.dp, 30.dp)
+            2 -> Pair(32.dp, 41.dp)
+            3 -> Pair(36.dp, 46.dp)
+            4 -> Pair(40.dp, 51.dp)
+            5 -> Pair(56.dp, 71.dp)
+            else -> Pair(23.dp, 30.dp)
         }
         return TextStyle(
             fontSize = with(density) { fontSizeDp.toSp() },

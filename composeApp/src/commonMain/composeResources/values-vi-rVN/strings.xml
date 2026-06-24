@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
+    <string name="screen_tasks">Teleprompter</string>
+    <string name="screen_new_task">Lời nhắc mới</string>
+    <string name="screen_display">Hiển thị</string>
+
+    <!-- ── Navigation / icon content descriptions ─────────────────────── -->
+    <string name="cd_back">Quay lại</string>
+    <string name="cd_close">Đóng</string>
+    <string name="cd_search">Tìm kiếm</string>
+    <string name="cd_clear">Xóa</string>
+    <string name="cd_edit">Chỉnh sửa</string>
+    <string name="cd_delete">Xóa bỏ</string>
+    <string name="cd_open">Mở</string>
+    <string name="cd_play">Phát</string>
+    <string name="cd_pause">Tạm dừng</string>
+    <string name="cd_replay">Phát lại</string>
+    <string name="cd_next">Tiếp theo</string>
+    <string name="cd_more_options">Tùy chọn khác</string>
+    <string name="cd_topic_required">Yêu cầu chủ đề</string>
+    <string name="cd_script_required">Yêu cầu kịch bản</string>
+    <string name="cd_help">Trợ giúp</string>
+    <string name="cd_loop">Lặp lại</string>
+
+    <!-- ── FAB / button labels ─────────────────────────────────────────── -->
+    <string name="fab_new">Mới</string>
+    <string name="fab_next">Tiếp theo</string>
+    <string name="fab_play">Phát</string>
+
+    <!-- ── Search bar ─────────────────────────────────────────────────── -->
+    <string name="search_hint">Tìm kiếm …</string>
+
+    <!-- ── Topic text field ───────────────────────────────────────────── -->
+    <string name="topic_label">Chủ đề</string>
+    <string name="topic_placeholder">Nhập chủ đề</string>
+
+    <!-- ── Script text field ──────────────────────────────────────────── -->
+    <string name="script_label">Kịch bản</string>
+    <string name="script_placeholder">Nhập hoặc dán kịch bản của bạn</string>
+
+    <!-- ── Save changes dialog ────────────────────────────────────────── -->
+    <string name="dialog_save_changes_title">Lưu thay đổi?</string>
+    <string name="dialog_discard">Hủy bỏ</string>
+    <string name="dialog_save">Lưu</string>
+
+    <!-- ── Display settings item titles ──────────────────────────────── -->
+    <string name="display_text_size">Cỡ chữ</string>
+    <string name="display_orientation">Hướng</string>
+    <string name="display_speed">Tốc độ</string>
+    <string name="display_animation">Hoạt ảnh</string>
+    <string name="display_transition">Chuyển tiếp</string>
+    <string name="display_distortion">Biến dạng</string>
+    <string name="display_mirror">Gương</string>
+    <string name="display_overlay">Lớp phủ</string>
+
+    <!-- ── Display settings item descriptions ────────────────────────── -->
+    <string name="display_text_size_desc">Nhỏ, bình thường, lớn, khổng lồ, đồ sộ</string>
+    <string name="display_orientation_desc">Dọc, ngang</string>
+    <string name="display_speed_desc">Chậm, bình thường, nhanh</string>
+    <string name="display_animation_desc">Khung hình, cuộn, nội dòng</string>
+    <string name="display_transition_desc">Không có, mờ dần, in</string>
+    <string name="display_distortion_desc">0°, 45°, 70°</string>
+    <string name="display_mirror_desc">Đã tắt, đã bật</string>
+    <string name="display_overlay_desc">Đã tắt, đã bật</string>
+
+    <!-- ── Display settings options ──────────────────────────────────── -->
+    <string name="option_small">Nhỏ</string>
+    <string name="option_normal">Bình thường</string>
+    <string name="option_large">Lớn</string>
+    <string name="option_huge">Khổng lồ</string>
+    <string name="option_massive">Đồ sộ</string>
+    <string name="option_maximize">Tối đa</string>
+
+    <string name="option_vertical">Dọc</string>
+    <string name="option_horizontal">Ngang</string>
+
+    <string name="option_slow">Chậm</string>
+    <string name="option_fast">Nhanh</string>
+
+    <string name="option_frame">Khung hình</string>
+    <string name="option_scroll">Cuộn</string>
+    <string name="option_inline">Nội dòng</string>
+
+    <string name="option_none">Không có</string>
+    <string name="option_fade">Mờ dần</string>
+    <string name="option_print">In</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">Đã tắt</string>
+    <string name="option_enabled">Đã bật</string>
+
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->
+    <string name="style_bold">In đậm</string>
+    <string name="style_italic">In nghiêng</string>
+    <string name="style_underline">Gạch chân</string>
+    <string name="style_text_color">Màu chữ</string>
+    <string name="style_fill_color">Màu tô</string>
+
+    <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
+    <string name="draft_title">Bản nháp</string>
+
+    <!-- ── Help strings ────────────────────────────────────────────────── -->
+    <string name="help_bold">In đậm — Nhấn mạnh các từ quan trọng, tiêu đề hoặc điểm chính.</string>
+    <string name="help_italic">In nghiêng — Đánh dấu ghi chú, gợi ý hoặc cụm từ cần giọng điệu khác.</string>
+    <string name="help_underline">Gạch chân — Làm nổi bật thông tin quan trọng không nên bỏ qua.</string>
+    <string name="help_text_color">Màu chữ — Chọn màu từ bảng màu để nhấn mạnh văn bản hoặc sắp xếp kịch bản của bạn.</string>
+    <string name="help_fill_color">Màu tô — Chọn màu nền để cải thiện sự thoải mái và độ tương phản.</string>
+    <string name="help_text_size">Cỡ chữ — Chọn cỡ chữ từ Nhỏ đến Đồ sộ để đọc thoải mái.</string>
+    <string name="help_orientation">Hướng — Chọn hướng đọc: Dọc hoặc Ngang để có góc nhìn rộng hơn.</string>
+    <string name="help_speed">Tốc độ — Chọn nhịp độ nói: từ Chậm đến Nhanh cho tự nhiên.</string>
+    <string name="help_animation">Hoạt ảnh — Chọn kiểu đọc: Từng khung hình, Cuộn và Nội dòng.</string>
+    <string name="help_transition">Chuyển tiếp — Chọn hiệu ứng: Không có, Mờ dần hoặc In.</string>
+    <string name="help_distortion">Biến dạng — Chọn góc chống biến dạng: 0°, 45° hoặc 70°.</string>
+    <string name="help_mirror">Gương — Bật chế độ đảo ngược văn bản tức thì cho máy nhắc chữ.</string>
+    <string name="help_overlay">Lớp phủ — Giữ kịch bản của bạn luôn hiển thị trong cửa sổ PiP nổi.</string>
+
+    <string name="rate_us_title">Vui lòng đánh giá chúng tôi!</string>
+    <string name="rate_us_supporting_text">Phản hồi của bạn có ý nghĩa rất lớn đối với chúng tôi! Vui lòng để lại nhận xét trên cửa hàng.</string>
+    <string name="rate_us_rate_now">Đánh Giá Ngay</string>
+    <string name="rate_us_later">Để sau</string>
+    <string name="label_up_next">Tiếp Theo</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">Vlog du lịch</string>
+    <string name="seed_task1_desc">Cùng khám phá những điểm đến bí ẩn, ẩm thực địa phương và trải nghiệm khó quên trên khắp thế giới.\n\nTrải nghiệm văn hóa qua lăng kính người bản xứ.\n\nThưởng thức món ăn tuyệt vời và khám phá những câu chuyện thú vị.\n\nCuộc phiêu lưu chờ đợi ở khắp mọi nơi.</string>
+    <string name="seed_task1_spans">0|13|1|0|0|-1;58|69|1|1|1|0;100|111|1|0|0|1;149|160|1|0|0|2;216|230|1|0|0|3</string>
+    <string name="seed_task2_title">Podcast năng suất</string>
+    <string name="seed_task2_desc">Hôm nay chúng ta sẽ thảo luận về sự tập trung, thói quen và các chiến lược thiết thực để làm được nhiều việc hơn mà không bị kiệt sức.\n\nChúng ta sẽ xem xét những thói quen nhỏ tạo ra sự khác biệt lớn khi được thực hành nhất quán.\n\nBạn sẽ học cách ưu tiên những gì quan trọng, quản lý sự phân tâm và bảo vệ năng lượng của bạn trong suốt cả ngày.\n\nĐến cuối cùng, bạn sẽ có một khuôn khổ đơn giản mà bạn có thể điều chỉnh cho công việc và lối sống của riêng mình.</string>
+    <string name="seed_task2_spans">0|7|1|0|0|-1;122|133|1|1|1|0;136|155|1|0|0|1;231|246|1|0|0|2;346|359|1|0|0|3</string>
+    <string name="seed_task3_title">Livestream cộng đồng</string>
+    <string name="seed_task3_desc">Cảm ơn vì đã tham gia buổi phát trực tiếp hôm nay. Chúng ta sẽ trò chuyện, trả lời các câu hỏi và xem qua những cập nhật mới nhất.\n\nChúng ta sẽ điểm qua những điểm nổi bật, chia sẻ một vài chi tiết hậu trường và khám phá những gì sắp tới.\n\nĐừng ngần ngại đặt câu hỏi và suy nghĩ của bạn trong phần trò chuyện khi chúng ta tiếp tục.\n\nHãy bắt đầu và làm cho buổi này trở nên tương tác.</string>
+    <string name="seed_task3_spans">0|21|1|0|0|-1;112|129|1|1|1|0;132|152|1|0|0|1;240|254|1|0|0|2;333|344|1|0|0|3</string>
+    <string name="seed_task4_title">Phát trực tiếp</string>
+    <string name="seed_task4_desc">Chào mừng mọi người đến với buổi phát trực tiếp hôm nay! Chúng ta sẽ đề cập đến các bản cập nhật, trả lời các câu hỏi từ cuộc trò chuyện và chia sẻ những gì sắp tới.\n\nCho dù bạn đang tham gia cùng chúng tôi trực tiếp hay xem lại sau, chúng tôi rất vui vì có bạn ở đây.\n\nĐừng ngần ngại đặt câu hỏi của bạn trong cuộc trò chuyện và tham gia vào cuộc trò chuyện.\n\nHãy đi sâu vào và bắt đầu.</string>
+    <string name="seed_task4_spans">0|19|1|0|0|-1;148|164|1|1|1|0;167|216|1|0|0|1;270|284|1|0|0|2;361|375|1|0|0|3</string>
+    <string name="seed_task5_title">Khuyến mãi tích hợp</string>
+    <string name="seed_task5_desc">Đọc • Ghi Âm • Xuất Bản • Lặp Lại • Giữ Tập Trung • Nghe Tự Nhiên • Tự Tin Sáng Tạo</string>
+    <string name="seed_task5_spans">0|4|1|0|0|-1;4|5|0|0|0|0;5|13|1|0|0|-1;13|14|0|0|0|1;14|24|1|0|0|-1;24|25|0|0|0|2;25|34|1|0|0|-1;34|35|0|0|0|3;35|50|1|0|0|-1;50|51|0|0|0|4;51|66|1|0|0|-1;66|67|0|0|0|0;67|83|1|0|0|-1</string>
+</resources>

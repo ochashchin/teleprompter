@@ -76,7 +76,7 @@ interface NewTaskRepository {
     fun saveDraft(topic: String, script: String)
     fun loadDraft(): DraftData?
     fun clearDraft()
-    fun ensureSeeded()
+    fun ensureSeeded(seedTasks: List<SeedTask>)
 }
 
 data class SavedTask(
@@ -116,7 +116,6 @@ class NewTaskViewModel(
     }
 
     private fun init(intent: NewTaskIntent.Init) {
-        repository.ensureSeeded()
         updateState {
             it.copy(
                 draftTitle    = intent.draftTitle,

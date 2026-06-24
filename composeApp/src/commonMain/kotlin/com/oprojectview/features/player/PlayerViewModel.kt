@@ -57,13 +57,29 @@ data class PlayerState(
     val playbackStartUs: Long       = 0L,
     val pausedElapsedUs: Long       = 0L,
     val totalDurationMs: Long       = 0L,
+    
+    // UpNext fields
+    val allTasks: List<PlayerTask>  = emptyList(),
+    val upNextTasks: List<PlayerTask> = emptyList(),
+    val upNextSelectedIndex: Int    = 0,
+    val hasManuallySelectedUpNext: Boolean = false,
+    val isShowingUpNext: Boolean    = false,
+    val wasAutoSwitched: Boolean    = false,
+    val isTransitioningToNextTask: Boolean = false,
 ) : UiState
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
 sealed interface PlayerEvent : UiEvent {
     /** Navigate back to Detail for this task. */
-    data class NavigateToDetail(val taskId: Int, val isPreview: Boolean) : PlayerEvent
+    data class NavigateToDetail(
+        val taskId: Int,
+        val isPreview: Boolean,
+        val wasAutoSwitched: Boolean = false
+    ) : PlayerEvent
+
+    /** Preload styles for the next task during transition. */
+    data class PreloadNextTaskStyles(val taskId: Int) : PlayerEvent
 
     /** Pop the entire back-stack to TaskList (Close button). */
     data object NavigateToRoot : PlayerEvent
@@ -89,15 +105,20 @@ sealed interface PlayerIntent : UiIntent {
     // Playback state persistence — sent by composables so the VM can survive
     // PiP in/out and pass the position back on re-entry.
     data object CountdownDone : PlayerIntent
-    data object ReplayClicked : PlayerIntent
+    data class  ReplayClicked(val isManual: Boolean = false, val skipDelay: Boolean = true) : PlayerIntent
     data class  ScrollProgress(val fraction: Float) : PlayerIntent
     data class  SetPlaying(val playing: Boolean)    : PlayerIntent
+    
+    // UpNext Intents
+    data class OnUpNextItemSelected(val index: Int) : PlayerIntent
+    data object UpNextCountdownDone : PlayerIntent
 }
 
 // ── Repository interface ──────────────────────────────────────────────────────
 
 interface PlayerRepository {
     fun loadTask(taskId: Int): PlayerTask?
+    fun loadAllTasks(): List<PlayerTask>
 }
 
 // ── ViewModel ─────────────────────────────────────────────────────────────────
@@ -107,7 +128,6 @@ class PlayerViewModel(
 ) : BaseViewModel<PlayerState, PlayerEvent>(
     initialState = PlayerState(),
 ) {
-    private var toolbarHideJob: Job? = null
     private var resetJob: Job? = null
 
     override fun onIntent(intent: UiIntent) {
@@ -120,42 +140,60 @@ class PlayerViewModel(
             is PlayerIntent.EnterPip      -> updateState { it.copy(pipActive = true, isNativePip = intent.isNativePip) }
             is PlayerIntent.ExitPip       -> updateState { it.copy(pipActive = false, isNativePip = false) }
             is PlayerIntent.CountdownDone -> onCountdownDone()
-            is PlayerIntent.ReplayClicked -> onReplayClicked()
+            is PlayerIntent.ReplayClicked -> onReplayClicked(intent.isManual, intent.skipDelay)
             is PlayerIntent.ScrollProgress -> onScrollProgress(intent.fraction)
             is PlayerIntent.SetPlaying    -> onSetPlaying(intent.playing)
+            is PlayerIntent.OnUpNextItemSelected -> onUpNextItemSelected(intent.index)
+            is PlayerIntent.UpNextCountdownDone -> onUpNextCountdownDone()
             else                          -> Unit
         }
     }
 
     override fun clear() {
-        toolbarHideJob?.cancel()
         resetJob?.cancel()
         super.clear()
     }
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
-    private fun load(taskId: Int, isPreview: Boolean, wpm: Int) {
+    private fun load(taskId: Int, isPreview: Boolean, wpm: Int, skipSpinner: Boolean = false) {
         resetJob?.cancel()
+        val now = com.oprojectview.core.MonotonicClock.currentTimeUs()
         val task = repository.loadTask(taskId)
         val durationMs = calculatePageDurationMs(task?.description ?: "", wpm)
+        val allTasks = repository.loadAllTasks()
+        val currentTaskIndex = allTasks.indexOfFirst { it.id == taskId }
+        
+        val upNextList = if (currentTaskIndex != -1 && currentTaskIndex + 1 < allTasks.size) {
+            allTasks.subList(currentTaskIndex + 1, allTasks.size)
+        } else {
+            allTasks // Show the entire list when reaching the end
+        }
+        
+        val upNextIndex = 0 // default to the first item in the upNext list
+        
         updateState {
             it.copy(
                 task           = task,
                 isPreview      = isPreview,
                 isLoading      = false,
-                toolbarVisible = true,
-                countdownDone  = false,
-                countdownStartUs = com.oprojectview.core.MonotonicClock.currentTimeUs(),
+                toolbarVisible = false,
+                countdownDone  = skipSpinner,
+                countdownStartUs = now,
                 pausedCountdownElapsedUs = 0L,
                 scrollFraction = 0f,
                 isPlaying      = true,
-                playbackStartUs = 0L,
+                playbackStartUs = if (skipSpinner) now - 1_000_000L else 0L,
                 pausedElapsedUs = 0L,
-                totalDurationMs = durationMs
+                totalDurationMs = durationMs,
+                allTasks       = allTasks,
+                upNextTasks    = upNextList,
+                upNextSelectedIndex = upNextIndex,
+                hasManuallySelectedUpNext = false,
+                isShowingUpNext = false,
+                isTransitioningToNextTask = false
             )
         }
-        scheduleToolbarHide()
     }
 
     private fun onCountdownDone() {
@@ -170,23 +208,40 @@ class PlayerViewModel(
         }
     }
 
-    private fun onReplayClicked() {
+    private fun onReplayClicked(isManual: Boolean, skipDelay: Boolean) {
         val now = com.oprojectview.core.MonotonicClock.currentTimeUs()
-        updateState {
-            it.copy(
-                countdownDone  = false,
-                countdownStartUs = now,
-                pausedCountdownElapsedUs = 0L,
-                scrollFraction = 0f,
-                isPlaying      = true,
-                playbackStartUs = 0L,
-                pausedElapsedUs = 0L
-            )
+        if (isManual) {
+            updateState {
+                it.copy(
+                    countdownDone  = false,
+                    countdownStartUs = now,
+                    pausedCountdownElapsedUs = 0L,
+                    scrollFraction = 0f,
+                    isPlaying      = true,
+                    playbackStartUs = 0L,
+                    pausedElapsedUs = 0L,
+                    toolbarVisible = false,
+                    isShowingUpNext = false
+                )
+            }
+        } else {
+            updateState {
+                it.copy(
+                    countdownDone  = true,
+                    countdownStartUs = now,
+                    pausedCountdownElapsedUs = 0L,
+                    scrollFraction = 0f,
+                    isPlaying      = true,
+                    playbackStartUs = if (skipDelay) now - 1_000_000L else now,
+                    pausedElapsedUs = 0L,
+                    toolbarVisible = false,
+                    isShowingUpNext = false
+                )
+            }
         }
     }
 
     private fun onSetPlaying(playing: Boolean) {
-        scheduleToolbarHide()
         val now = com.oprojectview.core.MonotonicClock.currentTimeUs()
         updateState { state ->
             if (state.isPlaying == playing) return@updateState state
@@ -194,13 +249,15 @@ class PlayerViewModel(
                 state.copy(
                     isPlaying = true,
                     playbackStartUs = now - state.pausedElapsedUs,
-                    countdownStartUs = now - state.pausedCountdownElapsedUs
+                    countdownStartUs = now - state.pausedCountdownElapsedUs,
+                    toolbarVisible = false
                 )
             } else {
                 state.copy(
                     isPlaying = false,
                     pausedElapsedUs = now - state.playbackStartUs,
-                    pausedCountdownElapsedUs = now - state.countdownStartUs
+                    pausedCountdownElapsedUs = now - state.countdownStartUs,
+                    toolbarVisible = true
                 )
             }
         }
@@ -226,32 +283,51 @@ class PlayerViewModel(
     }
 
     /**
-     * Single tap: if toolbar is visible extend the timer; if hidden show it
-     * and start a fresh timer. Matches the original onToolbarTap behaviour
-     * but lives entirely inside the VM — no mutableLongStateOf in the UI.
+     * Single tap: toggles play/pause state and UI visibility.
+     * If the player is finished, a tap triggers a replay.
      */
     private fun onTap() {
-        toolbarHideJob?.cancel()
-        if (!currentState.toolbarVisible) {
-            updateState { it.copy(toolbarVisible = true) }
+        if (currentState.scrollFraction >= 1f) {
+            updateState { it.copy(toolbarVisible = !it.toolbarVisible) }
+            return
         }
-        scheduleToolbarHide()
-    }
-
-    private fun scheduleToolbarHide() {
-        toolbarHideJob?.cancel()
-        toolbarHideJob = viewModelScope.launch {
-            delay(TOOLBAR_VISIBLE_MS)
-            updateState { it.copy(toolbarVisible = false) }
-        }
+        onSetPlaying(!currentState.isPlaying)
     }
 
     private fun onReadingComplete() {
-        toolbarHideJob?.cancel()
         updateState { it.copy(
             toolbarVisible = true,
-            scrollFraction = 1f
+            scrollFraction = 1f,
+            isShowingUpNext = true
         ) }
+    }
+    
+    private fun onUpNextItemSelected(index: Int) {
+        val state = currentState
+        if (index == state.upNextSelectedIndex && state.hasManuallySelectedUpNext) return
+        updateState { it.copy(upNextSelectedIndex = index, hasManuallySelectedUpNext = true) }
+    }
+    
+    private fun onUpNextCountdownDone() {
+        val state = currentState
+        if (state.upNextTasks.isNotEmpty() && state.upNextSelectedIndex in state.upNextTasks.indices) {
+            val nextTask = state.upNextTasks[state.upNextSelectedIndex]
+            val wpm = if (state.totalDurationMs > 0 && state.task != null) {
+                val prevTaskLength = state.task.description.split("\\s+".toRegex()).size
+                val mins = state.totalDurationMs / 60000.0
+                if (mins > 0) (prevTaskLength / mins).toInt().coerceAtLeast(1) else 150
+            } else {
+                150
+            }
+            
+            updateState { it.copy(isShowingUpNext = false, toolbarVisible = false, wasAutoSwitched = true, isTransitioningToNextTask = true) }
+            emitEvent(PlayerEvent.PreloadNextTaskStyles(nextTask.id))
+            
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(1000L)
+                load(nextTask.id, false, wpm, skipSpinner = true)
+            }
+        }
     }
 
     private fun resetPlaybackState() {
@@ -264,7 +340,8 @@ class PlayerViewModel(
                     scrollFraction = 0f,
                     isPlaying = false,
                     playbackStartUs = 0L,
-                    pausedElapsedUs = 0L
+                    pausedElapsedUs = 0L,
+                    isTransitioningToNextTask = false
                 )
             }
         }
@@ -274,6 +351,10 @@ class PlayerViewModel(
         val state = currentState
         val taskId = state.task?.id ?: return
         resetPlaybackState()
-        emitEvent(PlayerEvent.NavigateToDetail(taskId = taskId, isPreview = state.isPreview))
+        emitEvent(PlayerEvent.NavigateToDetail(
+            taskId = taskId,
+            isPreview = state.isPreview,
+            wasAutoSwitched = state.wasAutoSwitched
+        ))
     }
 }

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
+    <string name="screen_tasks">टेलीप्रॉम्प्टर</string>
+    <string name="screen_new_task">नया प्रॉम्प्ट</string>
+    <string name="screen_display">प्रदर्शन</string>
+
+    <!-- ── Navigation / icon content descriptions ─────────────────────── -->
+    <string name="cd_back">वापस</string>
+    <string name="cd_close">बंद करें</string>
+    <string name="cd_search">खोजें</string>
+    <string name="cd_clear">साफ़ करें</string>
+    <string name="cd_edit">संपादित करें</string>
+    <string name="cd_delete">हटाएं</string>
+    <string name="cd_open">खोलें</string>
+    <string name="cd_play">चलाएं</string>
+    <string name="cd_pause">रोकें</string>
+    <string name="cd_replay">दोहराएं</string>
+    <string name="cd_next">अगला</string>
+    <string name="cd_more_options">अधिक विकल्प</string>
+    <string name="cd_topic_required">विषय आवश्यक है</string>
+    <string name="cd_script_required">स्क्रिप्ट आवश्यक है</string>
+    <string name="cd_help">सहायता</string>
+    <string name="cd_loop">लूप</string>
+
+    <!-- ── FAB / button labels ─────────────────────────────────────────── -->
+    <string name="fab_new">नया</string>
+    <string name="fab_next">अगला</string>
+    <string name="fab_play">चलाएं</string>
+
+    <!-- ── Search bar ─────────────────────────────────────────────────── -->
+    <string name="search_hint">खोजें …</string>
+
+    <!-- ── Topic text field ───────────────────────────────────────────── -->
+    <string name="topic_label">विषय</string>
+    <string name="topic_placeholder">विषय दर्ज करें</string>
+
+    <!-- ── Script text field ──────────────────────────────────────────── -->
+    <string name="script_label">स्क्रिप्ट</string>
+    <string name="script_placeholder">अपनी स्क्रिप्ट दर्ज करें या पेस्ट करें</string>
+
+    <!-- ── Save changes dialog ────────────────────────────────────────── -->
+    <string name="dialog_save_changes_title">बदलाव सेव करें?</string>
+    <string name="dialog_discard">त्याग दें</string>
+    <string name="dialog_save">सेव करें</string>
+
+    <!-- ── Display settings item titles ──────────────────────────────── -->
+    <string name="display_text_size">टेक्स्ट का आकार</string>
+    <string name="display_orientation">दिशा</string>
+    <string name="display_speed">गति</string>
+    <string name="display_animation">एनीमेशन</string>
+    <string name="display_transition">परिवर्तन</string>
+    <string name="display_distortion">डिस्टॉर्शन</string>
+    <string name="display_mirror">दर्पण</string>
+    <string name="display_overlay">ओवरले</string>
+
+    <!-- ── Display settings item descriptions ────────────────────────── -->
+    <string name="display_text_size_desc">छोटा, सामान्य, बड़ा, विशाल, बहुत बड़ा</string>
+    <string name="display_orientation_desc">लंबवत, क्षैतिज</string>
+    <string name="display_speed_desc">धीमी, सामान्य, तेज़</string>
+    <string name="display_animation_desc">फ़्रेम, स्क्रॉल, इनलाइन</string>
+    <string name="display_transition_desc">कोई नहीं, धुंधला, प्रिंट</string>
+    <string name="display_distortion_desc">0°, 45°, 70°</string>
+    <string name="display_mirror_desc">अक्षम, सक्षम</string>
+    <string name="display_overlay_desc">अक्षम, सक्षम</string>
+
+    <!-- ── Display settings options ──────────────────────────────────── -->
+    <string name="option_small">छोटा</string>
+    <string name="option_normal">सामान्य</string>
+    <string name="option_large">बड़ा</string>
+    <string name="option_huge">विशाल</string>
+    <string name="option_massive">बहुत बड़ा</string>
+    <string name="option_maximize">अधिकतम</string>
+
+    <string name="option_vertical">लंबवत</string>
+    <string name="option_horizontal">क्षैतिज</string>
+
+    <string name="option_slow">धीमी</string>
+    <string name="option_fast">तेज़</string>
+
+    <string name="option_frame">फ़्रेम</string>
+    <string name="option_scroll">स्क्रॉल</string>
+    <string name="option_inline">इनलाइन</string>
+
+    <string name="option_none">कोई नहीं</string>
+    <string name="option_fade">धुंधला</string>
+    <string name="option_print">प्रिंट</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">अक्षम</string>
+    <string name="option_enabled">सक्षम</string>
+
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->
+    <string name="style_bold">बोल्ड</string>
+    <string name="style_italic">इटैलिक</string>
+    <string name="style_underline">रेखांकित</string>
+    <string name="style_text_color">टेक्स्ट का रंग</string>
+    <string name="style_fill_color">भरने का रंग</string>
+
+    <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
+    <string name="draft_title">ड्राफ़्ट</string>
+
+    <!-- ── Help strings ────────────────────────────────────────────────── -->
+    <string name="help_bold">बोल्ड — महत्वपूर्ण शब्दों या शीर्षकों पर ज़ोर दें।</string>
+    <string name="help_italic">इटैलिक — उन नोट्स या वाक्यांशों को चिह्नित करें जिनमें अलग टोन की आवश्यकता है।</string>
+    <string name="help_underline">रेखांकित — महत्वपूर्ण जानकारी को हाइलाइट करें।</string>
+    <string name="help_text_color">टेक्स्ट का रंग — अपने स्क्रिप्ट को व्यवस्थित करने के लिए रंग चुनें।</string>
+    <string name="help_fill_color">भरने का रंग — आराम और कंट्रास्ट के लिए पृष्ठभूमि रंग चुनें।</string>
+    <string name="help_text_size">टेक्स्ट का आकार — आरामदायक पढ़ने के लिए आकार चुनें।</string>
+    <string name="help_orientation">दिशा — पढ़ने की दिशा चुनें: लंबवत या क्षैतिज।</string>
+    <string name="help_speed">गति — स्वाभाविक बोलने के लिए लय चुनें।</string>
+    <string name="help_animation">एनीमेशन — पढ़ने की शैली चुनें। लूप उपलब्ध है।</string>
+    <string name="help_transition">परिवर्तन — दृश्य प्रभाव चुनें: कोई नहीं, धुंधला, या प्रिंट।</string>
+    <string name="help_distortion">विरूपण — परिप्रेक्ष्य चुनें: 0°, 45°, या 70°।</string>
+    <string name="help_mirror">दर्पण — टेलीप्रॉम्प्टर के लिए टेक्स्ट को उल्टा करें।</string>
+    <string name="help_overlay">ओवरले — अपने स्क्रिप्ट को PiP विंडो में दृश्यमान रखें।</string>
+
+    <string name="rate_us_title">कृपया हमें रेट करें!</string>
+    <string name="rate_us_supporting_text">आपकी प्रतिक्रिया हमारे लिए बहुत मायने रखती है! कृपया स्टोर पेज पर टिप्पणी दें।</string>
+    <string name="rate_us_rate_now">अभी रेट करें</string>
+    <string name="rate_us_later">बाद में</string>
+    <string name="label_up_next">अगला</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">यात्रा व्लॉग</string>
+    <string name="seed_task1_desc">मेरे साथ जुड़ें क्योंकि हम दुनिया भर के छिपे हुए स्थानों, स्थानीय भोजन और अविस्मरणीय अनुभवों का पता लगाते हैं।\n\nस्थानीय लोगों की नज़र से संस्कृतियों का अनुभव करें।\n\nअविश्वसनीय व्यंजनों का स्वाद लें और उल्लेखनीय कहानियों को उजागर करें।\n\nहर कोने में रोमांच इंतजार कर रहा है।</string>
+    <string name="seed_task1_spans">0|15|1|0|0|-1;85|92|1|1|1|0;152|162|1|0|0|1;188|197|1|0|0|2;248|254|1|0|0|3</string>
+    <string name="seed_task2_title">उत्पादकता पॉडकास्ट</string>
+    <string name="seed_task2_desc">आज हम फोकस, रूटीन और बिना थके अधिक काम करने की व्यावहारिक रणनीतियों पर चर्चा कर रहे हैं।\n\nहम छोटी आदतों पर नज़र डालेंगे जो लगातार अभ्यास करने पर बड़ा अंतर लाती हैं।\n\nआप सीखेंगे कि क्या मायने रखता है इसे कैसे प्राथमिकता दें, ध्यान भटकाने वाली चीजों को कैसे प्रबंधित करें और पूरे दिन अपनी ऊर्जा की रक्षा कैसे करें।\n\nअंत तक, आपके पास एक सरल ढांचा होगा जिसे आप अपने काम और जीवन शैली के अनुकूल बना सकते हैं।</string>
+    <string name="seed_task2_spans">0|2|1|0|0|-1;21|29|1|1|1|0;166|176|1|0|0|2;314|320|1|0|0|3</string>
+    <string name="seed_task3_title">कम्युनिटी लाइवस्ट्रीम</string>
+    <string name="seed_task3_desc">आज की स्ट्रीम में शामिल होने के लिए धन्यवाद। हम चैट करेंगे, सवालों के जवाब देंगे और नवीनतम अपडेट पर पहली नज़र डालेंगे।\n\nहम मुख्य बातों पर चर्चा करेंगे, पर्दे के पीछे के कुछ विवरण साझा करेंगे और देखेंगे कि आगे क्या आ रहा है।\n\nकृपया अपने सवाल और विचार चैट में छोड़ दें जैसे हम आगे बढ़ते हैं।\n\nचलिए शुरू करते हैं और इस सत्र को इंटरैक्टिव बनाते हैं।</string>
+    <string name="seed_task3_spans">18|43|1|0|0|-1;84|96|1|1|1|0;225|230|1|0|0|2;291|309|1|0|0|3</string>
+    <string name="seed_task4_title">लाइव स्ट्रीम</string>
+    <string name="seed_task4_desc">आज की स्ट्रीम में सभी का स्वागत है! हम अपडेट को कवर करेंगे, चैट से सवालों के जवाब देंगे और साझा करेंगे कि आगे क्या आ रहा है।\n\nचाहे आप हमारे साथ लाइव जुड़ रहे हों या बाद में देख रहे हों, हम आपको यहाँ पाकर उत्साहित हैं।\n\nकृपया अपने प्रश्न चैट में छोड़ दें और बातचीत में शामिल हों।\n\nचलिए गहराई में जाते हैं और शुरू करते हैं।</string>
+    <string name="seed_task4_spans">18|34|1|0|0|-1;106|123|1|1|1|0;126|161|1|0|0|1;219|224|1|0|0|2;280|303|1|0|0|3</string>
+    <string name="seed_task5_title">इनलाइन प्रोमो</string>
+    <string name="seed_task5_desc">पढ़ें • रिकॉर्ड करें • प्रकाशित करें • दोहराएं • केंद्रित रहें • प्राकृतिक आवाज दें • आत्मविश्वास के साथ बनाएं</string>
+    <string name="seed_task5_spans">0|6|1|0|0|-1;6|7|0|0|0|0;7|21|1|0|0|-1;21|22|0|0|0|1;22|37|1|0|0|-1;37|38|0|0|0|2;38|47|1|0|0|-1;47|48|0|0|0|3;48|63|1|0|0|-1;63|64|0|0|0|4;64|84|1|0|0|-1;84|85|0|0|0|0;85|110|1|0|0|-1</string>
+</resources>

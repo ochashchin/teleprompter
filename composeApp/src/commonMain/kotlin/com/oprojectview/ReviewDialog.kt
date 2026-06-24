@@ -3,6 +3,7 @@ package com.oprojectview
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -22,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
@@ -47,8 +48,6 @@ fun ReviewDialog(
     onRateNow: () -> Unit,
     onLater: () -> Unit,
 ) {
-    fun percentToBias(percent: Float): Float = (percent * 2f) - 1f
-
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
@@ -56,17 +55,21 @@ fun ReviewDialog(
         ),
     ) {
         Surface(
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(40.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
             tonalElevation = 6.dp,
             modifier = Modifier
                 .width(380.dp)
-                .aspectRatio(380f / 320f) // Adjusted aspect ratio to fit the content
+                .wrapContentHeight()
         ) {
             val H = 28.dp
             val fontSize = fontSize(H)
 
-            Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -74,15 +77,9 @@ fun ReviewDialog(
                         .padding(top = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.trending_up),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Text(
                         text = stringResource(Res.string.rate_us_title),
                         fontSize = fontSize(24.dp),
@@ -91,7 +88,7 @@ fun ReviewDialog(
                         textAlign = TextAlign.Center
                     )
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                     
                     Text(
                         text = stringResource(Res.string.rate_us_supporting_text),
@@ -102,11 +99,12 @@ fun ReviewDialog(
                     )
                 }
 
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Row(
                     modifier = Modifier
                         .height(56.dp)
                         .padding(end = fontSize.value.dp)
-                        .align(BiasAlignment(percentToBias(.5f), percentToBias(.9f)))
                         .fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
@@ -149,6 +147,7 @@ fun RateNowButton(
     TextButton(
         modifier = modifier,
         onClick = onRateNow,
+        contentPadding = PaddingValues(horizontal = 24.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.textButtonColors(
             containerColor =

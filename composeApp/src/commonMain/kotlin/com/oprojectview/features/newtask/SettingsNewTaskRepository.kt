@@ -19,17 +19,6 @@ private fun keyTitle(id: Int) = "task_title_$id"
 private fun keyDesc (id: Int) = "task_desc_$id"
 private fun keyIcon (id: Int) = "task_icon_$id"
 
-// ── Seed data (moved from AppNavigation) ─────────────────────────────────────
-
-private data class SeedTask(val title: String, val desc: String, val shapeOrdinal: Int)
-
-private val seed = listOf(
-    SeedTask("Buy groceries", "Milk, Eggs, Bread, Coffee",               26),  // HEART ordinal
-    SeedTask("KMP Project",   "Sync repository and update dependencies",  14), // COOKIE_6 ordinal
-    SeedTask("Gym session",   "Leg day workout at 6 PM",                  11), // SUNNY ordinal
-    SeedTask("Read book",     "Read 10 pages of Atomic Habits",           7),  // DIAMOND ordinal
-)
-
 // ── Implementation ────────────────────────────────────────────────────────────
 
 /**
@@ -45,12 +34,25 @@ class SettingsNewTaskRepository(
 
     // ── Seeding ───────────────────────────────────────────────────────────────
 
-    override fun ensureSeeded() {
+    override fun ensureSeeded(seedTasks: List<SeedTask>) {
         if (settings.getBoolean(KEY_POPULATED, false)) return
         var id  = settings.getInt(KEY_NEXT_ID, 1)
         val ids = mutableListOf<Int>()
-        seed.forEach { s ->
+        seedTasks.forEach { s ->
             writeTaskKeys(id, s.title, s.desc, s.shapeOrdinal)
+            settings["script_style_${id}_spans"] = s.spans
+            settings["script_style_${id}_fill"] = s.scriptFillColor
+            
+            settings["display_task_${id}_item_1_itemOpt_${s.textSize}"] = true
+            settings["display_task_${id}_item_2_itemOpt_${s.orientation}"] = true
+            settings["display_task_${id}_item_3_itemOpt_${s.speed}"] = true
+            settings["display_task_${id}_item_4_itemOpt_${s.animation}"] = true
+            settings["display_task_${id}_item_5_itemOpt_${s.transition}"] = true
+            settings["display_task_${id}_item_6_itemOpt_${s.distortion}"] = true
+            settings["display_task_${id}_item_7_itemOpt_${s.mirror}"] = true
+            settings["display_task_${id}_item_8_itemOpt_${s.overlay}"] = true
+            settings["display_task_${id}_loop"] = s.loop
+            
             ids.add(id++)
         }
         saveIds(ids)

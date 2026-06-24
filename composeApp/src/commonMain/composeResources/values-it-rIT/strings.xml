@@ -1,0 +1,143 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    
+    <string name="screen_tasks">Teleprompter</string>
+    <string name="screen_new_task">Nuovo prompt</string>
+    <string name="screen_display">Schermo</string>
+
+    
+    <string name="cd_back">Indietro</string>
+    <string name="cd_close">Chiudi</string>
+    <string name="cd_search">Cerca</string>
+    <string name="cd_clear">Pulisci</string>
+    <string name="cd_edit">Modifica</string>
+    <string name="cd_delete">Elimina</string>
+    <string name="cd_open">Apri</string>
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pausa</string>
+    <string name="cd_replay">Ripeti</string>
+    <string name="cd_next">Avanti</string>
+    <string name="cd_more_options">Altre opzioni</string>
+    <string name="cd_topic_required">L\'argomento è obbligatorio</string>
+    <string name="cd_script_required">Lo script è obbligatorio</string>
+    <string name="cd_help">Guida</string>
+    <string name="cd_loop">Ripeti</string>
+
+    
+    <string name="fab_new">Nuovo</string>
+    <string name="fab_next">Avanti</string>
+    <string name="fab_play">Play</string>
+
+    
+    <string name="search_hint">Cerca …</string>
+
+    
+    <string name="topic_label">Argomento</string>
+    <string name="topic_placeholder">Inserisci argomento</string>
+
+    
+    <string name="script_label">Script</string>
+    <string name="script_placeholder">Inserisci o incolla il tuo script</string>
+
+    
+    <string name="dialog_save_changes_title">Salvare le modifiche?</string>
+    <string name="dialog_discard">Scarta</string>
+    <string name="dialog_save">Salva</string>
+
+    
+    <string name="display_text_size">Dimensione testo</string>
+    <string name="display_orientation">Orientamento</string>
+    <string name="display_speed">Velocità</string>
+    <string name="display_animation">Animazione</string>
+    <string name="display_transition">Transizione</string>
+    <string name="display_distortion">Distorsione</string>
+    <string name="display_mirror">Specchio</string>
+    <string name="display_overlay">Sovrapposizione</string>
+
+    
+    <string name="display_text_size_desc">Piccolo, normale, grande, enorme, massiccio</string>
+    <string name="display_orientation_desc">Verticale, orizzontale</string>
+    <string name="display_speed_desc">Lenta, normale, veloce</string>
+    <string name="display_animation_desc">Fotogramma, scorrimento, in linea</string>
+    <string name="display_transition_desc">Nessuna, dissolvenza, stampa</string>
+    <string name="display_distortion_desc">0°, 45°, 70°</string>
+    <string name="display_mirror_desc">Disabilitato, abilitato</string>
+    <string name="display_overlay_desc">Disabilitata, abilitata</string>
+
+    
+    <string name="option_small">Piccolo</string>
+    <string name="option_normal">Normale</string>
+    <string name="option_large">Grande</string>
+    <string name="option_huge">Enorme</string>
+    <string name="option_massive">Massiccio</string>
+    <string name="option_maximize">Massimo</string>
+
+    <string name="option_vertical">Verticale</string>
+    <string name="option_horizontal">Orizzontale</string>
+
+    <string name="option_slow">Lenta</string>
+    <string name="option_fast">Veloce</string>
+
+    <string name="option_frame">Fotogramma</string>
+    <string name="option_scroll">Scorrimento</string>
+    <string name="option_inline">In linea</string>
+
+    <string name="option_none">Nessuna</string>
+    <string name="option_fade">Dissolvenza</string>
+    <string name="option_print">Stampa</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">Disabilitato</string>
+    <string name="option_enabled">Abilitato</string>
+
+    
+    <string name="style_bold">Grassetto</string>
+    <string name="style_italic">Corsivo</string>
+    <string name="style_underline">Sottolineato</string>
+    <string name="style_text_color">Colore del testo</string>
+    <string name="style_fill_color">Colore di riempimento</string>
+
+    
+    <string name="draft_title">Bozza</string>
+
+    
+    <string name="help_bold">Grassetto — Enfatizza parole importanti, titoli o punti chiave.</string>
+    <string name="help_italic">Corsivo — Contrassegna note, suggerimenti o frasi che richiedono un tono diverso.</string>
+    <string name="help_underline">Sottolineato — Evidenzia informazioni critiche da non trascurare.</string>
+    <string name="help_text_color">Colore Testo — Scegli un colore per enfatizzare il testo o organizzare visivamente il tuo script.</string>
+    <string name="help_fill_color">Colore Riempimento — Scegli un colore di sfondo per migliorare comfort e contrasto.</string>
+    <string name="help_text_size">Dimensione Testo — Seleziona una dimensione da Piccolo a Massiccio per una lettura confortevole.</string>
+    <string name="help_orientation">Orientamento — Seleziona una direzione di lettura: Verticale o Orizzontale.</string>
+    <string name="help_speed">Velocità — Seleziona un ritmo: da Lenta a Veloce per un\'esposizione naturale.</string>
+    <string name="help_animation">Animazione — Seleziona uno stile di lettura. Ripetizione disponibile.</string>
+    <string name="help_transition">Transizione — Seleziona effetti visivi: Nessuna, Dissolvenza o Stampa.</string>
+    <string name="help_distortion">Distorsione — Seleziona la prospettiva anti-distorsione: 0°, 45° o 70°.</string>
+    <string name="help_mirror">Specchio — Abilita l\'inversione immediata del testo per i dispositivi teleprompter.</string>
+    <string name="help_overlay">Sovrapposizione — Mantieni il tuo script visibile in una finestra fluttuante (PiP).</string>
+
+    <string name="rate_us_title">Per favore valutaci!</string>
+    <string name="rate_us_supporting_text">Il tuo feedback è molto importante per noi! Lascia un commento sulla pagina dello store.</string>
+    <string name="rate_us_rate_now">Valuta Ora</string>
+    <string name="rate_us_later">Più Tardi</string>
+    <string name="label_up_next">Prossimo</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">Vlog di viaggio</string>
+    <string name="seed_task1_desc">Unisciti a me per esplorare destinazioni nascoste, cibo locale ed esperienze indimenticabili.\n\nVivi le culture attraverso gli occhi della gente del posto.\n\nAssaggia piatti incredibili e scopri storie straordinarie.\n\nL\'avventura ti aspetta in ogni angolo.</string>
+    <string name="seed_task1_spans">0|13|1|0|0|-1;66|76|1|1|1|0;95|99|1|0|0|1;156|164|1|0|0|2;216|227|1|0|0|3</string>
+    <string name="seed_task2_title">Podcast di produttività</string>
+    <string name="seed_task2_desc">Oggi stiamo discutendo di concentrazione, routine e strategie pratiche per fare di più senza esaurirsi.\n\nEsamineremo piccole abitudini che fanno una grande differenza se praticate con costanza.\n\nImparerai come dare priorità a ciò che conta, gestire le distrazioni e proteggere la tua energia durante il giorno.\n\nEntro la fine, avrai un semplice schema che potrai adattare al tuo lavoro e al tuo stile di vita.</string>
+    <string name="seed_task2_spans">0|4|1|0|0|-1;93|102|1|1|1|0;105|116|1|0|0|1;195|204|1|0|0|2;312|325|1|0|0|3</string>
+    <string name="seed_task3_title">Livestream della community</string>
+    <string name="seed_task3_desc">Grazie per esserti unito allo stream di oggi. Chiacchiereremo, risponderemo alle domande e daremo una prima occhiata agli ultimi aggiornamenti.\n\nEsamineremo i punti salienti, condivideremo alcuni dettagli dietro le quinte ed esploreremo cosa succederà dopo.\n\nSentiti libero di lasciare le tue domande e i tuoi pensieri nella chat man mano che procediamo.\n\nIniziamo e rendiamo questa sessione interattiva.</string>
+    <string name="seed_task3_spans">0|24|1|0|0|-1;122|142|1|1|1|0;145|156|1|0|0|1;259|273|1|0|0|2;356|364|1|0|0|3</string>
+    <string name="seed_task4_title">Trasmissione in diretta</string>
+    <string name="seed_task4_desc">Benvenuti a tutti allo stream di oggi! Parleremo degli aggiornamenti, risponderemo alle domande della chat e condivideremo le novità in arrivo.\n\nSia che tu ti unisca a noi in diretta o guardi più tardi, siamo entusiasti di averti qui.\n\nSentiti libero di lasciare le tue domande nella chat e unisciti alla conversazione.\n\nTuffiamoci e iniziamo.</string>
+    <string name="seed_task4_spans">0|17|1|0|0|-1;126|142|1|1|1|0;145|182|1|0|0|1;236|250|1|0|0|2;321|331|1|0|0|3</string>
+    <string name="seed_task5_title">Promozione integrata</string>
+    <string name="seed_task5_desc">Leggi • Registra • Pubblica • Ripeti • Resta Concentrato • Suona Naturale • Crea Con Fiducia</string>
+    <string name="seed_task5_spans">0|6|1|0|0|-1;6|7|0|0|0|0;7|17|1|0|0|-1;17|18|0|0|0|1;18|28|1|0|0|-1;28|29|0|0|0|2;29|37|1|0|0|-1;37|38|0|0|0|3;38|57|1|0|0|-1;57|58|0|0|0|4;58|74|1|0|0|-1;74|75|0|0|0|0;75|92|1|0|0|-1</string>
+</resources>

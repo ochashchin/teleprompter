@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
+    <string name="screen_tasks">Teleprompter</string>
+    <string name="screen_new_task">บทใหม่</string>
+    <string name="screen_display">การแสดงผล</string>
+
+    <!-- ── Navigation / icon content descriptions ─────────────────────── -->
+    <string name="cd_back">กลับ</string>
+    <string name="cd_close">ปิด</string>
+    <string name="cd_search">ค้นหา</string>
+    <string name="cd_clear">ล้าง</string>
+    <string name="cd_edit">แก้ไข</string>
+    <string name="cd_delete">ลบ</string>
+    <string name="cd_open">เปิด</string>
+    <string name="cd_play">เล่น</string>
+    <string name="cd_pause">หยุดชั่วคราว</string>
+    <string name="cd_replay">เล่นซ้ำ</string>
+    <string name="cd_next">ถัดไป</string>
+    <string name="cd_more_options">ตัวเลือกเพิ่มเติม</string>
+    <string name="cd_topic_required">จำเป็นต้องระบุหัวข้อ</string>
+    <string name="cd_script_required">จำเป็นต้องระบุสคริปต์</string>
+    <string name="cd_help">ความช่วยเหลือ</string>
+    <string name="cd_loop">วนซ้ำ</string>
+
+    <!-- ── FAB / button labels ─────────────────────────────────────────── -->
+    <string name="fab_new">ใหม่</string>
+    <string name="fab_next">ถัดไป</string>
+    <string name="fab_play">เล่น</string>
+
+    <!-- ── Search bar ─────────────────────────────────────────────────── -->
+    <string name="search_hint">ค้นหา …</string>
+
+    <!-- ── Topic text field ───────────────────────────────────────────── -->
+    <string name="topic_label">หัวข้อ</string>
+    <string name="topic_placeholder">ป้อนหัวข้อ</string>
+
+    <!-- ── Script text field ──────────────────────────────────────────── -->
+    <string name="script_label">สคริปต์</string>
+    <string name="script_placeholder">ป้อนหรือวางสคริปต์ของคุณ</string>
+
+    <!-- ── Save changes dialog ────────────────────────────────────────── -->
+    <string name="dialog_save_changes_title">บันทึกการเปลี่ยนแปลงหรือไม่?</string>
+    <string name="dialog_discard">ละทิ้ง</string>
+    <string name="dialog_save">บันทึก</string>
+
+    <!-- ── Display settings item titles ──────────────────────────────── -->
+    <string name="display_text_size">ขนาดตัวอักษร</string>
+    <string name="display_orientation">การวางแนว</string>
+    <string name="display_speed">ความเร็ว</string>
+    <string name="display_animation">ภาพเคลื่อนไหว</string>
+    <string name="display_transition">การเปลี่ยน</string>
+    <string name="display_distortion">ความบิดเบี้ยว</string>
+    <string name="display_mirror">กระจก</string>
+    <string name="display_overlay">การวางซ้อน</string>
+
+    <!-- ── Display settings item descriptions ────────────────────────── -->
+    <string name="display_text_size_desc">เล็ก, ปกติ, ใหญ่, ใหญ่มาก, มหึมา</string>
+    <string name="display_orientation_desc">แนวตั้ง, แนวนอน</string>
+    <string name="display_speed_desc">ช้า, ปกติ, เร็ว</string>
+    <string name="display_animation_desc">เฟรม, เลื่อน, ในบรรทัด</string>
+    <string name="display_transition_desc">ไม่มี, เลือน, พิมพ์</string>
+    <string name="display_distortion_desc">0°, 45°, 70°</string>
+    <string name="display_mirror_desc">ปิดใช้งาน, เปิดใช้งาน</string>
+    <string name="display_overlay_desc">ปิดใช้งาน, เปิดใช้งาน</string>
+
+    <!-- ── Display settings options ──────────────────────────────────── -->
+    <string name="option_small">เล็ก</string>
+    <string name="option_normal">ปกติ</string>
+    <string name="option_large">ใหญ่</string>
+    <string name="option_huge">ใหญ่มาก</string>
+    <string name="option_massive">มหึมา</string>
+    <string name="option_maximize">สูงสุด</string>
+
+    <string name="option_vertical">แนวตั้ง</string>
+    <string name="option_horizontal">แนวนอน</string>
+
+    <string name="option_slow">ช้า</string>
+    <string name="option_fast">เร็ว</string>
+
+    <string name="option_frame">เฟรม</string>
+    <string name="option_scroll">เลื่อน</string>
+    <string name="option_inline">ในบรรทัด</string>
+
+    <string name="option_none">ไม่มี</string>
+    <string name="option_fade">เลือน</string>
+    <string name="option_print">พิมพ์</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">ปิดใช้งาน</string>
+    <string name="option_enabled">เปิดใช้งาน</string>
+
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->
+    <string name="style_bold">ตัวหนา</string>
+    <string name="style_italic">ตัวเอียง</string>
+    <string name="style_underline">ขีดเส้นใต้</string>
+    <string name="style_text_color">สีข้อความ</string>
+    <string name="style_fill_color">สีเติม</string>
+
+    <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
+    <string name="draft_title">แบบร่าง</string>
+
+    <!-- ── Help strings ────────────────────────────────────────────────── -->
+    <string name="help_bold">ตัวหนา — เน้นคำสำคัญ หัวข้อ หรือประเด็นหลัก</string>
+    <string name="help_italic">ตัวเอียง — ทำเครื่องหมายบันทึกย่อ หรือวลีที่ต้องการน้ำเสียงหรือการเน้นที่แตกต่าง</string>
+    <string name="help_underline">ขีดเส้นใต้ — เน้นข้อมูลสำคัญที่ไม่ควรมองข้าม</string>
+    <string name="help_text_color">สีข้อความ — เลือกสีจากจานสีเพื่อเน้นข้อความ หรือจัดระเบียบสคริปต์ของคุณ</string>
+    <string name="help_fill_color">สีเติม — เลือกสีพื้นหลังเพื่อเพิ่มความสบายตาและความคมชัด</string>
+    <string name="help_text_size">ขนาดตัวอักษร — เลือกขนาดตั้งแต่เล็กถึงมหึมาเพื่อการอ่านที่สบายตา</string>
+    <string name="help_orientation">การวางแนว — เลือกทิศทางการอ่าน: แนวตั้งหรือแนวนอนเพื่อมุมมองที่กว้างขึ้น</string>
+    <string name="help_speed">ความเร็ว — เลือกจังหวะการพูด: จากช้าไปเร็วเพื่อการส่งสารที่เป็นธรรมชาติ</string>
+    <string name="help_animation">ภาพเคลื่อนไหว — เลือกสไตล์: ทีละเฟรม เลื่อน หรือในบรรทัด</string>
+    <string name="help_transition">การเปลี่ยน — เลือกเอฟเฟกต์ภาพ: ไม่มี เลือน หรือพิมพ์</string>
+    <string name="help_distortion">ความบิดเบี้ยว — เลือกมุมมองป้องกันความบิดเบี้ยว: 0°, 45° หรือ 70°</string>
+    <string name="help_mirror">กระจก — พลิกข้อความทันทีสำหรับอุปกรณ์เทเลพรอมเตอร์</string>
+    <string name="help_overlay">การวางซ้อน — ให้สคริปต์มองเห็นได้ในหน้าต่าง PiP</string>
+
+    <string name="rate_us_title">กรุณาให้คะแนนเรา!</string>
+    <string name="rate_us_supporting_text">ความคิดเห็นของคุณมีความหมายมาก! กรุณาแสดงความคิดเห็นในหน้าร้านค้า</string>
+    <string name="rate_us_rate_now">ให้คะแนนทันที</string>
+    <string name="rate_us_later">ภายหลัง</string>
+    <string name="label_up_next">รายการต่อไป</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">Vlog ท่องเที่ยว</string>
+    <string name="seed_task1_desc">ร่วมสำรวจจุดหมายที่ซ่อนอยู่ อาหารท้องถิ่น และประสบการณ์ที่น่าจดจำจากทั่วโลกไปกับฉัน\n\nสัมผัสวัฒนธรรมผ่านสายตาคนท้องถิ่น\n\nลิ้มรสอาหารชั้นยอดและค้นพบเรื่องราวที่น่าสนใจ\n\nการผจญภัยรออยู่ทุกมุม</string>
+    <string name="seed_task1_spans">0|9|1|0|0|-1;45|55|1|1|1|0;85|91|1|0|0|1;120|126|1|0|0|2;167|176|1|0|0|3</string>
+    <string name="seed_task2_title">พอดแคสต์เพิ่มประสิทธิภาพ</string>
+    <string name="seed_task2_desc">วันนี้เราจะพูดคุยถึงเรื่องสมาธิ กิจวัตรประจำวัน และกลยุทธ์เชิงปฏิบัติเพื่อเพิ่มประสิทธิภาพการทำงานโดยไม่ให้เกิดอาการหมดไฟ\n\nเราจะมาดูนิสัยเล็กๆ น้อยๆ ที่สร้างความเปลี่ยนแปลงอันยิ่งใหญ่เมื่อทำอย่างสม่ำเสมอ\n\nคุณจะได้เรียนรู้วิธีจัดลำดับความสำคัญ จัดการกับสิ่งรบกวน และรักษาระดับพลังงานของคุณตลอดทั้งวัน\n\nในท้ายที่สุด คุณจะได้กรอบแนวคิดง่ายๆ ที่สามารถนำไปปรับใช้กับการทำงานและไลฟ์สไตล์ของคุณเอง</string>
+    <string name="seed_task2_spans">0|6|1|0|0|-1;116|123|1|1|1|0;123|132|1|0|0|1;205|221|1|0|0|2;301|313|1|0|0|3</string>
+    <string name="seed_task3_title">ไลฟ์สตรีมของชุมชน</string>
+    <string name="seed_task3_desc">ขอบคุณที่เข้าร่วมสตรีมของวันนี้ เราจะพูดคุย ตอบคำถาม และดูการอัปเดตล่าสุดเป็นครั้งแรก\n\nเราจะพูดคุยถึงไฮไลท์ แบ่งปันรายละเอียดเบื้องหลังเล็กน้อย และสำรวจสิ่งที่จะเกิดขึ้นต่อไป\n\nอย่าลังเลที่จะทิ้งคำถามและความคิดเห็นของคุณไว้ในแชทในขณะที่เราดำเนินการต่อไป\n\nมาเริ่มกันเลยและทำให้เป็นเซสชันแบบโต้ตอบ</string>
+    <string name="seed_task3_spans">0|17|1|0|0|-1;58|73|1|1|1|0;87|101|1|0|0|1;176|185|1|0|0|2;254|267|1|0|0|3</string>
+    <string name="seed_task4_title">สตรีมสด</string>
+    <string name="seed_task4_desc">ยินดีต้อนรับทุกคนเข้าสู่สตรีมวันนี้! เราจะมาพูดคุยถึงอัปเดตต่างๆ ตอบคำถามจากช่องแชท และแบ่งปันสิ่งที่จะเกิดขึ้นต่อไป\n\nไม่ว่าคุณจะเข้าร่วมกับเราแบบสดๆ หรือดูย้อนหลัง เราก็ดีใจที่มีคุณอยู่ที่นี่\n\nอย่าลังเลที่จะฝากคำถามไว้ในแชทและมาร่วมพูดคุยกัน\n\nมาเริ่มเจาะลึกกันเลย</string>
+    <string name="seed_task4_spans">0|17|1|0|0|-1;94|118|1|1|1|0;118|149|1|0|0|1;194|203|1|0|0|2;244|264|1|0|0|3</string>
+    <string name="seed_task5_title">โปรโมชันในบรรทัด</string>
+    <string name="seed_task5_desc">อ่าน • บันทึก • เผยแพร่ • ทำซ้ำ • มีสมาธิ • ฟังดูเป็นธรรมชาติ • สร้างสรรค์อย่างมั่นใจ</string>
+    <string name="seed_task5_spans">0|5|1|0|0|-1;5|6|0|0|0|0;6|14|1|0|0|-1;14|15|0|0|0|1;15|24|1|0|0|-1;24|25|0|0|0|2;25|32|1|0|0|-1;32|33|0|0|0|3;33|42|1|0|0|-1;42|43|0|0|0|4;43|62|1|0|0|-1;62|63|0|0|0|0;63|85|1|0|0|-1</string>
+</resources>

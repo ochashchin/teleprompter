@@ -1,8 +1,8 @@
 <resources>
 
     <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
-    <string name="screen_tasks">Tasks</string>
-    <string name="screen_new_task">New Task</string>
+    <string name="screen_tasks">Teleprompter</string>
+    <string name="screen_new_task">New Prompt</string>
     <string name="screen_display">Display</string>
 
     <!-- ── Navigation / icon content descriptions ─────────────────────── -->
@@ -21,6 +21,7 @@
     <string name="cd_topic_required">Topic is required</string>
     <string name="cd_script_required">Script is required</string>
     <string name="cd_help">Help</string>
+    <string name="cd_loop">Loop</string>
 
     <!-- ── FAB / button labels ─────────────────────────────────────────── -->
     <string name="fab_new">New</string>
@@ -28,7 +29,7 @@
     <string name="fab_play">Play</string>
 
     <!-- ── Search bar ─────────────────────────────────────────────────── -->
-    <string name="search_hint">Search tasks…</string>
+    <string name="search_hint">Search</string>
 
     <!-- ── Topic text field ───────────────────────────────────────────── -->
     <string name="topic_label">Topic</string>
@@ -69,6 +70,7 @@
     <string name="option_large">Large</string>
     <string name="option_huge">Huge</string>
     <string name="option_massive">Massive</string>
+    <string name="option_maximize">Maximize</string>
 
     <string name="option_vertical">Vertical</string>
     <string name="option_horizontal">Horizontal</string>
@@ -110,7 +112,7 @@
     <string name="help_text_size">Text Size — Select a text size from Small to Massive for comfortable reading.</string>
     <string name="help_orientation">Orientation — Select a reading direction: Vertical or Horizontal for a wider view.</string>
     <string name="help_speed">Speed — Select a speaking rhythm: from Slow to Fast for natural delivery.</string>
-    <string name="help_animation">Animation — Select a reading style: Frame-by-frame, vertical Scroll, and horizontal Inline for readability.</string>
+    <string name="help_animation">Animation — Select a reading style: Frame-by-frame, vertical Scroll, and horizontal Inline for readability. Looping available.</string>
     <string name="help_transition">Transition — Select visual effects: None for distraction-free, Fade for memory and pacing, or Print for focus and synchronizations.</string>
     <string name="help_distortion">Distortion — Select anti-distortion perspective: 0°, 45°, or 70° for a smoother off-angle reading.</string>
     <string name="help_mirror">Mirror — Enable instant reverse the text for reflective teleprompter rigs.</string>
@@ -118,6 +120,24 @@
 
     <string name="rate_us_title">Please rate us!</string>
     <string name="rate_us_supporting_text">Your feedback means a lot to us! Please drop a comment on the store page.</string>
-    <string name="rate_us_rate_now">Rate now</string>
+    <string name="rate_us_rate_now">Rate Now</string>
     <string name="rate_us_later">Later</string>
+    <string name="label_up_next">Up Next</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">Travel vlog</string>
+    <string name="seed_task1_desc">Join me as we explore hidden destinations, local food, and unforgettable experiences from around the world.\n\nExperience cultures through the eyes of locals.\n\nTaste incredible dishes and uncover remarkable stories.\n\nAdventure awaits around every corner.</string>
+    <string name="seed_task1_spans">0|7|1|0|0|-1;73|84|1|1|1|0;109|119|1|0|0|1;158|163|1|0|0|2;215|224|1|0|0|3</string>
+    <string name="seed_task2_title">Productivity podcast</string>
+    <string name="seed_task2_desc">Today we\'re discussing focus, routines, and practical strategies for getting more done without burning out.\n\nWe\'ll look at small habits that make a big difference when practiced consistently.\n\nYou\'ll learn how to prioritize what matters, manage distractions, and protect your energy throughout the day.\n\nBy the end, you\'ll have a simple framework you can adapt to your own work and lifestyle.</string>
+    <string name="seed_task2_spans">0|5|1|0|0|-1;95|106|1|1|1|0;109|119|1|0|0|1;193|205|1|0|0|2;304|314|1|0|0|3</string>
+    <string name="seed_task3_title">Community livestream</string>
+    <string name="seed_task3_desc">Thanks for joining today\'s stream. We\'ll chat, answer questions, and take a first look at the latest updates.\n\nWe\'ll walk through the highlights, share a few behind-the-scenes details, and explore what\'s coming next.\n\nFeel free to drop your questions and thoughts in the chat as we go.\n\nLet\'s get started and make this an interactive session.</string>
+    <string name="seed_task3_spans">0|18|1|0|0|-1;94|108|1|1|1|0;111|129|1|0|0|1;218|227|1|0|0|2;287|304|1|0|0|3</string>
+    <string name="seed_task4_title">Live stream</string>
+    <string name="seed_task4_desc">Welcome everyone to today\'s stream! We\'ll be covering updates, answering questions from chat, and sharing what\'s coming next.\n\nWhether you\'re joining us live or watching later, we\'re excited to have you here.\n\nFeel free to drop your questions in the chat and join the conversation.\n\nLet\'s dive in and get started.</string>
+    <string name="seed_task4_spans">0|16|1|0|0|-1;106|124|1|1|1|0;127|157|1|0|0|1;210|219|1|0|0|2;283|296|1|0|0|3</string>
+    <string name="seed_task5_title">Inline promo</string>
+    <string name="seed_task5_desc">Read • Record • Publish • Repeat • Stay Focused • Sound Natural • Create With Confidence</string>
+    <string name="seed_task5_spans">0|5|1|0|0|-1;5|6|0|0|0|0;6|14|1|0|0|-1;14|15|0|0|0|1;15|24|1|0|0|-1;24|25|0|0|0|2;25|33|1|0|0|-1;33|34|0|0|0|3;34|48|1|0|0|-1;48|49|0|0|0|4;49|64|1|0|0|-1;64|65|0|0|0|0;65|88|1|0|0|-1</string>
 </resources>

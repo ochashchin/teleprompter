@@ -52,11 +52,11 @@ fun TopicTextField(
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
 
-        val fontSize = fontSize(20.dp)
+        val fontSize = fontSize(23.dp)
 
         Row(
             modifier = Modifier
-                .height(64.dp)
+                .height(68.dp)
                 .align(Alignment.Center),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
@@ -71,7 +71,7 @@ fun TopicTextField(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
             ) {
 
                 val fieldShape = RoundedCornerShape(6.dp)

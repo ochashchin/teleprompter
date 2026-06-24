@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
+    <string name="screen_tasks">Teleprompter</string>
+    <string name="screen_new_task">Prompt Baru</string>
+    <string name="screen_display">Tampilan</string>
+
+    <!-- ── Navigation / icon content descriptions ─────────────────────── -->
+    <string name="cd_back">Kembali</string>
+    <string name="cd_close">Tutup</string>
+    <string name="cd_search">Cari</string>
+    <string name="cd_clear">Hapus</string>
+    <string name="cd_edit">Edit</string>
+    <string name="cd_delete">Hapus</string>
+    <string name="cd_open">Buka</string>
+    <string name="cd_play">Putar</string>
+    <string name="cd_pause">Jeda</string>
+    <string name="cd_replay">Ulangi</string>
+    <string name="cd_next">Berikutnya</string>
+    <string name="cd_more_options">Opsi lainnya</string>
+    <string name="cd_topic_required">Topik diperlukan</string>
+    <string name="cd_script_required">Skrip diperlukan</string>
+    <string name="cd_help">Bantuan</string>
+    <string name="cd_loop">Ulangi</string>
+
+    <!-- ── FAB / button labels ─────────────────────────────────────────── -->
+    <string name="fab_new">Baru</string>
+    <string name="fab_next">Berikutnya</string>
+    <string name="fab_play">Putar</string>
+
+    <!-- ── Search bar ─────────────────────────────────────────────────── -->
+    <string name="search_hint">Cari …</string>
+
+    <!-- ── Topic text field ───────────────────────────────────────────── -->
+    <string name="topic_label">Topik</string>
+    <string name="topic_placeholder">Masukkan topik</string>
+
+    <!-- ── Script text field ──────────────────────────────────────────── -->
+    <string name="script_label">Skrip</string>
+    <string name="script_placeholder">Masukkan atau tempel skrip Anda</string>
+
+    <!-- ── Save changes dialog ────────────────────────────────────────── -->
+    <string name="dialog_save_changes_title">Simpan perubahan?</string>
+    <string name="dialog_discard">Buang</string>
+    <string name="dialog_save">Simpan</string>
+
+    <!-- ── Display settings item titles ──────────────────────────────── -->
+    <string name="display_text_size">Ukuran Teks</string>
+    <string name="display_orientation">Orientasi</string>
+    <string name="display_speed">Kecepatan</string>
+    <string name="display_animation">Animasi</string>
+    <string name="display_transition">Transisi</string>
+    <string name="display_distortion">Distorsi</string>
+    <string name="display_mirror">Cermin</string>
+    <string name="display_overlay">Hamparan</string>
+
+    <!-- ── Display settings item descriptions ────────────────────────── -->
+    <string name="display_text_size_desc">Kecil, normal, besar, sangat besar, masif</string>
+    <string name="display_orientation_desc">Vertikal, horizontal</string>
+    <string name="display_speed_desc">Lambat, normal, cepat</string>
+    <string name="display_animation_desc">Bingkai, gulir, sebaris</string>
+    <string name="display_transition_desc">Tidak ada, pudar, cetak</string>
+    <string name="display_distortion_desc">0°, 45°, 70°</string>
+    <string name="display_mirror_desc">Dinonaktifkan, diaktifkan</string>
+    <string name="display_overlay_desc">Dinonaktifkan, diaktifkan</string>
+
+    <!-- ── Display settings options ──────────────────────────────────── -->
+    <string name="option_small">Kecil</string>
+    <string name="option_normal">Normal</string>
+    <string name="option_large">Besar</string>
+    <string name="option_huge">Sangat Besar</string>
+    <string name="option_massive">Masif</string>
+    <string name="option_maximize">Maksimal</string>
+
+    <string name="option_vertical">Vertikal</string>
+    <string name="option_horizontal">Horizontal</string>
+
+    <string name="option_slow">Lambat</string>
+    <string name="option_fast">Cepat</string>
+
+    <string name="option_frame">Bingkai</string>
+    <string name="option_scroll">Gulir</string>
+    <string name="option_inline">Sebaris</string>
+
+    <string name="option_none">Tidak ada</string>
+    <string name="option_fade">Pudar</string>
+    <string name="option_print">Cetak</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">Dinonaktifkan</string>
+    <string name="option_enabled">Diaktifkan</string>
+
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->
+    <string name="style_bold">Tebal</string>
+    <string name="style_italic">Miring</string>
+    <string name="style_underline">Garis Bawah</string>
+    <string name="style_text_color">Warna teks</string>
+    <string name="style_fill_color">Warna isi</string>
+
+    <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
+    <string name="draft_title">Draf</string>
+
+    <!-- ── Help strings ────────────────────────────────────────────────── -->
+    <string name="help_bold">Tebal — Tekankan kata-kata penting, judul, atau poin utama.</string>
+    <string name="help_italic">Miring — Tandai catatan, isyarat, atau frasa yang memerlukan nada atau penekanan yang berbeda.</string>
+    <string name="help_underline">Garis Bawah — Soroti informasi penting yang tidak boleh terlewatkan.</string>
+    <string name="help_text_color">Warna Teks — Pilih warna dari palet untuk menekankan teks atau mengatur skrip Anda.</string>
+    <string name="help_fill_color">Warna Isi — Pilih warna latar belakang untuk meningkatkan kenyamanan dan kontras.</string>
+    <string name="help_text_size">Ukuran Teks — Pilih ukuran dari Kecil hingga Masif untuk bacaan yang nyaman.</string>
+    <string name="help_orientation">Orientasi — Pilih arah: Vertikal atau Horizontal untuk pandangan yang lebih luas.</string>
+    <string name="help_speed">Kecepatan — Pilih ritme berbicara: dari Lambat hingga Cepat untuk penyampaian yang alami.</string>
+    <string name="help_animation">Animasi — Pilih gaya membaca: Bingkai demi bingkai, Gulir vertikal, dan Sebaris. Mode ulangi tersedia.</string>
+    <string name="help_transition">Transisi — Pilih efek visual: Tidak ada, Pudar, atau Cetak untuk sinkronisasi.</string>
+    <string name="help_distortion">Distorsi — Pilih perspektif anti-distorsi: 0°, 45°, atau 70°.</string>
+    <string name="help_mirror">Cermin — Balikkan teks secara instan untuk perangkat teleprompter reflektif.</string>
+    <string name="help_overlay">Hamparan — Jaga agar skrip tetap terlihat di jendela PiP mengambang.</string>
+
+    <string name="rate_us_title">Tolong beri nilai kami!</string>
+    <string name="rate_us_supporting_text">Umpan balik Anda sangat berarti! Silakan berikan komentar di halaman toko.</string>
+    <string name="rate_us_rate_now">Nilai Sekarang</string>
+    <string name="rate_us_later">Nanti</string>
+    <string name="label_up_next">Selanjutnya</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">Vlog perjalanan</string>
+    <string name="seed_task1_desc">Ikuti saya menjelajahi destinasi tersembunyi, makanan lokal, dan pengalaman tak terlupakan dari seluruh dunia.\n\nRasakan budaya melalui mata penduduk setempat.\n\nCicipi hidangan luar biasa dan temukan cerita menarik.\n\nPetualangan menanti di setiap sudut.</string>
+    <string name="seed_task1_spans">0|10|1|0|0|-1;65|75|1|1|1|0;112|119|1|0|0|1;160|166|1|0|0|2;216|227|1|0|0|3</string>
+    <string name="seed_task2_title">Podcast produktivitas</string>
+    <string name="seed_task2_desc">Hari ini kita berdiskusi tentang fokus, rutinitas, dan strategi praktis untuk menyelesaikan lebih banyak hal tanpa merasa lelah.\n\nKita akan melihat kebiasaan kecil yang membuat perbedaan besar ketika dipraktikkan secara konsisten.\n\nAnda akan belajar cara memprioritaskan apa yang penting, mengelola gangguan, dan melindungi energi Anda sepanjang hari.\n\nPada akhirnya, Anda akan memiliki kerangka kerja sederhana yang dapat Anda sesuaikan dengan pekerjaan dan gaya hidup Anda sendiri.</string>
+    <string name="seed_task2_spans">0|8|1|0|0|-1;115|127|1|1|1|0;130|147|1|0|0|1;232|249|1|0|0|2;353|366|1|0|0|3</string>
+    <string name="seed_task3_title">Livestream komunitas</string>
+    <string name="seed_task3_desc">Terima kasih telah bergabung di siaran hari ini. Kita akan mengobrol, menjawab pertanyaan, dan melihat pembaruan terbaru untuk pertama kalinya.\n\nKita akan membahas sorotan utama, berbagi beberapa detail di balik layar, dan menjelajahi apa yang akan terjadi selanjutnya.\n\nJangan ragu untuk menyampaikan pertanyaan dan pemikiran Anda di obrolan saat kita mulai.\n\nMari kita mulai dan jadikan sesi ini interaktif.</string>
+    <string name="seed_task3_spans">0|28|1|0|0|-1;103|120|1|1|1|0;145|163|1|0|0|1;271|282|1|0|0|2;361|376|1|0|0|3</string>
+    <string name="seed_task4_title">Siaran langsung</string>
+    <string name="seed_task4_desc">Selamat datang semuanya di siaran hari ini! Kita akan membahas pembaruan, menjawab pertanyaan dari obrolan, dan membagikan apa yang akan terjadi selanjutnya.\n\nBaik Anda bergabung dengan kami secara langsung atau menonton nanti, kami senang Anda ada di sini.\n\nJangan ragu untuk menyampaikan pertanyaan Anda di obrolan dan bergabung dalam percakapan.\n\nMari kita selami dan mulai.</string>
+    <string name="seed_task4_spans">0|23|1|0|0|-1;123|156|1|1|1|0;159|206|1|0|0|1;259|270|1|0|0|2;350|366|1|0|0|3</string>
+    <string name="seed_task5_title">Promo sebaris</string>
+    <string name="seed_task5_desc">Baca • Rekam • Publikasikan • Ulangi • Tetap Fokus • Terdengar Alami • Buat Dengan Percaya Diri</string>
+    <string name="seed_task5_spans">0|5|1|0|0|-1;5|6|0|0|0|0;6|13|1|0|0|-1;13|14|0|0|0|1;14|28|1|0|0|-1;28|29|0|0|0|2;29|37|1|0|0|-1;37|38|0|0|0|3;38|51|1|0|0|-1;51|52|0|0|0|4;52|69|1|0|0|-1;69|70|0|0|0|0;70|95|1|0|0|-1</string>
+</resources>

@@ -36,8 +36,6 @@ sealed interface RootIntent : UiIntent {
  * • Owns [NavStack]<[Screen]> — one source of truth for the back-stack.
  * • Exposes [currentScreen] as a StateFlow for Compose.
  * • Provides named actions: [goToNewTask], [goToDisplay], [goToPlayer], [goBack].
- * • Calls [com.example.oprojectview.navigation.registerBackGesture] in init so iOS left-edge swipe routes through
- *   the same [handleBack] as Android's BackHandler.
  * • [handleBack] first offers the gesture to [backInterceptor] (if set); only
  *   pops the stack when no interceptor claims it.  This lets individual screens
  *   (e.g. NewTaskScreen) show a save-changes dialog before navigation happens,
@@ -82,14 +80,6 @@ class RootViewModel : BaseViewModel<RootState, RootEvent>(
         backInterceptor = interceptor
     }
 
-    // ── Register platform back gesture ────────────────────────────────────────
-    //
-    // androidMain actual → no-op  (BackHandler in AppRoot covers Android)
-    // iosMain actual     → attaches UIScreenEdgePanGestureRecognizer
-
-    init {
-        registerBackGesture { handleBack() }
-    }
 
     // ── Intent dispatch ───────────────────────────────────────────────────────
 
@@ -117,7 +107,7 @@ class RootViewModel : BaseViewModel<RootState, RootEvent>(
     /**
      * Single back-navigation gate — called by:
      *   • Android  → AppRoot's PlatformBackHandler
-     *   • iOS      → registerBackGesture lambda (UIScreenEdgePanGestureRecognizer)
+     *   • Compose gesture → ScreenLayout's horizontal drag gesture detector
      *   • In-app   → goBack() / toolbar back buttons
      *
      * Offers the event to [backInterceptor] first. If the interceptor returns

@@ -1,6 +1,7 @@
 package com.oprojectview.frame
 
 import com.oprojectview.AnimationMode
+import com.oprojectview.StyleSpan
 import com.oprojectview.TransitionMode
 
 /**
@@ -39,10 +40,14 @@ data class FrameState(
     /** Default color applied to the text, sourced from MaterialTheme. */
     val textColorVal: Long = 0L,
 
+    val primaryColorVal: Long = 0L,
+    val surfaceVariantColorVal: Long = 0L,
+
     val animationMode:   AnimationMode  = AnimationMode.Frame,
     val transitionMode: TransitionMode = TransitionMode.None,
     val distortionMode:  Float          = 1f,
     val isMirror:        Boolean        = false,
+    val isLoopEnabled:   Boolean        = false,
 
     // ── PiP gate ──────────────────────────────────────────────────────────────
     val overlayEnabled:  Boolean        = false,
@@ -53,7 +58,7 @@ data class FrameState(
 
     // ── teleprompter content ──────────────────────────────────────────────────
     val scriptText:      String                          = "",
-    val styleSpans:      List<com.oprojectview.StyleSpan> = emptyList(),
+    val styleSpans:      List<StyleSpan> = emptyList(),
     val fillColorVal:    Long                            = 0L,
     val scrollFraction:  Float                           = 0f,
     val countdownDone:   Boolean                         = false,

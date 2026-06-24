@@ -177,10 +177,10 @@ fun ScriptStyleBar(
         if (showFillColorPicker) {
             ColorPickerPopup(
                 colors             = getScriptFillColors(),
-                activeIndex        = activeFillColorIndex,
+                activeIndex        = if (activeFillColorIndex == -1) 5 else activeFillColorIndex,
                 onColorPick        = onFillColorPick,
                 onDismiss          = { showFillColorPicker = false },
-                defaultSwatchColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                defaultSwatchColor = MaterialTheme.colorScheme.surface,
             )
         }
 
@@ -413,7 +413,7 @@ private fun NewColorPickerPopupPreview(darkTheme: Boolean) {
                 ) {
                     scriptFillColors.forEachIndexed { index, color ->
                         val isActive = index == activeFillColorIndex
-                        val renderColor = color ?: MaterialTheme.colorScheme.surfaceContainerLow
+                        val renderColor = color ?: MaterialTheme.colorScheme.surface
                         Box(
                             modifier = Modifier
                                 .size(40.dp)

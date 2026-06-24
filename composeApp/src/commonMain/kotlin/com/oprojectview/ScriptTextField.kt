@@ -76,7 +76,8 @@ fun ScriptTextField(
     isError:    Boolean              = false,
 ) {
 
-    val fontSize = fontSize(20.dp)
+    val fontSize = fontSize(23.dp)
+    val fontHeight = fontSize(30.dp)
 
     // Read spans as a local val so the Compose snapshot system registers this
     // composable as an observer of _spans. Any call to applyStyle/persist in
@@ -114,7 +115,7 @@ fun ScriptTextField(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
             ) {
                 // Background shape — switches to fill colour when active
                 Box(
@@ -169,8 +170,7 @@ fun ScriptTextField(
 
                     textStyle = TextStyle(
                         fontSize   = fontSize,
-                        lineHeight = fontSize,
-
+                        lineHeight = fontHeight,
                     ),
 
                     placeholder = {

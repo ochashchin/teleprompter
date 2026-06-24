@@ -57,7 +57,7 @@ fun PlayerScreenStatic(
     isFinished: Boolean,
     onPlayPauseClick: () -> Unit,
     onReplayClick: () -> Unit,
-    fillColor: Color? = null,
+    fillColor: Color = Color.Transparent,
 ) {
     val displayState    = rememberDisplayTaskState(taskId)
     val orientationItem = DisplayTaskList.first { it.id == 2 }
@@ -65,16 +65,6 @@ fun PlayerScreenStatic(
         (displayState.selectedIndex(orientationItem) ?: orientationItem.defaultIndex) == 1
 
     Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication        = null,
-                    onClick           = onToolbarTap,
-                )
-        )
-
         AnimatedVisibility(
             visible  = toolbarVisible,
             enter    = fadeIn(tween(200)),
@@ -118,8 +108,8 @@ fun PlayerScreenStatic(
 
         AnimatedVisibility(
             visible = toolbarVisible,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
             modifier = Modifier.align(if (isHorizontal) Alignment.CenterStart else Alignment.BottomCenter)
         ) {
             PlayBar(
@@ -142,8 +132,7 @@ fun PlayerScreenBody(
     task: Task,
     modifier: Modifier = Modifier,
     styleSpans: List<StyleSpan> = emptyList(),
-    isFillColorActive: Boolean = false,
-    fillColor: Color? = null,
+    fillColor: Color = Color.Transparent,
     onReadingComplete: () -> Unit = {},
     // Injected for PiP lifecycle and timing synchronization.
     frameViewModel: FrameViewModel? = null,
@@ -182,13 +171,21 @@ fun PlayerScreenBody(
     )
 
     val wpm            = speedIndexToWpm(selectedSpeedIndex)
-    val previewPadding = 10.dp
 
     val vm             = LocalPlayerViewModel.current
     val playerState    by vm.state.collectAsState()
     val countdownDone  = playerState.countdownDone
     val scrollFraction = playerState.scrollFraction
+    
+    val hPadding = if (playerState.pipActive) 10.dp else 46.dp
+    val vPadding = if (playerState.pipActive) 5.dp else 32.dp
+    val contentPadding = androidx.compose.foundation.layout.PaddingValues(start = hPadding, end = hPadding, top = vPadding, bottom = vPadding)
 
+    val isShowingUpNext = playerState.isShowingUpNext
+    val upNextSelectedIndex = playerState.upNextSelectedIndex
+    val upNextTasks = playerState.upNextTasks
+    val allTasks = playerState.allTasks
+    
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val frameStateFlow = frameViewModel?.frameStateFlow?.collectAsState()
     LaunchedEffect(fontFamilyResolver, frameViewModel) {
@@ -197,7 +194,7 @@ fun PlayerScreenBody(
         }
     }
 
-    val defaultFill = MaterialTheme.colorScheme.surfaceContainerLow.value.toLong()
+    val defaultFill = MaterialTheme.colorScheme.surface.value.toLong()
     // Sync play position, options, and duration to FrameViewModel
     LaunchedEffect(
         playerState.task?.id,
@@ -208,7 +205,6 @@ fun PlayerScreenBody(
         playerState.playbackStartUs,
         playerState.pausedElapsedUs,
         playerState.totalDurationMs,
-        isFillColorActive,
         fillColor
     ) {
         val t = playerState.task ?: return@LaunchedEffect
@@ -221,7 +217,7 @@ fun PlayerScreenBody(
                 scrollFraction = 0f,
                 scriptText = t.description,
                 styleSpans = styleSpans,
-                fillColorVal = if (isFillColorActive) (fillColor?.value?.toLong() ?: 0L) else defaultFill,
+                fillColorVal = fillColor.value.toLong(),
                 animationMode = animationMode,
                 transitionMode = transitionMode,
                 playbackStartUs = playerState.playbackStartUs,
@@ -231,7 +227,7 @@ fun PlayerScreenBody(
         )
     }
 
-    val countdownDurationMs = 3000L
+    val countdownDurationMs = 5000L
     val progress            = remember { Animatable(if (countdownDone) 0f else 1f) }
 
     LaunchedEffect(countdownDone, playerState.isPlaying) {
@@ -243,12 +239,17 @@ fun PlayerScreenBody(
             progress.stop()
             return@LaunchedEffect
         }
-        val remainingMs = (countdownDurationMs * progress.value).toInt()
+        val elapsedUs = com.oprojectview.core.MonotonicClock.currentTimeUs() - playerState.countdownStartUs
+        val elapsedMs = elapsedUs / 1000L
+        val remainingMs = (countdownDurationMs - elapsedMs).toInt()
         if (remainingMs > 0) {
+            progress.snapTo(remainingMs.toFloat() / countdownDurationMs.toFloat())
             progress.animateTo(
                 targetValue   = 0f,
                 animationSpec = androidx.compose.animation.core.tween(durationMillis = remainingMs, easing = androidx.compose.animation.core.LinearEasing),
             )
+        } else {
+            progress.snapTo(0f)
         }
         if (progress.value == 0f) {
             delay(1000L)
@@ -270,13 +271,22 @@ fun PlayerScreenBody(
                         )
                     )
                 }
-            },
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication        = null,
+                onClick           = { vm.onIntent(PlayerIntent.ScreenTapped) },
+            ),
         contentAlignment = Alignment.Center,
     ) {
 
+        val textAlpha by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = if (playerState.isTransitioningToNextTask) 0f else if (isShowingUpNext) 0.5f else 1f,
+            animationSpec = if (playerState.isTransitioningToNextTask) androidx.compose.animation.core.tween(200) else if (isShowingUpNext) androidx.compose.animation.core.tween(200) else androidx.compose.animation.core.snap()
+        )
         Box(
             modifier = modifier
-                .graphicsLayer { alpha = if (countdownDone) 1f else 0f }
+                .graphicsLayer { alpha = if (countdownDone) textAlpha else 0f }
                 .fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
@@ -284,29 +294,57 @@ fun PlayerScreenBody(
                 task                = task,
                 wpm                 = wpm,
                 textStyle           = textStyle,
-                padding             = previewPadding,
+                contentPadding      = contentPadding,
                 isHorizontal        = isHorizontal,
                 isMirror            = isMirror,
                 distortionMode      = distortionMode,
                 animationMode       = animationMode,
                 transitionMode      = transitionMode,
                 styleSpans          = styleSpans,
-                isFillColorActive   = isFillColorActive,
-                fillColor           = null,
+                fillColor           = fillColor,
                 preview             = false,
                 countdownDone       = countdownDone,
                 initialScrollFraction = scrollFraction,
                 onScrollFraction    = { vm.onIntent(PlayerIntent.ScrollProgress(it)) },
                 modifier            = modifier,
-                onAnimationComplete = onReadingComplete,
+                onAnimationComplete = {
+                    if (displayState.isAnimationLoopEnabled()) {
+                        val skipDelay = animationMode != AnimationMode.Inline
+                        vm.onIntent(PlayerIntent.ReplayClicked(isManual = false, skipDelay = skipDelay))
+                    } else {
+                        onReadingComplete()
+                    }
+                },
             )
+        }
+
+        AnimatedVisibility(
+            visible = isShowingUpNext,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            val isLastTask = task.id == allTasks.lastOrNull()?.id
+            val showCountdown = !isLastTask || playerState.hasManuallySelectedUpNext
+            RotatedLayout(
+                rotate90 = isHorizontal
+            ) {
+                UpNextList(
+                    tasks = upNextTasks,
+                    selectedIndex = upNextSelectedIndex,
+                    onItemSelected = { vm.onIntent(PlayerIntent.OnUpNextItemSelected(it)) },
+                    onCountdownFinished = { vm.onIntent(PlayerIntent.UpNextCountdownDone) },
+                    showCountdown = showCountdown,
+                    fillColor = fillColor
+                )
+            }
         }
 
         CircularProgressIndicator(
             progress = { progress.value },
             modifier = Modifier.size(100.dp)
                 .graphicsLayer {
-                    alpha = if (countdownDone || progress.value == 0f) 0f else 1f
+                    alpha = if (countdownDone || progress.value == 0f || isShowingUpNext) 0f else 1f
                     rotationZ = if (isHorizontal) 90f else 0f
                 },
             color = MaterialTheme.colorScheme.primary,
@@ -314,5 +352,43 @@ fun PlayerScreenBody(
             strokeWidth = 8.dp,
         )
 
+    }
+}
+
+@Composable
+fun RotatedLayout(
+    rotate90: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    androidx.compose.ui.layout.Layout(
+        content = content,
+        modifier = modifier.graphicsLayer {
+            rotationZ = if (rotate90) 90f else 0f
+        }
+    ) { measurables, constraints ->
+        val childConstraints = if (rotate90) {
+            androidx.compose.ui.unit.Constraints(
+                minWidth = constraints.minHeight,
+                maxWidth = constraints.maxHeight,
+                minHeight = constraints.minWidth,
+                maxHeight = constraints.maxWidth
+            )
+        } else {
+            constraints
+        }
+        val placeable = measurables.first().measure(childConstraints)
+        
+        if (rotate90) {
+            layout(placeable.height, placeable.width) {
+                val x = -(placeable.width - placeable.height) / 2
+                val y = -(placeable.height - placeable.width) / 2
+                placeable.place(x, y)
+            }
+        } else {
+            layout(placeable.width, placeable.height) {
+                placeable.place(0, 0)
+            }
+        }
     }
 }

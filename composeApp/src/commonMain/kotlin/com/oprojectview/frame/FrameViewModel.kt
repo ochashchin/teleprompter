@@ -74,7 +74,12 @@ sealed interface FrameVmIntent : UiIntent {
 
     /** Directly update the background fill color for PiP rendering. */
     data class SetFillColor(val fillColorVal: Long)              : FrameVmIntent
-    data class SetDefaultColors(val textColorVal: Long, val defaultFillColorVal: Long) : FrameVmIntent
+    data class SetDefaultColors(
+        val textColorVal: Long,
+        val defaultFillColorVal: Long,
+        val primaryColorVal: Long,
+        val surfaceVariantColorVal: Long
+    ) : FrameVmIntent
 
     /**
      * Communicates the inferred PiP visual size class to the shared layer.
@@ -162,7 +167,9 @@ class FrameViewModel(
             is FrameVmIntent.SetDefaultColors -> mutateFrame {
                 it.copy(
                     textColorVal = intent.textColorVal,
-                    defaultFillColorVal = intent.defaultFillColorVal
+                    defaultFillColorVal = intent.defaultFillColorVal,
+                    primaryColorVal = intent.primaryColorVal,
+                    surfaceVariantColorVal = intent.surfaceVariantColorVal
                 )
             }
             is FrameVmIntent.SetTargetFps     -> mutateFrame { it.copy(targetFps = intent.fps) }
@@ -221,6 +228,7 @@ class FrameViewModel(
                 distortionMode = distortionValueOf(idx(6)),
                 isMirror       = idx(7) == 1,
                 overlayEnabled = idx(8) == 1,
+                isLoopEnabled  = ds.isAnimationLoopEnabled(),
             )
         }
     }

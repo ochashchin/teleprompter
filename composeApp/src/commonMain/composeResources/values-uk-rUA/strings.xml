@@ -1,0 +1,143 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    
+    <string name="screen_tasks">Телесуфлер</string>
+    <string name="screen_new_task">Новий текст</string>
+    <string name="screen_display">Дисплей</string>
+
+    
+    <string name="cd_back">Назад</string>
+    <string name="cd_close">Закрити</string>
+    <string name="cd_search">Пошук</string>
+    <string name="cd_clear">Очистити</string>
+    <string name="cd_edit">Редагувати</string>
+    <string name="cd_delete">Видалити</string>
+    <string name="cd_open">Відкрити</string>
+    <string name="cd_play">Почати</string>
+    <string name="cd_pause">Пауза</string>
+    <string name="cd_replay">Повторити</string>
+    <string name="cd_next">Далі</string>
+    <string name="cd_more_options">Більше параметрів</string>
+    <string name="cd_topic_required">Потрібна тема</string>
+    <string name="cd_script_required">Потрібен сценарій</string>
+    <string name="cd_help">Довідка</string>
+    <string name="cd_loop">Повторення</string>
+
+    
+    <string name="fab_new">Новий</string>
+    <string name="fab_next">Далі</string>
+    <string name="fab_play">Почати</string>
+
+    
+    <string name="search_hint">Пошук …</string>
+
+    
+    <string name="topic_label">Тема</string>
+    <string name="topic_placeholder">Введіть тему</string>
+
+    
+    <string name="script_label">Сценарій</string>
+    <string name="script_placeholder">Введіть або вставте свій сценарій</string>
+
+    
+    <string name="dialog_save_changes_title">Зберегти зміни?</string>
+    <string name="dialog_discard">Відхилити</string>
+    <string name="dialog_save">Зберегти</string>
+
+    
+    <string name="display_text_size">Розмір тексту</string>
+    <string name="display_orientation">Орієнтація</string>
+    <string name="display_speed">Швидкість</string>
+    <string name="display_animation">Анімація</string>
+    <string name="display_transition">Перехід</string>
+    <string name="display_distortion">Дисторсія</string>
+    <string name="display_mirror">Дзеркало</string>
+    <string name="display_overlay">Накладання</string>
+
+    
+    <string name="display_text_size_desc">Дрібний, нормальний, великий, величезний, масивний</string>
+    <string name="display_orientation_desc">Вертикально, горизонтально</string>
+    <string name="display_speed_desc">Повільно, нормально, швидко</string>
+    <string name="display_animation_desc">Кадр, прокрутка, в рядку</string>
+    <string name="display_transition_desc">Немає, згасання, друк</string>
+    <string name="display_distortion_desc">0°, 45°, 70°</string>
+    <string name="display_mirror_desc">Вимкнено, увімкнено</string>
+    <string name="display_overlay_desc">Вимкнено, увімкнено</string>
+
+    
+    <string name="option_small">Дрібний</string>
+    <string name="option_normal">Нормальний</string>
+    <string name="option_large">Великий</string>
+    <string name="option_huge">Величезний</string>
+    <string name="option_massive">Масивний</string>
+    <string name="option_maximize">Максимальний</string>
+
+    <string name="option_vertical">Вертикально</string>
+    <string name="option_horizontal">Горизонтально</string>
+
+    <string name="option_slow">Повільно</string>
+    <string name="option_fast">Швидко</string>
+
+    <string name="option_frame">Кадр</string>
+    <string name="option_scroll">Прокрутка</string>
+    <string name="option_inline">В рядку</string>
+
+    <string name="option_none">Немає</string>
+    <string name="option_fade">Згасання</string>
+    <string name="option_print">Друк</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">Вимкнено</string>
+    <string name="option_enabled">Увімкнено</string>
+
+    
+    <string name="style_bold">Жирний</string>
+    <string name="style_italic">Курсив</string>
+    <string name="style_underline">Підкреслений</string>
+    <string name="style_text_color">Колір тексту</string>
+    <string name="style_fill_color">Колір заливки</string>
+
+    
+    <string name="draft_title">Чернетка</string>
+
+    
+    <string name="help_bold">Жирний — Виділяйте важливі слова, заголовки або ключові моменти.</string>
+    <string name="help_italic">Курсив — Позначайте примітки, репліки або фрази, які потребують іншого тону.</string>
+    <string name="help_underline">Підкреслений — Виділіть важливу інформацію, яку не слід пропускати.</string>
+    <string name="help_text_color">Колір тексту — Виберіть колір із палітри, щоб підкреслити текст або впорядкувати сценарій.</string>
+    <string name="help_fill_color">Колір заливки — Виберіть колір фону сторінки для покращення комфорту.</string>
+    <string name="help_text_size">Розмір тексту — Виберіть розмір від дрібного до масивного для зручного читання.</string>
+    <string name="help_orientation">Орієнтація — Виберіть напрямок читання: вертикально або горизонтально.</string>
+    <string name="help_speed">Швидкість — Виберіть ритм: від повільного до швидкого для природного виступу.</string>
+    <string name="help_animation">Анімація — Виберіть стиль: покадровий, прокрутка та в рядку.</string>
+    <string name="help_transition">Перехід — Виберіть ефекти: немає, згасання або друк.</string>
+    <string name="help_distortion">Спотворення — Виберіть перспективу проти спотворення: 0°, 45° або 70°.</string>
+    <string name="help_mirror">Дзеркало — Увімкніть миттєве зворотне відображення тексту для телесуфлера.</string>
+    <string name="help_overlay">Накладання — Зберігайте свій сценарій видимим у плаваючому вікні PiP.</string>
+
+    <string name="rate_us_title">Будь ласка, оцініть нас!</string>
+    <string name="rate_us_supporting_text">Ваш відгук дуже важливий для нас! Будь ласка, залиште коментар на сторінці магазину.</string>
+    <string name="rate_us_rate_now">Оцінити Зараз</string>
+    <string name="rate_us_later">Пізніше</string>
+    <string name="label_up_next">Далі</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">Влог про подорожі</string>
+    <string name="seed_task1_desc">Приєднуйтесь до дослідження прихованих місць, місцевої їжі та незабутніх вражень по всьому світу.\n\nВідчуйте культури очима місцевих жителів.\n\nСкуштуйте неймовірні страви та відкрийте дивовижні історії.\n\nПригоди чекають на кожному кроці.</string>
+    <string name="seed_task1_spans">0|12|1|0|0|-1;73|80|1|1|1|0;99|107|1|0|0|1;142|151|1|0|0|2;203|210|1|0|0|3</string>
+    <string name="seed_task2_title">Подкаст про продуктивність</string>
+    <string name="seed_task2_desc">Сьогодні ми обговорюємо фокус, рутину та практичні стратегії, як встигати більше, не вигораючи.\n\nМи розглянемо невеликі звички, які мають велике значення при постійному застосуванні.\n\nВи дізнаєтеся, як розставляти пріоритети, керувати відволікаючими факторами та зберігати енергію протягом дня.\n\nНаприкінці у вас буде проста схема, яку ви зможете адаптувати до своєї роботи та способу життя.</string>
+    <string name="seed_task2_spans">0|8|1|0|0|-1;82|94|1|1|1|0;97|110|1|0|0|1;184|197|1|0|0|2;296|306|1|0|0|3</string>
+    <string name="seed_task3_title">Прямий ефір для спільноти</string>
+    <string name="seed_task3_desc">Дякуємо, що приєдналися до сьогоднішнього стріму. Ми поспілкуємося, відповімо на запитання та першими поглянемо на останні оновлення.\n\nМи пройдемося по головних моментах, поділимося закулісними подробицями та дізнаємося, що буде далі.\n\nНе соромтеся залишати свої запитання та думки в чаті по ходу справи.\n\nДавайте почнемо і зробимо цю сесію інтерактивною.</string>
+    <string name="seed_task3_spans">0|23|1|0|0|-1;115|132|1|1|1|0;135|148|1|0|0|1;236|248|1|0|0|2;306|321|1|0|0|3</string>
+    <string name="seed_task4_title">Прямий ефір</string>
+    <string name="seed_task4_desc">Ласкаво просимо на сьогоднішній стрім! Ми обговоримо оновлення, відповімо на запитання з чату та поділимося тим, що буде далі.\n\nНезалежно від того, приєднуєтеся ви до нас у прямому ефірі чи дивитеся пізніше, ми раді бачити вас тут.\n\nНе соромтеся залишати свої запитання в чаті та приєднуйтесь до обговорення.\n\nДавайте зануримося і почнемо.</string>
+    <string name="seed_task4_spans">0|15|1|0|0|-1;113|125|1|1|1|0;128|146|1|0|0|1;233|245|1|0|0|2;310|328|1|0|0|3</string>
+    <string name="seed_task5_title">Вбудована реклама</string>
+    <string name="seed_task5_desc">Читай • Знімай • Публікуй • Повторюй • Будь у Фокусі • Звучи Природно • Створюй Впевнено</string>
+    <string name="seed_task5_spans">0|6|1|0|0|-1;6|7|0|0|0|0;7|15|1|0|0|-1;15|16|0|0|0|1;16|26|1|0|0|-1;26|27|0|0|0|2;27|37|1|0|0|-1;37|38|0|0|0|3;38|53|1|0|0|-1;53|54|0|0|0|4;54|70|1|0|0|-1;70|71|0|0|0|0;71|88|1|0|0|-1</string>
+</resources>

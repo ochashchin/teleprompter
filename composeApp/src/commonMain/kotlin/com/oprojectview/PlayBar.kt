@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -79,7 +80,7 @@ fun PlayBar(
 
             PlayBarIcon(
                 icon = {
-                    androidx.compose.material3.Icon(
+                    Icon(
                         imageVector = icon,
                         contentDescription = stringResource(contentDescRes)
                     )
@@ -102,14 +103,12 @@ private fun PlayBarIcon(
     fillColor: Color? = null,
 ) {
     if (icon != null) {
-        val defaultColor = MaterialTheme.colorScheme.inverseOnSurface
-        val containerColor = androidx.compose.runtime.remember(focused, fillColor, defaultColor) {
-            if (!focused) {
-                Color.Transparent
-            } else if (fillColor != null) {
-                calculateFocusedContainerColor(fillColor)
+        val inverseOnSurface = MaterialTheme.colorScheme.inverseOnSurface
+        val containerColor = androidx.compose.runtime.remember(focused, inverseOnSurface) {
+            if (focused) {
+                inverseOnSurface.copy(alpha = 0.5f)
             } else {
-                defaultColor
+                Color.Transparent
             }
         }
 

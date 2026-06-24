@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -30,17 +29,7 @@ const val NEW_TASK_ID = -1
 fun scriptStyleSpansKey(taskId: Int) = "script_style_${taskId}_spans"
 fun scriptStyleFillKey(taskId: Int)  = "script_style_${taskId}_fill"
 
-/**
- * Read a Long from Settings, returning [default] if the key holds a legacy
- * Boolean (written before the fill-color migration) or is absent.
- * Removes the corrupt key so the next write stores the correct type.
- */
-private fun Settings.getLongOrDefault(key: String, default: Long): Long = try {
-    getLong(key, default)
-} catch (_: Exception) {
-    remove(key)   // wipe legacy Boolean so next setFillColor writes a clean Long
-    default
-}
+
 
 // ── Span model ────────────────────────────────────────────────────────────────
 
@@ -52,7 +41,7 @@ private fun Settings.getLongOrDefault(key: String, default: Long): Long = try {
  * @param isBold
  * @param isItalic
  * @param isUnderline
- * @param textColor  packed ARGB Long (ULong bits stored as Long); 0L = use default theme colour
+ * @param textColorIndex  index of the active text colour, or -1 for default
  */
 data class StyleSpan(
     val start:       Int,
@@ -75,12 +64,12 @@ data class StyleSpan(
 
 // ── Serialisation ─────────────────────────────────────────────────────────────
 
-internal fun List<StyleSpan>.serialise(): String =
+internal fun List<StyleSpan>.serialize(): String =
     joinToString(";") { s ->
         "${s.start}|${s.end}|${s.isBold.b}|${s.isItalic.b}|${s.isUnderline.b}|${s.textColorIndex}"
     }
 
-internal fun String.deserialiseSpans(): List<StyleSpan> {
+internal fun String.deserializeSpans(): List<StyleSpan> {
     if (isBlank()) return emptyList()
     return split(";").mapNotNull { entry ->
         val p = entry.split("|")
@@ -108,10 +97,10 @@ private val Boolean.b get() = if (this) "1" else "0"
 fun getScriptTextColors(): List<Color?> {
     return listOf(
         Color(0xFFE53935), // Red
-        Color(0xFF1E88E5), // Blue
-        Color(0xFF43A047), // Green
-        Color(0xFFFFB300), // Amber
-        Color(0xFF8E24AA), // Purple
+        Color(0xFF3F9943), // Greenish
+        Color(0xFFE50D9A), // Pink
+        Color(0xFFCA00FF), // Purple
+        Color(0xFF0FD821), // Bright Green
         null // Default state rendered as onSurfaceVariant
     )
 }
@@ -121,15 +110,34 @@ fun getScriptFillColors(): List<Color?> {
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     return listOf(
         Color(if (isDark) 0xFF421C1C else 0xFFFADBD8),
-        Color(if (isDark) 0xFF1A2F4C else 0xFFD6E4F0),
-        Color(if (isDark) 0xFF1C3322 else 0xFFD5E8D4),
-        Color(if (isDark) 0xFF3A321A else 0xFFFCF3CF),
-        Color(if (isDark) 0xFF2D1B36 else 0xFFEBDEF0),
-        null // Default state rendered as surfaceContainerLow
+        Color(if (isDark) 0xFF1C2D20 else 0xFFC4E4C8),
+        Color(if (isDark) 0xFF2E1C29 else 0xFFE3CCDB),
+        Color(if (isDark) 0xFF3A1C34 else 0xFFFACFEB),
+        Color(if (isDark) 0xFF17331F else 0xFFCFF7D3),
+        MaterialTheme.colorScheme.surface
     )
 }
 
 // ── ScriptTextStyleState ──────────────────────────────────────────────────────
+
+fun Long.toScriptTextColorIndex(): Int {
+    if (this == 0L) return -1
+    return when (this) {
+        // Legacy colors
+        0xFF1E88E5 -> 1
+        0xFF43A047 -> 2
+        0xFFFFB300 -> 3
+        0xFF8E24AA -> 4
+        0xFF077F12 -> 1
+        // Current colors
+        0xFFE53935 -> 0
+        0xFF3F9943 -> 1
+        0xFFE50D9A -> 2
+        0xFFCA00FF -> 3
+        0xFF0FD821 -> 4
+        else -> -1
+    }
+}
 
 /**
  * Holds rich-text style state for [ScriptTextField].
@@ -137,7 +145,7 @@ fun getScriptFillColors(): List<Color?> {
  * ### Key design
  *
  * Keys are scoped by [taskId]:
- *   - `script_style_${taskId}_spans`  — serialised span list
+ *   - `script_style_${taskId}_spans`  — serialized span list
  *   - `script_style_${taskId}_fill`   — fill-colour toggle
  *
  * While a task has not been saved yet, [taskId] == [NEW_TASK_ID] (-1).
@@ -160,43 +168,19 @@ fun getScriptFillColors(): List<Color?> {
  * The NewTaskScreen uses this flag to show the "Save changes?" dialog even
  * when the text fields themselves haven't been modified.
  */
-
-fun Long.toScriptTextColorIndex(): Int {
-    if (this == 0L) return -1
-    return when (this) {
-        0xFFE53935 -> 0
-        0xFF1E88E5 -> 1
-        0xFF43A047 -> 2
-        0xFFFFB300 -> 3
-        0xFF8E24AA -> 4
-        else -> -1
-    }
-}
-
-fun Long.toScriptFillColorIndex(): Int {
-    if (this == 0L) return -1
-    return when (this) {
-        0xFFFADBD8, 0xFF421C1C -> 0
-        0xFFD6E4F0, 0xFF1A2F4C -> 1
-        0xFFD5E8D4, 0xFF1C3322 -> 2
-        0xFFFCF3CF, 0xFF3A321A -> 3
-        0xFFEBDEF0, 0xFF2D1B36 -> 4
-        else -> -1
-    }
-}
-
 class ScriptTextStyleState(
     private val settings: Settings,
     initialTaskId: Int = NEW_TASK_ID,
 ) {
     // ── Task identity ─────────────────────────────────────────────────────────
 
-    private var taskId: Int = initialTaskId
+    var taskId: Int = initialTaskId
+        private set
 
     // ── Span list ─────────────────────────────────────────────────────────────
 
     private var _spans by mutableStateOf(
-        settings.getStringOrNull(scriptStyleSpansKey(initialTaskId))?.deserialiseSpans()
+        settings.getStringOrNull(scriptStyleSpansKey(initialTaskId))?.deserializeSpans()
             ?: emptyList()
     )
 
@@ -206,15 +190,10 @@ class ScriptTextStyleState(
     // Stored as a packed ARGB Long (0L = no fill active).
 
     private var _fillColorIndex: Int by mutableStateOf(
-        run {
-            val rawValue = settings.getLongOrDefault(scriptStyleFillKey(initialTaskId), 0L)
-            if (rawValue > 10L || rawValue < -1L) rawValue.toScriptFillColorIndex() else rawValue.toInt()
-        }
+        settings.getInt(scriptStyleFillKey(initialTaskId), -1)
     )
 
     val activeFillColorIndex: Int get() = _fillColorIndex
-
-    val isFillColorActive: Boolean get() = _fillColorIndex != -1
 
     // ── Dirty flag ────────────────────────────────────────────────────────────
 
@@ -258,11 +237,8 @@ class ScriptTextStyleState(
     fun loadForTaskId(newTaskId: Int) {
         taskId          = newTaskId
         _spans          = settings.getStringOrNull(scriptStyleSpansKey(newTaskId))
-            ?.deserialiseSpans() ?: emptyList()
-        _fillColorIndex = run {
-            val raw = settings.getLongOrDefault(scriptStyleFillKey(newTaskId), 0L)
-            if (raw > 10L || raw < -1L) raw.toScriptFillColorIndex() else raw.toInt()
-        }
+            ?.deserializeSpans() ?: emptyList()
+        _fillColorIndex = settings.getInt(scriptStyleFillKey(newTaskId), -1)
         hasUnsavedChanges = false
     }
 
@@ -327,24 +303,6 @@ class ScriptTextStyleState(
 
     
 
-    // ── Text-change cleanup ───────────────────────────────────────────────────
-
-    fun onTextChanged(newLength: Int) {
-        val cleaned = _spans
-            .mapNotNull { s ->
-                val result: StyleSpan? = if (s.start >= newLength) {
-                    null
-                } else if (s.end > newLength) {
-                    s.copy(end = newLength)
-                } else {
-                    s
-                }
-                result
-            }
-            .filter { it.hasAnyStyle }
-        if (cleaned != _spans) _spans = cleaned
-    }
-
     /**
      * Wipe all style data and reset the dirty flag (discard / new task).
      *
@@ -364,11 +322,8 @@ class ScriptTextStyleState(
             // Existing task: reload the last persisted state so the on-disk
             // data is unchanged and in-memory reflects what was actually saved.
             _spans          = settings.getStringOrNull(scriptStyleSpansKey(taskId))
-                ?.deserialiseSpans() ?: emptyList()
-            _fillColorIndex = run {
-                val raw = settings.getLongOrDefault(scriptStyleFillKey(taskId), 0L)
-                if (raw > 10L || raw < -1L) raw.toScriptFillColorIndex() else raw.toInt()
-            }
+                ?.deserializeSpans() ?: emptyList()
+            _fillColorIndex = settings.getInt(scriptStyleFillKey(taskId), -1)
         }
         hasUnsavedChanges = false
         taskId = NEW_TASK_ID
@@ -444,7 +399,7 @@ class ScriptTextStyleState(
 
     /** Write current in-memory state to Settings under [id]. */
     private fun flushToDisk(id: Int) {
-        settings[scriptStyleSpansKey(id)] = _spans.serialise()
+        settings[scriptStyleSpansKey(id)] = _spans.serialize()
         settings[scriptStyleFillKey(id)]  = _fillColorIndex
     }
 }
@@ -460,9 +415,8 @@ fun rememberScriptTextStyleState(taskId: Int = NEW_TASK_ID): ScriptTextStyleStat
 }
 
 @Composable
-fun ScriptTextStyleState.resolveActiveFillColor(): Color? {
+fun ScriptTextStyleState.resolveActiveFillColor(): Color {
     val idx = activeFillColorIndex
-    if (idx < 0) return null
     val colors = getScriptFillColors()
-    return if (idx < colors.size) colors[idx] else null
+    return if (idx in colors.indices) colors[idx] ?: MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface
 }

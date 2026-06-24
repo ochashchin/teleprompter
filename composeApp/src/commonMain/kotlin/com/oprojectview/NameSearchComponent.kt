@@ -12,6 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.search_hint
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 @Preview
@@ -41,7 +44,7 @@ fun NameSearchComponent(names: List<String>) {
                 onSearch = { expanded = false },
                 expanded = expanded,
                 onExpandedChange = { expanded = it },
-                placeholder = { Text("Search names...") },
+                placeholder = { Text(stringResource(Res.string.search_hint)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (query.isNotEmpty()) {

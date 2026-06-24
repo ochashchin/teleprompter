@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
+    <string name="screen_tasks">Teleprompter</string>
+    <string name="screen_new_task">Yeni Metin</string>
+    <string name="screen_display">Ekran</string>
+
+    <!-- ── Navigation / icon content descriptions ─────────────────────── -->
+    <string name="cd_back">Geri</string>
+    <string name="cd_close">Kapat</string>
+    <string name="cd_search">Ara</string>
+    <string name="cd_clear">Temizle</string>
+    <string name="cd_edit">Düzenle</string>
+    <string name="cd_delete">Sil</string>
+    <string name="cd_open">Aç</string>
+    <string name="cd_play">Oynat</string>
+    <string name="cd_pause">Duraklat</string>
+    <string name="cd_replay">Tekrarla</string>
+    <string name="cd_next">İleri</string>
+    <string name="cd_more_options">Daha fazla seçenek</string>
+    <string name="cd_topic_required">Konu gereklidir</string>
+    <string name="cd_script_required">Senaryo gereklidir</string>
+    <string name="cd_help">Yardım</string>
+    <string name="cd_loop">Döngü</string>
+
+    <!-- ── FAB / button labels ─────────────────────────────────────────── -->
+    <string name="fab_new">Yeni</string>
+    <string name="fab_next">İleri</string>
+    <string name="fab_play">Oynat</string>
+
+    <!-- ── Search bar ─────────────────────────────────────────────────── -->
+    <string name="search_hint">Ara …</string>
+
+    <!-- ── Topic text field ───────────────────────────────────────────── -->
+    <string name="topic_label">Konu</string>
+    <string name="topic_placeholder">Konu girin</string>
+
+    <!-- ── Script text field ──────────────────────────────────────────── -->
+    <string name="script_label">Senaryo</string>
+    <string name="script_placeholder">Senaryonuzu girin veya yapıştırın</string>
+
+    <!-- ── Save changes dialog ────────────────────────────────────────── -->
+    <string name="dialog_save_changes_title">Değişiklikler kaydedilsin mi?</string>
+    <string name="dialog_discard">Vazgeç</string>
+    <string name="dialog_save">Kaydet</string>
+
+    <!-- ── Display settings item titles ──────────────────────────────── -->
+    <string name="display_text_size">Metin Boyutu</string>
+    <string name="display_orientation">Yön</string>
+    <string name="display_speed">Hız</string>
+    <string name="display_animation">Animasyon</string>
+    <string name="display_transition">Geçiş</string>
+    <string name="display_distortion">Distorsiyon</string>
+    <string name="display_mirror">Ayna</string>
+    <string name="display_overlay">Yer paylaşımı</string>
+
+    <!-- ── Display settings item descriptions ────────────────────────── -->
+    <string name="display_text_size_desc">Küçük, normal, büyük, çok büyük, devasa</string>
+    <string name="display_orientation_desc">Dikey, yatay</string>
+    <string name="display_speed_desc">Yavaş, normal, hızlı</string>
+    <string name="display_animation_desc">Kare, kaydırma, satır içi</string>
+    <string name="display_transition_desc">Yok, solma, yazdırma</string>
+    <string name="display_distortion_desc">0°, 45°, 70°</string>
+    <string name="display_mirror_desc">Devre dışı, etkin</string>
+    <string name="display_overlay_desc">Devre dışı, etkin</string>
+
+    <!-- ── Display settings options ──────────────────────────────────── -->
+    <string name="option_small">Küçük</string>
+    <string name="option_normal">Normal</string>
+    <string name="option_large">Büyük</string>
+    <string name="option_huge">Çok Büyük</string>
+    <string name="option_massive">Devasa</string>
+    <string name="option_maximize">Maksimum</string>
+
+    <string name="option_vertical">Dikey</string>
+    <string name="option_horizontal">Yatay</string>
+
+    <string name="option_slow">Yavaş</string>
+    <string name="option_fast">Hızlı</string>
+
+    <string name="option_frame">Kare</string>
+    <string name="option_scroll">Kaydırma</string>
+    <string name="option_inline">Satır içi</string>
+
+    <string name="option_none">Yok</string>
+    <string name="option_fade">Solma</string>
+    <string name="option_print">Yazdırma</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">Devre dışı</string>
+    <string name="option_enabled">Etkin</string>
+
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->
+    <string name="style_bold">Kalın</string>
+    <string name="style_italic">İtalik</string>
+    <string name="style_underline">Altı çizili</string>
+    <string name="style_text_color">Metin rengi</string>
+    <string name="style_fill_color">Dolgu rengi</string>
+
+    <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
+    <string name="draft_title">Taslak</string>
+
+    <!-- ── Help strings ────────────────────────────────────────────────── -->
+    <string name="help_bold">Kalın — Önemli kelimeleri, başlıkları veya kilit noktaları vurgulayın.</string>
+    <string name="help_italic">İtalik — Farklı bir ton gerektiren notları, ipuçlarını veya ifadeleri işaretleyin.</string>
+    <string name="help_underline">Altı çizili — Göz ardı edilmemesi gereken kritik bilgileri vurgulayın.</string>
+    <string name="help_text_color">Metin Rengi — Metni vurgulamak veya senaryonuzu görsel olarak düzenlemek için paletten bir renk seçin.</string>
+    <string name="help_fill_color">Dolgu Rengi — Konforu ve kontrastı artırmak için arka plan rengi seçin.</string>
+    <string name="help_text_size">Metin Boyutu — Rahat bir okuma için Küçükten Devasaya kadar bir boyut seçin.</string>
+    <string name="help_orientation">Yön — Okuma yönünü seçin: Daha geniş bir görünüm için Dikey veya Yatay.</string>
+    <string name="help_speed">Hız — Konuşma ritmini seçin: doğal bir akış için Yavaştan Hızlıya.</string>
+    <string name="help_animation">Animasyon — Okuma stilini seçin. Döngü mevcuttur.</string>
+    <string name="help_transition">Geçiş — Görsel efektleri seçin: Yok, Solma veya Yazdırma.</string>
+    <string name="help_distortion">Bozulma — Bozulma önleyici perspektifi seçin: 0°, 45° veya 70°.</string>
+    <string name="help_mirror">Ayna — Yansıtıcı teleprompter cihazları için metni anında ters çevirin.</string>
+    <string name="help_overlay">Yer Paylaşımı — Diğer uygulamaları kullanırken senaryonuzu yüzen bir pencerede görünür tutun.</string>
+
+    <string name="rate_us_title">Lütfen bizi değerlendirin!</string>
+    <string name="rate_us_supporting_text">Geri bildiriminiz bizim için çok önemli! Lütfen mağaza sayfasında bir yorum bırakın.</string>
+    <string name="rate_us_rate_now">Şimdi Değerlendir</string>
+    <string name="rate_us_later">Daha Sonra</string>
+    <string name="label_up_next">Sıradaki</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">Seyahat vlogu</string>
+    <string name="seed_task1_desc">Benimle Katılın, dünyanın dört bir yanındaki gizli destinasyonları, yerel lezzetleri ve unutulmaz deneyimleri keşfederken.\n\nDeneyimleyin kültürleri yerel halkın gözünden.\n\nTadını çıkarın muhteşem yemeklerin ve dikkat çekici hikâyeleri keşfedin.\n\nMacera her köşede sizi bekliyor.</string>
+    <string name="seed_task1_spans">0|15|1|0|0|-1;98|109|1|1|1|0;124|136|1|0|0|1;172|186|1|0|0|2;246|252|1|0|0|3</string>
+    <string name="seed_task2_title">Üretkenlik podcasti</string>
+    <string name="seed_task2_desc">Bugün tükenmeden daha fazlasını yapmak için odaklanma, rutinler ve pratik stratejiler hakkında konuşuyoruz.\n\nSürekli uygulandığında büyük fark yaratan küçük alışkanlıklara bakacağız.\n\nNeyin önemli olduğuna nasıl öncelik vereceğinizi, dikkat dağıtıcı unsurları nasıl yöneteceğinizi ve gün boyunca enerjinizi nasıl koruyacağınızı öğreneceksiniz.\n\nSonunda, kendi işinize ve yaşam tarzınıza uyarlayabileceğiniz basit bir çerçeveniz olacak.</string>
+    <string name="seed_task2_spans">0|6|1|0|0|-1;6|16|1|1|1|0;172|181|1|0|0|1;328|342|1|0|0|2;345|352|1|0|0|3</string>
+    <string name="seed_task3_title">Topluluk canlı yayını</string>
+    <string name="seed_task3_desc">Bugünkü yayına katıldığınız için teşekkürler. Sohbet edeceğiz, soruları yanıtlayacağız ve en son güncellemelere ilk kez göz atacağız.\n\nÖne çıkanların üzerinden geçeceğiz, perde arkasından birkaç ayrıntı paylaşacağız ve sırada ne olduğunu keşfedeceğiz.\n\nDevam ederken sorularınızı ve düşüncelerinizi sohbete bırakmaktan çekinmeyin.\n\nHadi başlayalım ve bunu etkileşimli bir oturum haline getirelim.</string>
+    <string name="seed_task3_spans">15|44|1|0|0|-1;90|111|1|1|1|0;150|169|1|0|0|1;319|329|1|0|0|2;332|347|1|0|0|3</string>
+    <string name="seed_task4_title">Canlı yayın</string>
+    <string name="seed_task4_desc">Bugünkü yayına herkese hoş geldiniz! Güncellemeleri ele alacak, sohbetten gelen soruları yanıtlayacak ve sırada ne olduğunu paylaşacağız.\n\nİster bize canlı olarak katılın ister daha sonra izleyin, sizi burada görmekten heyecan duyuyoruz.\n\nSorularınızı sohbete bırakmaktan ve sohbete katılmaktan çekinmeyin.\n\nHadi dalalım ve başlayalım.</string>
+    <string name="seed_task4_spans">15|35|1|0|0|-1;105|123|1|1|1|0;139|170|1|0|0|1;295|305|1|0|0|2;308|320|1|0|0|3</string>
+    <string name="seed_task5_title">Satır içi tanıtım</string>
+    <string name="seed_task5_desc">Oku • Kaydet • Yayınla • Tekrarla • Odaklan • Doğal Seslen • Güvenle Oluştur</string>
+    <string name="seed_task5_spans">0|4|1|0|0|-1;4|5|0|0|0|0;5|13|1|0|0|-1;13|14|0|0|0|1;14|23|1|0|0|-1;23|24|0|0|0|2;24|34|1|0|0|-1;34|35|0|0|0|3;35|44|1|0|0|-1;44|45|0|0|0|4;45|59|1|0|0|-1;59|60|0|0|0|0;60|76|1|0|0|-1</string>
+</resources>

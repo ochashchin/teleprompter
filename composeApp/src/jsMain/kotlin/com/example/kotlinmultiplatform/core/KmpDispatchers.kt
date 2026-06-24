@@ -1,4 +1,4 @@
-package com.example.kotlinmultiplatform.core
+package com.oprojectview.core
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers

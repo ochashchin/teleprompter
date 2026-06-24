@@ -25,6 +25,10 @@ import com.oprojectview.frame.FrameViewModel
 import com.oprojectview.navigation.NavigationViewModel
 import com.oprojectview.navigation.RootViewModel
 import com.oprojectview.theme.AppTheme
+import com.oprojectview.features.newtask.SeedTask
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 // Keep LocalNavViewModel so any other file that references it still compiles.
 val LocalNavViewModel = compositionLocalOf {
@@ -60,26 +64,36 @@ fun App(
     frameViewModel:     FrameViewModel?             = null,
     onViewModelsReady:  ((PlayerViewModel) -> Unit) = {},
 ) {
-    val settings = remember {
+    val t1_title = stringResource(Res.string.seed_task1_title)
+    val t1_desc  = stringResource(Res.string.seed_task1_desc)
+    val t1_spans = stringResource(Res.string.seed_task1_spans)
+
+    val t2_title = stringResource(Res.string.seed_task2_title)
+    val t2_desc  = stringResource(Res.string.seed_task2_desc)
+    val t2_spans = stringResource(Res.string.seed_task2_spans)
+
+    val t3_title = stringResource(Res.string.seed_task3_title)
+    val t3_desc  = stringResource(Res.string.seed_task3_desc)
+    val t3_spans = stringResource(Res.string.seed_task3_spans)
+
+    val t4_title = stringResource(Res.string.seed_task4_title)
+    val t4_desc  = stringResource(Res.string.seed_task4_desc)
+    val t4_spans = stringResource(Res.string.seed_task4_spans)
+
+    val t5_title = stringResource(Res.string.seed_task5_title)
+    val t5_desc  = stringResource(Res.string.seed_task5_desc)
+    val t5_spans = stringResource(Res.string.seed_task5_spans)
+
+    val settings = remember(t1_title) {
         Settings().also { s ->
-            // Seed pre-saved tasks exactly once per install.
-            //
-            // WHY HERE:
-            //   ensureSeeded() costs two Settings reads on every cold boot after
-            //   first install: getBoolean(KEY_POPULATED) → true → return immediately.
-            //   Placing it here — inside the Settings remember block — guarantees it
-            //   runs BEFORE TaskListViewModel.loadAll(), so the list is never empty.
-            //
-            // WHY NOT in TaskListViewModel.init:
-            //   Would require injecting NewTaskRepository into TaskListViewModel
-            //   just for seeding, coupling two unrelated concerns.
-            //
-            // WHY NOT in NewTaskViewModel.init (previous behaviour):
-            //   Only fires when the user opens the NewTask screen.
-            //   Task list loads first on cold boot — seeds haven't run yet.
-            //
-            // COST after first install: one boolean Settings read, zero I/O beyond it.
-            SettingsNewTaskRepository(s).ensureSeeded()
+            val seedTasks = listOf(
+                SeedTask(t1_title, t1_desc, shapeOrdinal = 1, spans = t1_spans, textSize = 2, orientation = 0, speed = 1, animation = 0, transition = 1, distortion = 0, mirror = 0, overlay = 0, loop = false, scriptFillColor = 3),
+                SeedTask(t2_title, t2_desc, shapeOrdinal = 5, spans = t2_spans, textSize = 3, orientation = 0, speed = 0, animation = 1, transition = 0, distortion = 0, mirror = 0, overlay = 0, loop = false, scriptFillColor = 2),
+                SeedTask(t3_title, t3_desc, shapeOrdinal = 25, spans = t3_spans, textSize = 0, orientation = 0, speed = 0, animation = 1, transition = 0, distortion = 0, mirror = 0, overlay = 1, loop = false, scriptFillColor = 0),
+                SeedTask(t4_title, t4_desc, shapeOrdinal = 10, spans = t4_spans, textSize = 1, orientation = 1, speed = 2, animation = 0, transition = 2, distortion = 1, mirror = 0, overlay = 0, loop = false, scriptFillColor = 1),
+                SeedTask(t5_title, t5_desc, shapeOrdinal = 0, spans = t5_spans, textSize = 5, orientation = 1, speed = 0, animation = 2, transition = 0, distortion = 0, mirror = 0, overlay = 0, loop = true, scriptFillColor = -1)
+            )
+            SettingsNewTaskRepository(s).ensureSeeded(seedTasks)
         }
     }
 
@@ -115,12 +129,14 @@ fun App(
             LocalDisplayViewModel provides displayViewModel,
             LocalPlayerViewModel provides playerViewModel,
         ) {
-            AppRoot(
-                viewModel      = vm,
-                onExitApp      = onExitApp,
-                frameViewModel = frameViewModel,
-                modifier       = Modifier.fillMaxSize(),
-            )
+            PlatformSplashScreen {
+                AppRoot(
+                    viewModel      = vm,
+                    onExitApp      = onExitApp,
+                    frameViewModel = frameViewModel,
+                    modifier       = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }

@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -70,6 +72,13 @@ import com.oprojectview.core.MonotonicClock
 import com.oprojectview.theme.AppTheme
 import kotlinx.coroutines.delay
 import kotlin.math.ceil
+import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.option_huge
+import kotlinmultiplatform.composeapp.generated.resources.option_large
+import kotlinmultiplatform.composeapp.generated.resources.option_massive
+import kotlinmultiplatform.composeapp.generated.resources.option_maximize
+import kotlinmultiplatform.composeapp.generated.resources.option_normal
+import kotlinmultiplatform.composeapp.generated.resources.option_small
 
 @Composable
 fun fontSize(dpSize: Dp): TextUnit =
@@ -185,7 +194,7 @@ fun TextFitCalculator(
     text:         String,
     fontSize:     TextUnit,
     lineHeight:   TextUnit,
-    padding:      Dp      = 10.dp,
+    contentPadding: PaddingValues = PaddingValues(10.dp),
     isHorizontal: Boolean = false,
     modifier:     Modifier = Modifier,
     onResult:     (TextFitResult) -> Unit,
@@ -196,12 +205,16 @@ fun TextFitCalculator(
 
     BoxWithConstraints(modifier = modifier) {
 
+        val layoutDir = LocalLayoutDirection.current
+        val hPadding = contentPadding.calculateLeftPadding(layoutDir) + contentPadding.calculateRightPadding(layoutDir)
+        val vPadding = contentPadding.calculateTopPadding() + contentPadding.calculateBottomPadding()
+
         val contentWidthPx = with(density) {
-            (maxWidth - (padding * 2)).roundToPx().coerceAtLeast(1)
+            (maxWidth - hPadding).roundToPx().coerceAtLeast(1)
         }
 
         val contentHeightPx = with(density) {
-            (maxHeight - (padding * 2)).roundToPx().coerceAtLeast(1)
+            (maxHeight - vPadding).roundToPx().coerceAtLeast(1)
         }
 
         val calcWidthPx  = if (isHorizontal) contentHeightPx else contentWidthPx
@@ -234,12 +247,11 @@ fun TextFitBox(
     linesPerParent:      Int,
     textStyle:           TextStyle,
     wpm:                 Int,
-    padding:             Dp             = 10.dp,
+    contentPadding: PaddingValues = PaddingValues(10.dp),
     isHorizontal:        Boolean        = false,
     transitionMode:      TransitionMode = TransitionMode.None,
     styleSpans:          List<StyleSpan> = emptyList(),
-    isFillColorActive:   Boolean        = false,
-    fillColor:           Color?          = null,
+    fillColor:           Color          = Color.Transparent,
     preview:             Boolean        = false,
     countdownDone:         Boolean        = false,
     initialScrollFraction: Float          = 0f,
@@ -342,7 +354,7 @@ fun TextFitBox(
 
     BoxWithConstraints(
         modifier = rotatedModifier
-            .padding(padding)
+            .padding(contentPadding)
             .graphicsLayer(alpha = alpha)
             .fillMaxSize(),
         contentAlignment = Alignment.TopStart,
@@ -546,10 +558,9 @@ fun TextHorizontalScrollBox(
     textStyle:           TextStyle,
     transitionMode:      TransitionMode,
     isHorizontal:        Boolean,
-    padding:             Dp       = 10.dp,
+    contentPadding: PaddingValues = PaddingValues(10.dp),
     styleSpans:          List<StyleSpan> = emptyList(),
-    isFillColorActive:   Boolean  = false,
-    fillColor:           Color?    = null,
+    fillColor:           Color     = Color.Transparent,
     preview:             Boolean  = false,
     countdownDone:         Boolean        = false,
     initialScrollFraction: Float          = 0f,
@@ -567,7 +578,7 @@ fun TextHorizontalScrollBox(
     var alpha by remember { mutableFloatStateOf(1f) }
 
     BoxWithConstraints(
-        modifier = modifier.background(fillColor ?: Color.Transparent)
+        modifier = modifier.background(fillColor)
             .fillMaxSize()
             .clipToBounds()
     ) {
@@ -628,7 +639,7 @@ fun TextHorizontalScrollBox(
                         playerState.pausedElapsedUs
                     }
                     val elapsedMs = elapsedUs / 1000L
-                    (elapsedMs.toFloat() / playerState.totalDurationMs.toFloat()).coerceIn(0f, 1f)
+                    (elapsedMs.toFloat() / totalDurationMs.toFloat()).coerceIn(0f, 1f)
                 }
             }
         }
@@ -671,7 +682,7 @@ fun TextHorizontalScrollBox(
 
         Box(
             modifier         = rotatedModifier
-                .padding(padding)
+                .padding(contentPadding)
                 .graphicsLayer(alpha = alpha)
                 .fillMaxSize(),
             contentAlignment = Alignment.CenterStart,
@@ -832,10 +843,9 @@ fun TextCentreVerticalScrollBox(
     textStyle:      TextStyle,
     isHorizontal:   Boolean,
     transitionMode:      TransitionMode = TransitionMode.None,
-    padding:             Dp             = 10.dp,
+    contentPadding: PaddingValues = PaddingValues(10.dp),
     styleSpans:          List<StyleSpan> = emptyList(),
-    isFillColorActive:   Boolean        = false,
-    fillColor:           Color?          = null,
+    fillColor:           Color          = Color.Transparent,
     fullText:            String         = "",
     preview:             Boolean        = false,
     trim:                Boolean        = true,
@@ -849,7 +859,7 @@ fun TextCentreVerticalScrollBox(
     var alpha by remember { mutableFloatStateOf(1f) }
 
     BoxWithConstraints(
-        modifier = modifier.background(fillColor ?: Color.Transparent)
+        modifier = modifier.background(fillColor)
             .fillMaxSize()
             .clipToBounds()
     ) {
@@ -861,7 +871,8 @@ fun TextCentreVerticalScrollBox(
             else              constraints.maxWidth.toFloat()
 
         val density         = LocalDensity.current
-        val paddingPx       = with(density) { padding.toPx() }
+        val layoutDir       = LocalLayoutDirection.current
+        val paddingPx       = with(density) { (contentPadding.calculateLeftPadding(layoutDir) + contentPadding.calculateRightPadding(layoutDir)).toPx() / 2f }
         val measuredWidthPx = (containerWidthPx - paddingPx * 2).toInt().coerceAtLeast(1)
 
         var textHeightPx by remember { mutableFloatStateOf(0f) }
@@ -1132,12 +1143,13 @@ fun TextCentreVerticalScrollBox(
 
         Box(
             modifier         = rotatedModifier
-                .padding(padding)
+                .padding(contentPadding)
                 .fillMaxSize()
                 .graphicsLayer { this.alpha = alpha },
-            contentAlignment = Alignment.TopCenter,
+            contentAlignment = Alignment.TopStart,
         ) {
             val scrollModifier = Modifier
+                .fillMaxWidth()
                 .wrapContentHeight(unbounded = true, align = Alignment.Top)
                 .graphicsLayer { translationY = yOffset }
                 .onGloballyPositioned { coordinates ->
@@ -1405,15 +1417,14 @@ fun DisplayTextBar(
     task:                Task,
     wpm:                 Int,
     textStyle:           TextStyle,
-    padding:             Dp,
+    contentPadding: PaddingValues,
     isHorizontal:        Boolean,
     isMirror:            Boolean,
     distortionMode:      Float,
     animationMode:       AnimationMode,
     transitionMode:      TransitionMode,
     styleSpans:          List<StyleSpan> = emptyList(),
-    isFillColorActive:   Boolean        = false,
-    fillColor:           Color?          = null,
+    fillColor:           Color          = Color.Transparent,
     preview:             Boolean        = true,
     /**
      * Whether the pre-roll countdown already finished in a previous composition.
@@ -1464,12 +1475,7 @@ fun DisplayTextBar(
                 scaleX = if (isHorizontal) distortionMode else 1f
                 scaleY = if (isHorizontal) 1f else distortionMode
             }
-            .then(
-                if (isFillColorActive)
-                    Modifier.background(fillColor ?: Color.Transparent)
-                else
-                    Modifier
-            )
+            .background(fillColor)
             .fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
@@ -1489,7 +1495,7 @@ fun DisplayTextBar(
                 text = task.description,
                 fontSize = effectiveTextStyle.fontSize,
                 lineHeight = effectiveTextStyle.lineHeight,
-                padding = padding,
+                contentPadding = contentPadding,
                 isHorizontal = isHorizontal,
                 modifier = playerSize,
                 onResult = { result = it },
@@ -1504,12 +1510,11 @@ fun DisplayTextBar(
                     pages = pages,
                     wpm = wpm,
                     textStyle = effectiveTextStyle,
-                    padding = padding,
+                    contentPadding = contentPadding,
                     isHorizontal = isHorizontal,
                     animationMode = animationMode,
                     transitionMode = transitionMode,
                     styleSpans = styleSpans,
-                    isFillColorActive = isFillColorActive,
                     fillColor         = fillColor,
                     fullText = task.description,
                     preview = preview,
@@ -1571,11 +1576,12 @@ private const val PREVIEW_TEXT =
             "The quick brown fox jumps over the lazy dog."
 
 internal val NORMAL_SIZES = listOf(
-    Triple("Small", 16.dp, 21.dp),
-    Triple("Normal", 24.dp, 27.dp),
-    Triple("Large", 32.dp, 35.dp),
-    Triple("Huge", 40.dp, 45.dp),
-    Triple("Massive", 56.dp, 68.dp),
+    Triple(Res.string.option_small, 17.dp, 23.dp),
+    Triple(Res.string.option_normal, 23.dp, 30.dp),
+    Triple(Res.string.option_large, 32.dp, 41.dp),
+    Triple(Res.string.option_huge, 36.dp, 46.dp),
+    Triple(Res.string.option_massive, 40.dp, 51.dp),
+    Triple(Res.string.option_maximize, 56.dp, 71.dp),
 )
 
 // ─────────────────────────────────────────────
@@ -1602,7 +1608,7 @@ private fun NormalSizeSection(
             text       = PREVIEW_TEXT,
             fontSize   = textStyle.fontSize,
             lineHeight = textStyle.lineHeight,
-            padding    = 10.dp,
+            contentPadding = PaddingValues(10.dp),
             modifier   = Modifier.width(180.dp).height(380.dp),
             onResult   = { result = it }
         )
@@ -1625,7 +1631,7 @@ private fun NormalSizeSection(
                             linesPerParent = r.linesPerParent,
                             textStyle      = textStyle,
                             wpm            = WPM_NORMAL,
-                            padding        = 10.dp,
+                            contentPadding = PaddingValues(10.dp),
                             modifier       = Modifier.width(180.dp).height(380.dp),
                         )
                     }
@@ -1648,8 +1654,8 @@ fun PreviewSmall() {
             modifier = Modifier.fillMaxSize()
         ) {
             NormalSizeSection(
-                fontSizeDp = 16.dp,
-                lineHeightDp = 21.dp
+                fontSizeDp = 17.dp,
+                lineHeightDp = 23.dp
             )
         }
     }
@@ -1668,8 +1674,8 @@ fun PreviewNormal() {
             modifier = Modifier.fillMaxSize()
         ) {
             NormalSizeSection(
-                fontSizeDp = 24.dp,
-                lineHeightDp = 27.dp
+                fontSizeDp = 23.dp,
+                lineHeightDp = 30.dp
             )
         }
     }
@@ -1689,7 +1695,7 @@ fun PreviewLarge() {
         ) {
             NormalSizeSection(
                 fontSizeDp = 32.dp,
-                lineHeightDp = 35.dp
+                lineHeightDp = 41.dp
             )
         }
     }
@@ -1708,8 +1714,8 @@ fun PreviewHuge() {
             modifier = Modifier.fillMaxSize()
         ) {
             NormalSizeSection(
-                fontSizeDp = 40.dp,
-                lineHeightDp = 45.dp
+                fontSizeDp = 36.dp,
+                lineHeightDp = 46.dp
             )
         }
     }
@@ -1728,8 +1734,28 @@ fun PreviewMassive() {
             modifier = Modifier.fillMaxSize()
         ) {
             NormalSizeSection(
+                fontSizeDp = 40.dp,
+                lineHeightDp = 51.dp
+            )
+        }
+    }
+}
+
+@Preview(
+    showBackground = true,
+    widthDp = 900,
+    heightDp = 420,
+    name = "Maximize"
+)
+@Composable
+fun PreviewMaximize() {
+    AppTheme {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            NormalSizeSection(
                 fontSizeDp = 56.dp,
-                lineHeightDp = 68.dp
+                lineHeightDp = 71.dp
             )
         }
     }

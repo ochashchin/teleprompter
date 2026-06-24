@@ -304,7 +304,16 @@ class IosPipController(
         override fun pictureInPictureControllerTimeRangeForPlayback(
             pictureInPictureController: AVPictureInPictureController,
         ): CValue<CMTimeRange> {
-            return CMTimeRangeMake(kCMTimeZero.readValue(), kCMTimePositiveInfinity.readValue())
+            val durationMs = frameViewModel.frameStateFlow.value.totalDurationMs.coerceAtLeast(1000L)
+            val durationSeconds = durationMs / 1000.0
+            val durationTime = platform.CoreMedia.CMTimeMakeWithSeconds(
+                durationSeconds, 
+                preferredTimescale = 1000
+            )
+            return platform.CoreMedia.CMTimeRangeMake(
+                start = platform.CoreMedia.kCMTimeZero.readValue(), 
+                duration = durationTime
+            )
         }
 
         override fun pictureInPictureController(

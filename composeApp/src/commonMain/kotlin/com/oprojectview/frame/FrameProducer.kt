@@ -115,7 +115,12 @@ class FrameProducer(
             }
             val totalDurationUs = currentState.totalDurationMs * 1000L
             val computedFraction = if (totalDurationUs > 0L) {
-                (elapsedUs.toDouble() / totalDurationUs.toDouble()).toFloat().coerceIn(0f, 1f)
+                val rawFraction = (elapsedUs.toDouble() / totalDurationUs.toDouble()).toFloat()
+                if (currentState.isLoopEnabled) {
+                    rawFraction % 1f
+                } else {
+                    rawFraction.coerceIn(0f, 1f)
+                }
             } else {
                 0f
             }

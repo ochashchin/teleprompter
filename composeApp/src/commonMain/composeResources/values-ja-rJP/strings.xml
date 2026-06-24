@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
+    <string name="screen_tasks">テレプロンプター</string>
+    <string name="screen_new_task">新しいプロンプト</string>
+    <string name="screen_display">ディスプレイ</string>
+
+    <!-- ── Navigation / icon content descriptions ─────────────────────── -->
+    <string name="cd_back">戻る</string>
+    <string name="cd_close">閉じる</string>
+    <string name="cd_search">検索</string>
+    <string name="cd_clear">クリア</string>
+    <string name="cd_edit">編集</string>
+    <string name="cd_delete">削除</string>
+    <string name="cd_open">開く</string>
+    <string name="cd_play">再生</string>
+    <string name="cd_pause">一時停止</string>
+    <string name="cd_replay">リプレイ</string>
+    <string name="cd_next">次へ</string>
+    <string name="cd_more_options">その他のオプション</string>
+    <string name="cd_topic_required">トピックは必須です</string>
+    <string name="cd_script_required">スクリプトは必須です</string>
+    <string name="cd_help">ヘルプ</string>
+    <string name="cd_loop">ループ</string>
+
+    <!-- ── FAB / button labels ─────────────────────────────────────────── -->
+    <string name="fab_new">新規</string>
+    <string name="fab_next">次へ</string>
+    <string name="fab_play">再生</string>
+
+    <!-- ── Search bar ─────────────────────────────────────────────────── -->
+    <string name="search_hint">検索 …</string>
+
+    <!-- ── Topic text field ───────────────────────────────────────────── -->
+    <string name="topic_label">トピック</string>
+    <string name="topic_placeholder">トピックを入力</string>
+
+    <!-- ── Script text field ──────────────────────────────────────────── -->
+    <string name="script_label">スクリプト</string>
+    <string name="script_placeholder">スクリプトを入力または貼り付け</string>
+
+    <!-- ── Save changes dialog ────────────────────────────────────────── -->
+    <string name="dialog_save_changes_title">変更を保存しますか？</string>
+    <string name="dialog_discard">破棄</string>
+    <string name="dialog_save">保存</string>
+
+    <!-- ── Display settings item titles ──────────────────────────────── -->
+    <string name="display_text_size">テキストサイズ</string>
+    <string name="display_orientation">方向</string>
+    <string name="display_speed">速度</string>
+    <string name="display_animation">アニメーション</string>
+    <string name="display_transition">トランジション</string>
+    <string name="display_distortion">歪み</string>
+    <string name="display_mirror">ミラー</string>
+    <string name="display_overlay">オーバーレイ</string>
+
+    <!-- ── Display settings item descriptions ────────────────────────── -->
+    <string name="display_text_size_desc">小、標準、大、特大、最大</string>
+    <string name="display_orientation_desc">縦、横</string>
+    <string name="display_speed_desc">遅い、標準、速い</string>
+    <string name="display_animation_desc">フレーム、スクロール、インライン</string>
+    <string name="display_transition_desc">なし、フェード、プリント</string>
+    <string name="display_distortion_desc">0°、45°、70°</string>
+    <string name="display_mirror_desc">無効、有効</string>
+    <string name="display_overlay_desc">無効、有効</string>
+
+    <!-- ── Display settings options ──────────────────────────────────── -->
+    <string name="option_small">小</string>
+    <string name="option_normal">標準</string>
+    <string name="option_large">大</string>
+    <string name="option_huge">特大</string>
+    <string name="option_massive">最大</string>
+    <string name="option_maximize">最大</string>
+
+    <string name="option_vertical">縦</string>
+    <string name="option_horizontal">横</string>
+
+    <string name="option_slow">遅い</string>
+    <string name="option_fast">速い</string>
+
+    <string name="option_frame">フレーム</string>
+    <string name="option_scroll">スクロール</string>
+    <string name="option_inline">インライン</string>
+
+    <string name="option_none">なし</string>
+    <string name="option_fade">フェード</string>
+    <string name="option_print">プリント</string>
+
+    <string name="option_distortion_0">0°</string>
+    <string name="option_distortion_45">45°</string>
+    <string name="option_distortion_70">70°</string>
+
+    <string name="option_disabled">無効</string>
+    <string name="option_enabled">有効</string>
+
+    <!-- ── ScriptStyleBar action labels ──────────────────────────────── -->
+    <string name="style_bold">太字</string>
+    <string name="style_italic">斜体</string>
+    <string name="style_underline">下線</string>
+    <string name="style_text_color">テキストの色</string>
+    <string name="style_fill_color">塗りつぶしの色</string>
+
+    <!-- ── AppNavigation: draft fallback title ────────────────────────── -->
+    <string name="draft_title">下書き</string>
+
+    <!-- ── Help strings ────────────────────────────────────────────────── -->
+    <string name="help_bold">太字 — 重要な単語、見出し、または重要なポイントを強調します。</string>
+    <string name="help_italic">斜体 — 異なるトーンを必要とするメモやフレーズをマークします。</string>
+    <string name="help_underline">下線 — 見逃してはならない重要な情報を強調します。</string>
+    <string name="help_text_color">テキストの色 — パレットから色を選択してテキストを強調します。</string>
+    <string name="help_fill_color">塗りつぶしの色 — 快適さとコントラストを向上させるために背景色を選択します。</string>
+    <string name="help_text_size">テキストサイズ — 快適な読み取りのためにサイズを選択します。</string>
+    <string name="help_orientation">方向 — 読み取り方向（縦または横）を選択します。</string>
+    <string name="help_speed">速度 — 話すリズム（遅いから速いまで）を選択します。</string>
+    <string name="help_animation">アニメーション — 読み取りスタイルを選択します。ループも可能です。</string>
+    <string name="help_transition">トランジション — 視覚効果（なし、フェード、プリント）を選択します。</string>
+    <string name="help_distortion">歪み — 歪み防止パースペクティブ（0°、45°、70°）を選択します。</string>
+    <string name="help_mirror">ミラー — テレプロンプター用にテキストを瞬時に反転します。</string>
+    <string name="help_overlay">オーバーレイ — スクリプトをフローティング（PiP）ウィンドウで表示し続けます。</string>
+
+    <string name="rate_us_title">評価をお願いします！</string>
+    <string name="rate_us_supporting_text">あなたのフィードバックは私たちにとって非常に重要です！ストアページにコメントを残してください。</string>
+    <string name="rate_us_rate_now">今すぐ評価する</string>
+    <string name="rate_us_later">後で</string>
+    <string name="label_up_next">次は</string>
+
+    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
+    <string name="seed_task1_title">旅行Vlog</string>
+    <string name="seed_task1_desc">世界中の隠れた名所、地元の食べ物、忘れられない体験を一緒に探求しましょう。\n\n地元の人の目を通して文化を体験してください。\n\n素晴らしい料理を味わい、注目すべき物語を明らかにしてください。\n\n冒険が至る所で待っています。</string>
+    <string name="seed_task1_spans">23|25|1|1|1|0;26|31|1|0|0|-1;52|60|1|0|0|1;71|74|1|0|0|2;96|98|1|0|0|3</string>
+    <string name="seed_task2_title">生産性ポッドキャスト</string>
+    <string name="seed_task2_desc">今日は、燃え尽きることなくより多くのことを達成するための集中力、ルーティン、実践的な戦略について話し合います。\n\n継続的に実践することで大きな違いを生む小さな習慣について見ていきます。\n\n何が重要かを優先し、気を散らすものを管理し、一日中エネルギーを保護する方法を学びます。\n\n最後には、自分の仕事やライフスタイルに適応できるシンプルなフレームワークができあがります。</string>
+    <string name="seed_task2_spans">0|3|1|0|0|-1;4|9|1|1|1|0;85|91|1|0|0|1;132|136|1|0|0|2;139|143|1|0|0|3</string>
+    <string name="seed_task3_title">コミュニティライブ配信</string>
+    <string name="seed_task3_desc">今日の配信にご参加いただきありがとうございます。チャットしたり、質問に答えたり、最新のアップデートを最初に見たりします。\n\nハイライトを説明し、舞台裏の詳細をいくつか共有し、次に何が起こるかを探ります。\n\n進行に合わせて、チャットに質問や考えを自由に投稿してください。\n\n始めましょう。これをインタラクティブなセッションにしましょう。</string>
+    <string name="seed_task3_spans">6|23|1|0|0|-1;40|49|1|1|1|0;68|71|1|0|0|1;122|125|1|0|0|2;136|142|1|0|0|3</string>
+    <string name="seed_task4_title">ライブ配信</string>
+    <string name="seed_task4_desc">今日の配信へようこそ！アップデートを取り上げ、チャットからの質問に答え、次に何が起こるかを共有します。\n\nライブで参加している場合でも、後で見ている場合でも、ここにお迎えできてうれしく思います。\n\nチャットに質問を投稿して、会話に参加してください。\n\n飛び込んで始めましょう。</string>
+    <string name="seed_task4_spans">6|10|1|0|0|-1;36|44|1|1|1|0;53|67|1|0|0|1;126|137|1|0|0|3</string>
+    <string name="seed_task5_title">インラインプロモ</string>
+    <string name="seed_task5_desc">読む • 録画する • 公開する • 繰り返す • 集中を保つ • 自然に聞こえる • 自信を持って作成</string>
+    <string name="seed_task5_spans">0|3|1|0|0|-1;3|4|0|0|0|0;4|10|1|0|0|-1;10|11|0|0|0|1;11|17|1|0|0|-1;17|18|0|0|0|2;18|24|1|0|0|-1;24|25|0|0|0|3;25|32|1|0|0|-1;32|33|0|0|0|4;33|42|1|0|0|-1;42|43|0|0|0|0;43|52|1|0|0|-1</string>
+</resources>

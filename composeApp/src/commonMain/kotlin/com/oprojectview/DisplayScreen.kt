@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.oprojectview.theme.AppTheme
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.cd_back
+import kotlinmultiplatform.composeapp.generated.resources.cd_help
 import kotlinmultiplatform.composeapp.generated.resources.cd_more_options
 import kotlinmultiplatform.composeapp.generated.resources.cd_play
 import kotlinmultiplatform.composeapp.generated.resources.display_animation
@@ -72,6 +73,8 @@ import kotlinmultiplatform.composeapp.generated.resources.ic_orientation
 import kotlinmultiplatform.composeapp.generated.resources.ic_overlay
 import kotlinmultiplatform.composeapp.generated.resources.ic_speed
 import kotlinmultiplatform.composeapp.generated.resources.ic_text_size
+import kotlinmultiplatform.composeapp.generated.resources.ic_help
+import kotlinmultiplatform.composeapp.generated.resources.ic_loop
 import kotlinmultiplatform.composeapp.generated.resources.ic_transition
 import kotlinmultiplatform.composeapp.generated.resources.option_disabled
 import kotlinmultiplatform.composeapp.generated.resources.option_distortion_0
@@ -86,6 +89,7 @@ import kotlinmultiplatform.composeapp.generated.resources.option_huge
 import kotlinmultiplatform.composeapp.generated.resources.option_inline
 import kotlinmultiplatform.composeapp.generated.resources.option_large
 import kotlinmultiplatform.composeapp.generated.resources.option_massive
+import kotlinmultiplatform.composeapp.generated.resources.option_maximize
 import kotlinmultiplatform.composeapp.generated.resources.option_none
 import kotlinmultiplatform.composeapp.generated.resources.option_normal
 import kotlinmultiplatform.composeapp.generated.resources.option_print
@@ -98,16 +102,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import kotlinmultiplatform.composeapp.generated.resources.ic_help
-import kotlinmultiplatform.composeapp.generated.resources.cd_help
-import kotlinmultiplatform.composeapp.generated.resources.help_text_size
-import kotlinmultiplatform.composeapp.generated.resources.help_orientation
-import kotlinmultiplatform.composeapp.generated.resources.help_speed
-import kotlinmultiplatform.composeapp.generated.resources.help_animation
-import kotlinmultiplatform.composeapp.generated.resources.help_transition
-import kotlinmultiplatform.composeapp.generated.resources.help_distortion
-import kotlinmultiplatform.composeapp.generated.resources.help_mirror
-import kotlinmultiplatform.composeapp.generated.resources.help_overlay
+import kotlinmultiplatform.composeapp.generated.resources.cd_loop
 
 // ── data ──────────────────────────────────────────────────────────────────────
 
@@ -171,7 +166,7 @@ fun distortionValueOf(index: Int): Float = when (index) {
 @Composable
 fun TextFitPlayer(
     wpm:                 Int,
-    padding:             Dp,
+    contentPadding: PaddingValues,
     result:              TextFitResult,
     pages:               List<String>,
     textStyle:           TextStyle,
@@ -179,8 +174,7 @@ fun TextFitPlayer(
     animationMode:       AnimationMode  = AnimationMode.Frame,
     transitionMode:      TransitionMode = TransitionMode.None,
     styleSpans:          List<StyleSpan> = emptyList(),
-    isFillColorActive:   Boolean        = false,
-    fillColor:           Color?          = null,
+    fillColor:           Color          = Color.Transparent,
     fullText:            String         = "",
     preview:             Boolean        = false,
     countdownDone:         Boolean        = false,
@@ -200,12 +194,11 @@ fun TextFitPlayer(
                     pages = pages,
                     linesPerParent = result.linesPerParent,
                     textStyle = textStyle,
-                    padding = padding,
+                    contentPadding = contentPadding,
                     isHorizontal = isHorizontal,
                     wpm = wpm,
                     transitionMode = transitionMode,
                     styleSpans = styleSpans,
-                    isFillColorActive = isFillColorActive,
                     fillColor         = fillColor,
                     preview = preview,
                     countdownDone = countdownDone,
@@ -222,11 +215,10 @@ fun TextFitPlayer(
                     pages = pages,
                     wpm = wpm,
                     textStyle = textStyle,
-                    padding = padding,
+                    contentPadding = contentPadding,
                     isHorizontal = isHorizontal,
                     transitionMode = transitionMode,
                     styleSpans = styleSpans,
-                    isFillColorActive = isFillColorActive,
                     fillColor         = fillColor,
                     fullText = fullText,
                     preview = preview,
@@ -246,9 +238,8 @@ fun TextFitPlayer(
                     textStyle = textStyle,
                     transitionMode = transitionMode,
                     isHorizontal = isHorizontal,
-                    padding = padding,
+                    contentPadding = contentPadding,
                     styleSpans = styleSpans,
-                    isFillColorActive = isFillColorActive,
                     fillColor         = fillColor,
                     preview = preview,
                     countdownDone = countdownDone,
@@ -306,8 +297,7 @@ fun DisplayScreenBody(
     onPlayClick: (overlayEnabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     styleSpans: List<StyleSpan> = emptyList(),
-    isFillColorActive: Boolean = false,
-    fillColor: Color? = null,
+    fillColor: Color = Color.Transparent,
 ) {
 
     val displayState = rememberDisplayTaskState(task.id)
@@ -388,7 +378,8 @@ fun DisplayScreenBody(
 
     val wpm = speedIndexToWpm(selectedSpeedIndex)
 
-    val previewPadding = 16.dp
+    val previewPaddingH = 16.dp
+    val previewPaddingV = 8.dp
 
     Box(modifier = modifier
         .padding(top = 64.dp)
@@ -413,14 +404,13 @@ fun DisplayScreenBody(
                         task              = task,
                         wpm               = wpm,
                         textStyle         = textStyle,
-                        padding           = previewPadding,
+                        contentPadding    = PaddingValues(horizontal = previewPaddingH, vertical = previewPaddingV),
                         isHorizontal      = isHorizontal,
                         isMirror          = isMirror,
                         distortionMode    = distortionMode,
                         animationMode     = animationMode,
                         transitionMode    = transitionMode,
                         styleSpans        = styleSpans,
-                        isFillColorActive = isFillColorActive,
                         fillColor         = fillColor,
                         preview           = true,
                         modifier          = modifier,
@@ -431,7 +421,7 @@ fun DisplayScreenBody(
             SegmentedList(
                 items         = DisplayTaskList,
                 displayState  = displayState,
-                modifier      = modifier.padding(top = 8.dp),
+                modifier      = modifier.padding(top = 12.dp),
                 onSelectionChanged = { item, index ->
                     when (item.id) {
                         1 -> selectedSizeIndex        = index
@@ -542,6 +532,40 @@ fun SegmentedListItem(
                             overflow = TextOverflow.Ellipsis,
                             color    = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+
+                // ── Loop button ──────────────────────────────
+
+                if (item.id == 4) {
+                    val isLoopEnabled = displayState.isAnimationLoopEnabled()
+                    val loopAlpha by androidx.compose.animation.core.animateFloatAsState(
+                        targetValue = if (isLoopEnabled) 1.0f else 0.2f,
+                        animationSpec = androidx.compose.animation.core.tween(200)
+                    )
+
+                    BoxWithConstraints(
+                        modifier         = Modifier.fillMaxHeight().aspectRatio(48f / 64f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier         = Modifier.fillMaxHeight().aspectRatio(48f / 28f),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(modifier = Modifier.fillMaxHeight().aspectRatio(20f / 28f)) {
+                                IconButton(
+                                    onClick  = { displayState.setAnimationLoopEnabled(!isLoopEnabled) },
+                                    modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                                ) {
+                                    Icon(
+                                        painter            = painterResource(Res.drawable.ic_loop),
+                                        contentDescription = stringResource(Res.string.cd_loop),
+                                        tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = loopAlpha),
+                                        modifier           = Modifier.fillMaxSize(),
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -659,6 +683,7 @@ val DisplayTaskList: List<DisplayTaskItem> = listOf(
             Res.string.option_large,
             Res.string.option_huge,
             Res.string.option_massive,
+            Res.string.option_maximize,
         ),
         Res.string.option_normal,
     ),
@@ -822,7 +847,7 @@ private fun PlayerPreviewSurface(
             fontSize = fontSize(24.dp),
             lineHeight = fontSize(27.dp),
         )
-        val padding = 10.dp
+        val contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         val wpm = WPM_NORMAL
         var result by remember { mutableStateOf<TextFitResult?>(null) }
 
@@ -831,7 +856,7 @@ private fun PlayerPreviewSurface(
                 text = PLAYER_PREVIEW_TEXT,
                 fontSize = textStyle.fontSize,
                 lineHeight = textStyle.lineHeight,
-                padding = padding,
+                contentPadding = contentPadding,
                 isHorizontal = false,
                 modifier = Modifier.fillMaxSize(),
                 onResult = { result = it },
@@ -842,7 +867,7 @@ private fun PlayerPreviewSurface(
                     pages = remember(it.pagesText) { it.pagesText.take(2) },
                     wpm = wpm,
                     textStyle = textStyle,
-                    padding = padding,
+                    contentPadding = contentPadding,
                     isHorizontal = false,
                     animationMode = animationMode,
                     transitionMode = transitionMode,

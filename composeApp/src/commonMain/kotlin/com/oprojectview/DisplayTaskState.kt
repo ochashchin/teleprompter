@@ -88,6 +88,19 @@ class DisplayTaskState(
             }
             mutableStateOf(persisted)
         }
+
+    // ── Loop State ────────────────────────────────────────────────────────────
+
+    private val _isLoopEnabled = mutableStateOf(
+        settings.getBooleanOrNull("display_task_${taskId}_loop") ?: false
+    )
+
+    fun isAnimationLoopEnabled(): Boolean = _isLoopEnabled.value
+
+    fun setAnimationLoopEnabled(enabled: Boolean) {
+        settings.putBoolean("display_task_${taskId}_loop", enabled)
+        _isLoopEnabled.value = enabled
+    }
 }
 
 // ── Composable factory ────────────────────────────────────────────────────────
