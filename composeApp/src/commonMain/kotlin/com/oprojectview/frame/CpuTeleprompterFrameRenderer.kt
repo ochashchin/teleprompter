@@ -7,7 +7,6 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.text.AnnotatedString
@@ -28,10 +27,7 @@ import com.oprojectview.TextFitResult
 import com.oprojectview.TransitionMode
 import com.oprojectview.calculateTextFit
 import com.oprojectview.core.MonotonicClock
-import com.oprojectview.speedIndexToWpm
 import kotlin.concurrent.Volatile
-import kotlin.math.ceil
-import kotlin.time.TimeSource
 
 /**
  * CPU-only Skia-backed Frame Renderer.
@@ -44,21 +40,11 @@ class CpuTeleprompterFrameRenderer(
 ) : FrameRenderer {
 
     private var frameCounter = 0L
-    private val epoch = TimeSource.Monotonic.markNow()
     private val drawScope = CanvasDrawScope()
 
     // Set dynamically from the Compose UI composition
     @Volatile
     var fontFamilyResolver: FontFamily.Resolver? = null
-        set(value) {
-            if (field != value) {
-                field = value
-                textMeasurer = null
-                cachedTextLayoutResult = null
-                cachedTextFitResult = null
-                cachedPageGlyphCache = null
-            }
-        }
 
     private var textMeasurer: TextMeasurer? = null
 
@@ -131,10 +117,9 @@ class CpuTeleprompterFrameRenderer(
 
         // 2. Resolve Text/Layout Constraints
         if (state.scriptText.isNotEmpty()) {
-            val hPaddingPx = with(density) { 10.dp.toPx() }
-            val vPaddingPx = with(density) { 5.dp.toPx() }
-            val contentWidth = (bitmap.width - hPaddingPx * 2).toInt().coerceAtLeast(1)
-            val contentHeight = (bitmap.height - vPaddingPx * 2).toInt().coerceAtLeast(1)
+            val paddingPx = 20f
+            val contentWidth = (bitmap.width - paddingPx * 2).toInt().coerceAtLeast(1)
+            val contentHeight = (bitmap.height - paddingPx * 2).toInt().coerceAtLeast(1)
 
             val textStyle = createTextStyle(state.textSizeIndex, state.textColorVal)
 
@@ -160,75 +145,49 @@ class CpuTeleprompterFrameRenderer(
 
             val measurer = getOrCreateTextMeasurer()
 
-            var drawSpinner = false
-            if (!state.countdownDone) {
-                if (state.countdownStartUs > 0L) {
-                    val nowUs = MonotonicClock.currentTimeUs()
-                    val elapsedMs = if (state.isPlaying) {
-                        (nowUs - state.countdownStartUs) / 1000L
-                    } else {
-                        state.pausedCountdownElapsedUs / 1000L
-                    }
-                    if (elapsedMs < 6000L) {
-                        drawSpinner = true
-                    }
-                } else {
-                    // Initial unsynchronized state on first run
-                    drawSpinner = true
-                }
-            }
-
-            if (drawSpinner) {
+            if (!state.countdownDone && state.countdownStartUs > 0L) {
                 val nowUs = MonotonicClock.currentTimeUs()
-                val elapsedMs = if (state.countdownStartUs > 0L) {
-                    if (state.isPlaying) {
-                        (nowUs - state.countdownStartUs) / 1000L
-                    } else {
-                        state.pausedCountdownElapsedUs / 1000L
-                    }
+                val elapsedMs = if (state.isPlaying) {
+                    (nowUs - state.countdownStartUs) / 1000L
                 } else {
-                    0L
+                    state.pausedCountdownElapsedUs / 1000L
                 }
-
-                val progress = 1f - (elapsedMs.toFloat() / 6000f).coerceIn(0f, 1f)
-                val pColor = if (state.primaryColorVal != 0L) Color(state.primaryColorVal.toULong()) else Color(0xFF1E88E5)
-                val bgArcColor = if (state.surfaceVariantColorVal != 0L) Color(state.surfaceVariantColorVal.toULong()) else Color.LightGray
-
-                val arcPaint = Paint().apply {
-                    color = pColor
-                    style = PaintingStyle.Stroke
-                    strokeWidth = with(density) { 8.dp.toPx() }
+                if (elapsedMs < 6000L) {
+                    val progress = 1f - (elapsedMs.toFloat() / 5000f).coerceIn(0f, 1f)
+                    val arcPaint = Paint().apply {
+                        color = Color(state.primaryColorVal.toULong())
+                        style = androidx.compose.ui.graphics.PaintingStyle.Stroke
+                        strokeWidth = with(density) { 8.dp.toPx() }
+                    }
+                    val bgArcPaint = Paint().apply {
+                        color = Color(state.surfaceVariantColorVal.toULong())
+                        style = androidx.compose.ui.graphics.PaintingStyle.Stroke
+                        strokeWidth = with(density) { 8.dp.toPx() }
+                    }
+                    val center = Offset(bitmap.width / 2f, bitmap.height / 2f)
+                    val radius = with(density) { 50.dp.toPx() }
+                    canvas.drawArc(
+                        left = center.x - radius,
+                        top = center.y - radius,
+                        right = center.x + radius,
+                        bottom = center.y + radius,
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        paint = bgArcPaint
+                    )
+                    canvas.drawArc(
+                        left = center.x - radius,
+                        top = center.y - radius,
+                        right = center.x + radius,
+                        bottom = center.y + radius,
+                        startAngle = -90f + (1f - progress) * 360f,
+                        sweepAngle = progress * 360f,
+                        useCenter = false,
+                        paint = arcPaint
+                    )
                 }
-                val bgArcPaint = Paint().apply {
-                    color = bgArcColor
-                    style = PaintingStyle.Stroke
-                    strokeWidth = with(density) { 8.dp.toPx() }
-                }
-                val center = Offset(bitmap.width / 2f, bitmap.height / 2f)
-                val radius = with(density) { 50.dp.toPx() }
-                canvas.drawArc(
-                    left = center.x - radius,
-                    top = center.y - radius,
-                    right = center.x + radius,
-                    bottom = center.y + radius,
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    paint = bgArcPaint
-                )
-                canvas.drawArc(
-                    left = center.x - radius,
-                    top = center.y - radius,
-                    right = center.x + radius,
-                    bottom = center.y + radius,
-                    startAngle = -90f + (1f - progress) * 360f,
-                    sweepAngle = progress * 360f,
-                    useCenter = false,
-                    paint = arcPaint
-                )
-            }
-            
-            if (!drawSpinner && measurer != null) {
+            } else if (measurer != null) {
 
                     when (state.animationMode) {
                         AnimationMode.Scroll -> {
@@ -243,11 +202,25 @@ class CpuTeleprompterFrameRenderer(
                                 ).also { cachedTextLayoutResult = it }
                             }
 
-                            // Start at vertical center and scroll until text is fully off screen at the top
-                            val startY = bitmap.height / 2f
-                            val endY = -(layoutResult.size.height.toFloat() + vPaddingPx)
-                            val yOffset = startY + (endY - startY) * state.scrollFraction
-                            val xOffset = hPaddingPx
+                            val pipTotalDurationMs = com.oprojectview.calculatePageDurationMs(state.scriptText, state.wpm).coerceAtLeast(1000L)
+
+                            val fraction = if (pipTotalDurationMs > 0L) {
+                                val rawFraction = (state.elapsedUs.toDouble() / (pipTotalDurationMs * 1000.0)).toFloat()
+                                if (state.isLoopEnabled) {
+                                    rawFraction % 1f
+                                } else {
+                                    rawFraction.coerceIn(0f, 1f)
+                                }
+                            } else 0f
+
+                            val startY = if (state.transitionMode == TransitionMode.Fade) {
+                                bitmap.height / 2f
+                            } else {
+                                bitmap.height.toFloat()
+                            }
+                            val endY = -(layoutResult.size.height.toFloat() + paddingPx)
+                            val yOffset = startY + (endY - startY) * fraction
+                            val xOffset = (bitmap.width - layoutResult.size.width) / 2f
 
                             if (state.transitionMode == TransitionMode.None) {
                                 drawScope.draw(
@@ -349,9 +322,20 @@ class CpuTeleprompterFrameRenderer(
                                 ).also { cachedTextLayoutResult = it }
                             }
 
+                            val pipTotalDurationMs = com.oprojectview.calculatePageDurationMs(inlineText, state.wpm).coerceAtLeast(1000L)
+
+                            val fraction = if (pipTotalDurationMs > 0L) {
+                                val rawFraction = (state.elapsedUs.toDouble() / (pipTotalDurationMs * 1000.0)).toFloat()
+                                if (state.isLoopEnabled) {
+                                    rawFraction % 1f
+                                } else {
+                                    rawFraction.coerceIn(0f, 1f)
+                                }
+                            } else 0f
+
                             val startX = bitmap.width.toFloat()
-                            val endX = -(layoutResult.size.width.toFloat() + bitmap.width.toFloat())
-                            val xOffset = startX + (endX - startX) * state.scrollFraction
+                            val endX = -layoutResult.size.width.toFloat()
+                            val xOffset = startX + (endX - startX) * fraction
                             val yOffset = (bitmap.height - layoutResult.size.height) / 2f
 
                             if (state.transitionMode == TransitionMode.None) {
@@ -462,11 +446,32 @@ class CpuTeleprompterFrameRenderer(
 
                             val pages = fitResult.pagesText
                             if (pages.isNotEmpty()) {
-                                val globalPos = (state.scrollFraction * pages.size)
-                                    .coerceIn(0f, pages.size.toFloat())
-                                val activePageIndex = globalPos.toInt()
-                                    .coerceIn(0, pages.lastIndex)
-                                val pageProgress = (globalPos - activePageIndex).coerceIn(0f, 1f)
+                                val pageDurations = pages.map { com.oprojectview.calculatePageDurationMs(it, state.wpm).coerceAtLeast(100L) }
+                                val cumulativeDurations = mutableListOf<Long>()
+                                var current = 0L
+                                for (d in pageDurations) {
+                                    cumulativeDurations.add(current)
+                                    current += d
+                                }
+                                cumulativeDurations.add(current)
+                                val pipTotalDurationMs = cumulativeDurations.last().coerceAtLeast(1000L)
+
+                                val targetMs = if (pipTotalDurationMs > 0L) {
+                                    val rawMs = state.elapsedUs / 1000L
+                                    if (state.isLoopEnabled) {
+                                        rawMs % pipTotalDurationMs
+                                    } else {
+                                        rawMs.coerceIn(0L, pipTotalDurationMs)
+                                    }
+                                } else 0L
+
+                                var activePageIndex = cumulativeDurations.binarySearch(targetMs)
+                                if (activePageIndex < 0) activePageIndex = -(activePageIndex + 1) - 1
+                                activePageIndex = activePageIndex.coerceIn(0, pages.lastIndex)
+
+                                val pageStartMs = cumulativeDurations[activePageIndex]
+                                val pageDurationMs = pageDurations[activePageIndex]
+                                val pageProgress = if (pageDurationMs > 0) ((targetMs - pageStartMs).toFloat() / pageDurationMs).coerceIn(0f, 1f) else 0f
                                 val activePageText = pages[activePageIndex]
 
                                 val pageAnnotated = buildPageAnnotatedString(
@@ -482,8 +487,8 @@ class CpuTeleprompterFrameRenderer(
                                     overflow = TextOverflow.Clip
                                 )
 
-                                val xOffset = hPaddingPx
-                                val yOffset = vPaddingPx
+                                val xOffset = paddingPx
+                                val yOffset = paddingPx
 
                                 when (state.transitionMode) {
                                     TransitionMode.None -> {
@@ -591,7 +596,7 @@ class CpuTeleprompterFrameRenderer(
         frameCounter++
         return RenderedFrame(
             bitmap = bitmap,
-            presentationTimeUs = epoch.elapsedNow().inWholeMicroseconds,
+            presentationTimeUs = MonotonicClock.currentTimeUs(),
             frameIndex = frameCounter - 1,
             widthPx = bitmap.width,
             heightPx = bitmap.height,
@@ -669,13 +674,12 @@ class CpuTeleprompterFrameRenderer(
 
     private fun createTextStyle(textSizeIndex: Int, textColorVal: Long): TextStyle {
         val (fontSizeDp, lineHeightDp) = when (textSizeIndex) {
-            0 -> Pair(17.dp, 23.dp)
-            1 -> Pair(23.dp, 30.dp)
-            2 -> Pair(32.dp, 41.dp)
-            3 -> Pair(36.dp, 46.dp)
-            4 -> Pair(40.dp, 51.dp)
-            5 -> Pair(56.dp, 71.dp)
-            else -> Pair(23.dp, 30.dp)
+            0 -> Pair(16.dp, 21.dp)
+            1 -> Pair(24.dp, 27.dp)
+            2 -> Pair(32.dp, 35.dp)
+            3 -> Pair(40.dp, 45.dp)
+            4 -> Pair(56.dp, 68.dp)
+            else -> Pair(24.dp, 27.dp)
         }
         return TextStyle(
             fontSize = with(density) { fontSizeDp.toSp() },

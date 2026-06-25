@@ -108,6 +108,7 @@ sealed interface PlayerIntent : UiIntent {
     data class  ReplayClicked(val isManual: Boolean = false, val skipDelay: Boolean = true) : PlayerIntent
     data class  ScrollProgress(val fraction: Float) : PlayerIntent
     data class  SetPlaying(val playing: Boolean)    : PlayerIntent
+    data class  SetTotalDurationMs(val durationMs: Long) : PlayerIntent
     
     // UpNext Intents
     data class OnUpNextItemSelected(val index: Int) : PlayerIntent
@@ -167,6 +168,7 @@ class PlayerViewModel(
             is PlayerIntent.SetPlaying    -> onSetPlaying(intent.playing)
             is PlayerIntent.OnUpNextItemSelected -> onUpNextItemSelected(intent.index)
             is PlayerIntent.UpNextCountdownDone -> onUpNextCountdownDone()
+            is PlayerIntent.SetTotalDurationMs  -> updateState { it.copy(totalDurationMs = intent.durationMs) }
             else                          -> Unit
         }
     }

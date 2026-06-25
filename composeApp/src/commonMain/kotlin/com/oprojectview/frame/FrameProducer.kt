@@ -138,7 +138,8 @@ class FrameProducer(
                 0f
             }
             val frameStateToRender = currentState.copy(
-                scrollFraction = computedFraction
+                scrollFraction = computedFraction,
+                elapsedUs = elapsedUs
             )
 
             val fps           = currentState.targetFps.coerceIn(1, 120)

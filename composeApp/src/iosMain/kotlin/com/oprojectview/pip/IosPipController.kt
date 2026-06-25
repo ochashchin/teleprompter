@@ -470,9 +470,6 @@ class IosPipController(
             displayLayer.bounds.useContents {
                 println("[PiP] bounds = ${size.width} x ${size.height} (didTransitionToRenderSize: $w x $h)")
             }
-            // Update the display layer bounds so the PiP overlay controls (Play/Pause)
-            // remain perfectly centered within the new window dimensions.
-            displayLayer.bounds = platform.CoreGraphics.CGRectMake(0.0, 0.0, w, h)
             onRenderSizeChanged(w, h)
         }
     }

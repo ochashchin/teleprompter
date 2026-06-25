@@ -128,18 +128,6 @@ class PipController(
         // Bug 3 fix: read overlayEnabled from the live FrameState.
         val overlayEnabled = frameViewModel.frameStateFlow.value.overlayEnabled
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!isReceiverRegistered) {
-                ContextCompat.registerReceiver(
-                    activity,
-                    pipReceiver,
-                    IntentFilter(ACTION_PLAY_PAUSE),
-                    ContextCompat.RECEIVER_NOT_EXPORTED
-                )
-                isReceiverRegistered = true
-            }
-        }
-
         val frameState  = frameViewModel.frameStateFlow.value
         val contentW    = frameState.frameWidthPx.coerceAtLeast(1)
         val contentH    = frameState.frameHeightPx.coerceAtLeast(1)
@@ -195,6 +183,29 @@ class PipController(
     }
 
     // ── Lifecycle callbacks ───────────────────────────────────────────────────
+
+    override fun onStart(owner: LifecycleOwner) {
+        super.onStart(owner)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!isReceiverRegistered) {
+                ContextCompat.registerReceiver(
+                    activity,
+                    pipReceiver,
+                    IntentFilter(ACTION_PLAY_PAUSE),
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+                )
+                isReceiverRegistered = true
+            }
+        }
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+        super.onStop(owner)
+        if (isReceiverRegistered) {
+            activity.unregisterReceiver(pipReceiver)
+            isReceiverRegistered = false
+        }
+    }
 
     override fun onPause(owner: LifecycleOwner) {
         if (activity.isInPictureInPictureMode) {

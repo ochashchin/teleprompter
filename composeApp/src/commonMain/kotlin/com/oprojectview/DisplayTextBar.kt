@@ -33,12 +33,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -262,39 +263,68 @@ fun TextFitBox(
     val vm = LocalPlayerViewModel.current
     val playerState by vm.state.collectAsState()
     var ticks by remember { mutableStateOf(0L) }
-    LaunchedEffect(playerState.isPlaying, playerState.pipActive, playerState.isNativePip, preview) {
-        if (preview || (playerState.isPlaying && !(playerState.pipActive && playerState.isNativePip))) {
-            while (true) {
-                withFrameNanos { ticks = it }
+    LaunchedEffect(vm, preview) {
+        while (true) {
+            withFrameNanos { frameTime ->
+                val state = vm.state.value
+                if (preview || (state.isPlaying && !(state.pipActive && state.isNativePip))) {
+                    ticks = frameTime
+                }
             }
+        }
+    }
+
+    val pageDurations = remember(pages, wpm) { pages.map { calculatePageDurationMs(it, wpm).coerceAtLeast(100L) } }
+    val cumulativeDurations = remember(pageDurations) {
+        val sums = mutableListOf<Long>()
+        var current = 0L
+        for (d in pageDurations) {
+            sums.add(current)
+            current += d
+        }
+        sums.add(current)
+        sums
+    }
+    val totalFramesDurationMs = cumulativeDurations.last().coerceAtLeast(1000L)
+
+    val lastReportedFrameDurationMs = remember { mutableLongStateOf(-1L) }
+    SideEffect {
+        if (!preview && totalFramesDurationMs != lastReportedFrameDurationMs.longValue) {
+            lastReportedFrameDurationMs.longValue = totalFramesDurationMs
+            vm.onIntent(PlayerIntent.SetTotalDurationMs(totalFramesDurationMs))
         }
     }
 
     val fraction = if (preview) {
-        val previewDurationMs = remember(pages, wpm) {
-            pages.sumOf { calculatePageDurationMs(it, wpm) }.coerceAtLeast(1000L)
-        }
-        val elapsedMs = (ticks / 1_000_000L) % previewDurationMs
-        (elapsedMs.toFloat() / previewDurationMs.toFloat()).coerceIn(0f, 1f)
+        val elapsedMs = (ticks / 1_000_000L) % totalFramesDurationMs
+        (elapsedMs.toFloat() / totalFramesDurationMs.toFloat()).coerceIn(0f, 1f)
     } else {
-        remember(ticks, playerState) {
-            if (!playerState.countdownDone) {
+        val state = vm.state.value
+        remember(ticks, state.isPlaying, state.countdownDone, state.playbackStartUs, state.pausedElapsedUs) {
+            if (!state.countdownDone) {
                 0f
             } else {
                 val now = MonotonicClock.currentTimeUs()
-                val elapsedUs = if (playerState.isPlaying) {
-                    (now - playerState.playbackStartUs).coerceAtLeast(0L)
+                val elapsedUs = if (state.isPlaying) {
+                    (now - state.playbackStartUs).coerceAtLeast(0L)
                 } else {
-                    playerState.pausedElapsedUs
+                    state.pausedElapsedUs
                 }
                 val elapsedMs = elapsedUs / 1000L
-                (elapsedMs.toFloat() / playerState.totalDurationMs.toFloat()).coerceIn(0f, 1f)
+                (elapsedMs.toFloat() / totalFramesDurationMs.toFloat()).coerceIn(0f, 1f)
             }
         }
     }
 
-    val currentPage = (fraction * pages.size).toInt().coerceIn(0, pages.lastIndex)
-    val pageProgress = ((fraction * pages.size) - currentPage).coerceIn(0f, 1f)
+    val targetMs = (fraction * totalFramesDurationMs).toLong()
+    val currentPage = remember(targetMs, cumulativeDurations) {
+        var idx = cumulativeDurations.binarySearch(targetMs)
+        if (idx < 0) idx = -(idx + 1) - 1
+        idx.coerceIn(0, pages.lastIndex)
+    }
+    val pageStartMs = cumulativeDurations[currentPage]
+    val pageDurationMs = pageDurations[currentPage]
+    val pageProgress = if (pageDurationMs > 0) ((targetMs - pageStartMs).toFloat() / pageDurationMs).coerceIn(0f, 1f) else 0f
     val alpha = 1f
 
     val textMeasurer = rememberTextMeasurer()
@@ -568,7 +598,6 @@ fun TextHorizontalScrollBox(
     modifier:            Modifier = Modifier,
     onAnimationComplete: (() -> Unit)?  = null,
 ) {
-    val totalDurationMs = remember(pages, wpm) { inlinePlayerDurationMs(pages, wpm) }
     val text            = pages
         .joinToString(separator = "")
         .replace("\r", " ")
@@ -610,36 +639,50 @@ fun TextHorizontalScrollBox(
                 .coerceAtLeast(1f)
         }
 
+        val totalDurationMs: Long = remember(pages, wpm) {
+            pages.sumOf { calculatePageDurationMs(it, wpm) }.coerceAtLeast(1000L)
+        }
+
         val vm = LocalPlayerViewModel.current
         val playerState by vm.state.collectAsState()
+        
+        val lastReportedInlineDurationMs = remember { mutableLongStateOf(-1L) }
+        SideEffect {
+            if (!preview && totalDurationMs != lastReportedInlineDurationMs.longValue) {
+                lastReportedInlineDurationMs.longValue = totalDurationMs
+                vm.onIntent(PlayerIntent.SetTotalDurationMs(totalDurationMs))
+            }
+        }
+
         var ticks by remember { mutableStateOf(0L) }
-        LaunchedEffect(playerState.isPlaying, playerState.pipActive, playerState.isNativePip, preview) {
-            if (preview || (playerState.isPlaying && !(playerState.pipActive && playerState.isNativePip))) {
-                while (true) {
-                    withFrameNanos { ticks = it }
+        LaunchedEffect(vm, preview) {
+            while (true) {
+                withFrameNanos { frameTime ->
+                    val state = vm.state.value
+                    if (preview || (state.isPlaying && !(state.pipActive && state.isNativePip))) {
+                        ticks = frameTime
+                    }
                 }
             }
         }
 
         val fraction = if (preview) {
-            val previewDurationMs = remember(pages, wpm) {
-                inlinePlayerDurationMs(pages, wpm).coerceAtLeast(1000L)
-            }
-            val elapsedMs = (ticks / 1_000_000L) % previewDurationMs
-            (elapsedMs.toFloat() / previewDurationMs.toFloat()).coerceIn(0f, 1f)
+            val elapsedMs = (ticks / 1_000_000L) % totalDurationMs
+            (elapsedMs.toFloat() / totalDurationMs.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
         } else {
-            remember(ticks, playerState) {
-                if (!playerState.countdownDone) {
+            val state = vm.state.value
+            remember(ticks, state.isPlaying, state.countdownDone, state.playbackStartUs, state.pausedElapsedUs, totalDurationMs) {
+                if (!state.countdownDone) {
                     0f
                 } else {
                     val now = MonotonicClock.currentTimeUs()
-                    val elapsedUs = if (playerState.isPlaying) {
-                        (now - playerState.playbackStartUs).coerceAtLeast(0L)
+                    val elapsedUs = if (state.isPlaying) {
+                        (now - state.playbackStartUs).coerceAtLeast(0L)
                     } else {
-                        playerState.pausedElapsedUs
+                        state.pausedElapsedUs
                     }
                     val elapsedMs = elapsedUs / 1000L
-                    (elapsedMs.toFloat() / totalDurationMs.toFloat()).coerceIn(0f, 1f)
+                    (elapsedMs.toFloat() / totalDurationMs.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
                 }
             }
         }
@@ -653,8 +696,8 @@ fun TextHorizontalScrollBox(
 
         val xOffset = remember(fraction, textWidthPx, containerWidthPx) {
             val start = containerWidthPx
-            val end   = textWidthPx + containerWidthPx
-            start + ((-end) - start) * fraction
+            val end   = -textWidthPx
+            start + (end - start) * fraction
         }
 
         val rotatedModifier = if (isHorizontal) {
@@ -830,11 +873,6 @@ fun TextHorizontalScrollBox(
     }
 }
 
-private fun inlinePlayerDurationMs(pages: List<String>, wpm: Int): Long {
-    val page            = calculatePageDurationMs(pages[0], wpm)
-    val frameDurationMs = pages.sumOf { calculatePageDurationMs(it, wpm) }
-    return frameDurationMs + page * 2
-}
 
 @Composable
 fun TextCentreVerticalScrollBox(
@@ -879,42 +917,18 @@ fun TextCentreVerticalScrollBox(
         val vm = LocalPlayerViewModel.current
         val playerState by vm.state.collectAsState()
         var ticks by remember { mutableStateOf(0L) }
-        LaunchedEffect(playerState.isPlaying, playerState.pipActive, playerState.isNativePip, preview) {
-            if (preview || (playerState.isPlaying && !(playerState.pipActive && playerState.isNativePip))) {
-                while (true) {
-                    withFrameNanos { ticks = it }
-                }
-            }
-        }
-
-        val fraction = if (preview) {
-            val previewDurationMs = remember(pages, wpm) {
-                pages.sumOf { calculatePageDurationMs(it, wpm) }.coerceAtLeast(1000L)
-            }
-            val elapsedMs = (ticks / 1_000_000L) % previewDurationMs
-            (elapsedMs.toFloat() / previewDurationMs.toFloat()).coerceIn(0f, 1f)
-        } else {
-            remember(ticks, playerState) {
-                if (!playerState.countdownDone) {
-                    0f
-                } else {
-                    val now = MonotonicClock.currentTimeUs()
-                    val elapsedUs = if (playerState.isPlaying) {
-                        (now - playerState.playbackStartUs).coerceAtLeast(0L)
-                    } else {
-                        playerState.pausedElapsedUs
+        LaunchedEffect(vm, preview) {
+            while (true) {
+                withFrameNanos { frameTime ->
+                    val state = vm.state.value
+                    if (preview || (state.isPlaying && !(state.pipActive && state.isNativePip))) {
+                        ticks = frameTime
                     }
-                    val elapsedMs = elapsedUs / 1000L
-                    (elapsedMs.toFloat() / playerState.totalDurationMs.toFloat()).coerceIn(0f, 1f)
                 }
             }
         }
-
-
-
 
         val fullText = remember(pages) { pages.joinToString("") }
-
         // Measure every visual line. Compute fade window per line using the reading region
         // centred exactly on containerHeightPx/2.
         val lineDataList: List<ScrollLineData> = remember(
@@ -1093,50 +1107,60 @@ fun TextCentreVerticalScrollBox(
             TrimOffsets(startOffset, endOffset)
         }
 
-        val totalDurationMs: Long = remember(textHeightPx, containerHeightPx, wpm, fullText, trimOffsets) {
-            if (textHeightPx <= 0f || containerHeightPx <= 0f) return@remember 3000L
-            val textDurationMs = calculatePageDurationMs(fullText, wpm).coerceAtLeast(1000L)
+        val totalDurationMs: Long = remember(pages, wpm) {
+            pages.sumOf { calculatePageDurationMs(it, wpm) }.coerceAtLeast(1000L)
+        }
 
-            val effectiveStart = trimOffsets?.startOffset ?: containerHeightPx
-            val effectiveEnd   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
-            val trimmedDistance = (effectiveStart - effectiveEnd).coerceAtLeast(1f)
-
-            (textDurationMs * trimmedDistance / textHeightPx.coerceAtLeast(1f)).toLong()
+        val lastReportedScrollDurationMs = remember { mutableLongStateOf(-1L) }
+        val isMeasured = textHeightPx > 0f && containerHeightPx > 0f
+        SideEffect {
+            if (!preview && isMeasured && totalDurationMs != lastReportedScrollDurationMs.longValue) {
+                lastReportedScrollDurationMs.longValue = totalDurationMs
+                vm.onIntent(PlayerIntent.SetTotalDurationMs(totalDurationMs))
+            }
         }
 
         // Local Animatable loop completely replaced by monotonic time fraction updates.
 
-        val yOffset = remember(fraction, textHeightPx, containerHeightPx, trimOffsets) {
-            val start = trimOffsets?.startOffset ?: containerHeightPx
-            val end   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
-            start + (end - start) * fraction
-        }
-
-        // The fraction at which the scroll is visually complete.
-        //
-        // When trimOffsets.endOffset is set (Fade mode), the track is already trimmed so
-        // fraction=1 corresponds to the visually-complete moment; keep 1f.
-        //
-        // For the un-trimmed path (None and Print modes):
-        //   yOffset = start + (end - start) * f
-        //   Visually complete when the bottom of the text block has cleared the top of the
-        //   viewport, accounting for top padding: yOffset <= -(textHeightPx + paddingTopPx).
-        //   Solving for f: f_vc = (totalTravel - containerHeightPx + paddingTopPx) / totalTravel
-        val visuallyCompleteFraction = remember(trimOffsets, textHeightPx, containerHeightPx, density, contentPadding) {
-            if (trimOffsets?.endOffset != null || textHeightPx <= 0f || containerHeightPx <= 0f) {
-                1f  // Fade mode (already trimmed); don't change it
-            } else {
-                val effectiveStart = trimOffsets?.startOffset ?: containerHeightPx
-                val effectiveEnd   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
-                val totalTravel    = (effectiveStart - effectiveEnd).coerceAtLeast(1f)
-                val paddingTopPx   = with(density) { contentPadding.calculateTopPadding().toPx() }
-                
-                ((totalTravel - containerHeightPx + paddingTopPx) / totalTravel).coerceIn(0f, 1f)
+        val fraction = if (preview) {
+            val elapsedMs = (ticks / 1_000_000L) % totalDurationMs
+            (elapsedMs.toFloat() / totalDurationMs.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
+        } else {
+            val state = vm.state.value
+            remember(ticks, state.isPlaying, state.countdownDone, state.playbackStartUs, state.pausedElapsedUs, totalDurationMs) {
+                if (!state.countdownDone) {
+                    0f
+                } else {
+                    val now = MonotonicClock.currentTimeUs()
+                    val elapsedUs = if (state.isPlaying) {
+                        (now - state.playbackStartUs).coerceAtLeast(0L)
+                    } else {
+                        state.pausedElapsedUs
+                    }
+                    val elapsedMs = elapsedUs / 1000L
+                    (elapsedMs.toFloat() / totalDurationMs.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
+                }
             }
         }
 
-        LaunchedEffect(fraction, visuallyCompleteFraction) {
-            if (fraction >= visuallyCompleteFraction && playerState.isPlaying) {
+        val paddingTopPx = remember(density, contentPadding) {
+            with(density) { contentPadding.calculateTopPadding().toPx() }
+        }
+
+        val effectiveStart = remember(trimOffsets, containerHeightPx) {
+            trimOffsets?.startOffset ?: containerHeightPx
+        }
+
+        val effectiveEnd = remember(trimOffsets, textHeightPx, paddingTopPx) {
+            trimOffsets?.endOffset ?: -(textHeightPx + paddingTopPx)
+        }
+
+        val yOffset = remember(fraction, effectiveStart, effectiveEnd) {
+            effectiveStart + (effectiveEnd - effectiveStart) * fraction
+        }
+
+        LaunchedEffect(fraction) {
+            if (fraction >= 1f && playerState.isPlaying) {
                 vm.onIntent(PlayerIntent.SetPlaying(false))
                 onAnimationComplete?.invoke()
             }
@@ -1298,13 +1322,6 @@ private fun LineAnimCanvas(
     colorB:     Float,
     styleSpans: List<StyleSpan> = emptyList(),
 ) {
-    if (lineData.lineText.isEmpty()) return
-
-    val n           = lineData.lineText.length.coerceAtLeast(1)
-    val fadeWindow  = lineData.fadeInOffset - lineData.nextFadeInOffset
-    val staggerSpan = (fadeWindow * 0.60f).coerceAtLeast(1f)
-    val fadeBand    = (staggerSpan / 2f).coerceAtLeast(1f)
-
     val lineHeightDp = with(LocalDensity.current) {
         (lineData.lineBottomPx - lineData.lineTopPx).toDp()
     }
@@ -1314,6 +1331,12 @@ private fun LineAnimCanvas(
             .fillMaxWidth()
             .height(lineHeightDp)
     ) {
+        if (lineData.lineText.isEmpty()) return@Canvas
+
+        val n           = lineData.lineText.length.coerceAtLeast(1)
+        val fadeWindow  = lineData.fadeInOffset - lineData.nextFadeInOffset
+        val staggerSpan = (fadeWindow * 0.60f).coerceAtLeast(1f)
+        val fadeBand    = (staggerSpan / 2f).coerceAtLeast(1f)
 
         // Open an offscreen layer so DstIn rects only erase pixels we drew
         // here, not anything behind the Canvas.
@@ -1580,9 +1603,40 @@ fun calculatePageDurationMs(pageText: String, wpm: Int): Long {
     return baseMs + pauseMs
 }
 
+fun calculateScreenCapacityDurationMs(
+    measurer: TextMeasurer,
+    style: TextStyle,
+    widthPx: Int,
+    heightPx: Int,
+    maxLines: Int = Int.MAX_VALUE,
+    wpm: Int
+): Long {
+    if (widthPx <= 0 || heightPx <= 0) return 0L
+    // Ensure text is long enough by repeating it
+    val repeatingText = PREVIEW_TEXT.repeat(10)
+    val textLayout = measurer.measure(
+        text = repeatingText,
+        style = style,
+        constraints = Constraints(maxWidth = widthPx),
+        overflow = TextOverflow.Clip,
+        maxLines = maxLines
+    )
+    var lastLine = textLayout.lineCount - 1
+    for (i in 0 until textLayout.lineCount) {
+        if (textLayout.getLineBottom(i) > heightPx) {
+            lastLine = (i - 1).coerceAtLeast(0)
+            break
+        }
+    }
+    if (lastLine < 0) return 0L
+    val endIndex = textLayout.getLineEnd(lastLine, visibleEnd = true)
+    val visibleText = repeatingText.substring(0, endIndex.coerceIn(0, repeatingText.length))
+    return calculatePageDurationMs(visibleText, wpm)
+}
+
 private const val WPM_NORMAL = 130
 
-private const val PREVIEW_TEXT =
+const val PREVIEW_TEXT =
     "The quick brown fox jumps over the lazy dog. " +
             "The quick brown fox jumps over the lazy dog. " +
             "The quick brown fox jumps over the lazy dog. " +

@@ -55,7 +55,7 @@ fun ReviewDialog(
         ),
     ) {
         Surface(
-            shape = RoundedCornerShape(40.dp),
+            shape = RoundedCornerShape(38.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
             tonalElevation = 6.dp,
             modifier = Modifier
@@ -68,66 +68,55 @@ fun ReviewDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp)
+                    .padding(top = 24.dp)
+                    .padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(top = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Text(
+                    text = stringResource(Res.string.rate_us_title),
+                    fontSize = fontSize(24.dp),
+                    lineHeight = fontSize(28.dp),
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = stringResource(Res.string.rate_us_title),
-                        fontSize = fontSize(24.dp),
-                        lineHeight = fontSize(28.dp),
-                        style = MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center
-                    )
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-                    
-                    Text(
-                        text = stringResource(Res.string.rate_us_supporting_text),
-                        fontSize = fontSize(16.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                Text(
+                    text = stringResource(Res.string.rate_us_supporting_text),
+                    fontSize = fontSize(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Row(
                     modifier = Modifier
-                        .height(56.dp)
-                        .padding(end = fontSize.value.dp)
+                        .height(48.dp)
                         .fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(
+                    DialogButton(
+                        text = stringResource(Res.string.rate_us_later),
+                        fontSize = fontSize(18.dp),
+                        hovered = false,
                         modifier = Modifier.fillMaxHeight(),
                         onClick = {
                             onDismissRequest()
                             onLater()
                         }
-                    ) {
-                        Text(
-                            fontSize = fontSize(18.dp),
-                            text = stringResource(Res.string.rate_us_later)
-                        )
-                    }
+                    )
 
                     Spacer(Modifier.width(16.dp))
 
-                    RateNowButton(
-                        modifier = Modifier.fillMaxHeight(),
+                    DialogButton(
+                        text = stringResource(Res.string.rate_us_rate_now),
                         fontSize = fontSize(18.dp),
                         hovered = true,
-                        onRateNow = {
+                        modifier = Modifier.fillMaxHeight(),
+                        onClick = {
                             onRateNow()
                         }
                     )
@@ -138,16 +127,17 @@ fun ReviewDialog(
 }
 
 @Composable
-fun RateNowButton(
-    modifier: Modifier,
+private fun DialogButton(
+    text: String,
+    modifier: Modifier = Modifier,
     fontSize: TextUnit,
     hovered: Boolean = true,
-    onRateNow: () -> Unit
+    onClick: () -> Unit
 ) {
     TextButton(
         modifier = modifier,
-        onClick = onRateNow,
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 24.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.textButtonColors(
             containerColor =
@@ -165,7 +155,7 @@ fun RateNowButton(
     ) {
         Text(
             fontSize = fontSize,
-            text = stringResource(Res.string.rate_us_rate_now),
+            text = text,
             style = MaterialTheme.typography.titleMedium
         )
     }

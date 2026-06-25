@@ -50,7 +50,7 @@ fun SaveChangesDialog(
         ),
     ) {
         Surface(
-            shape = RoundedCornerShape(40.dp),
+            shape = RoundedCornerShape(38.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest,
             tonalElevation = 6.dp,
             modifier = Modifier
@@ -63,54 +63,44 @@ fun SaveChangesDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(top = 64.dp),
+                    .padding(top = 24.dp)
+                    .padding(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = stringResource(Res.string.dialog_save_changes_title),
-                        fontSize = fontSize(24.dp),
-                        lineHeight = fontSize(28.dp),
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                }
+            ) {
+                Text(
+                    text = stringResource(Res.string.dialog_save_changes_title),
+                    fontSize = fontSize(24.dp),
+                    lineHeight = fontSize(28.dp),
+                    style = MaterialTheme.typography.headlineSmall
+                )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Row(
                     modifier = Modifier
-                        .height(56.dp)
-                        .padding(end = fontSize.value.dp)
+                        .height(48.dp)
                         .fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(
-                        modifier = Modifier
-                            .fillMaxHeight(),
+                    DialogButton(
+                        text = stringResource(Res.string.dialog_discard),
+                        fontSize = fontSize(18.dp),
+                        hovered = false,
+                        modifier = Modifier.fillMaxHeight(),
                         onClick = {
                             onDismissRequest()
                             onDiscard()
                         }
-                    ) {
-                        Text(
-                            fontSize = fontSize(18.dp),
-                            text = stringResource(Res.string.dialog_discard)
-                        )
-                    }
+                    )
 
-                    Spacer(Modifier.width(24.dp))
+                    Spacer(Modifier.width(16.dp))
 
-                    SaveButton(
-                        modifier = Modifier
-                            .fillMaxHeight(),
+                    DialogButton(
+                        text = stringResource(Res.string.dialog_save),
                         fontSize = fontSize(18.dp),
                         hovered = true,
-                        onSave = {
+                        modifier = Modifier.fillMaxHeight(),
+                        onClick = {
                             onSave()
                         }
                     )
@@ -121,15 +111,16 @@ fun SaveChangesDialog(
 }
 
 @Composable
-fun SaveButton(
-    modifier: Modifier,
+private fun DialogButton(
+    text: String,
+    modifier: Modifier = Modifier,
     fontSize: TextUnit,
     hovered: Boolean = true,
-    onSave: () -> Unit
+    onClick: () -> Unit
 ) {
     TextButton(
         modifier = modifier,
-        onClick = onSave,
+        onClick = onClick,
         contentPadding = PaddingValues(horizontal = 24.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.textButtonColors(
@@ -148,7 +139,7 @@ fun SaveButton(
     ) {
         Text(
             fontSize = fontSize,
-            text = stringResource(Res.string.dialog_save),
+            text = text,
             style = MaterialTheme.typography.titleMedium
         )
     }

@@ -186,14 +186,6 @@ class FrameViewModel(
             is FrameVmIntent.SetTargetFps     -> mutateFrame { it.copy(targetFps = intent.fps) }
             is FrameVmIntent.SetSizeClass     -> mutateFrame { it.copy(pipSizeClass = intent.sizeClass) }
             is FrameVmIntent.SyncPlayerState  -> mutateFrame {
-                val paddedDurationMs = if (intent.totalDurationMs > 0 && it.wpm > 0) {
-                    when (intent.animationMode) {
-                        AnimationMode.Scroll -> intent.totalDurationMs + calculatePageDurationMs(intent.scriptText, it.wpm)
-                        AnimationMode.Inline -> intent.totalDurationMs + calculatePageDurationMs(intent.scriptText, it.wpm)
-                        else -> intent.totalDurationMs
-                    }
-                } else intent.totalDurationMs
-
                 it.copy(
                     isPlaying = intent.isPlaying,
                     countdownDone = intent.countdownDone,
@@ -207,7 +199,7 @@ class FrameViewModel(
                     transitionMode = intent.transitionMode,
                     playbackStartUs = intent.playbackStartUs,
                     pausedElapsedUs = intent.pausedElapsedUs,
-                    totalDurationMs = paddedDurationMs
+                    totalDurationMs = intent.totalDurationMs
                 )
             }
             is FrameVmIntent.SyncPlayerPlaybackState -> mutateFrame {

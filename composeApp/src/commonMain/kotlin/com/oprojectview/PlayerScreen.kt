@@ -178,6 +178,14 @@ fun PlayerScreenBody(
     val playerState    by vm.state.collectAsState()
     val countdownDone  = playerState.countdownDone
     val scrollFraction = playerState.scrollFraction
+
+    var wasPipActive by remember { mutableStateOf(false) }
+    LaunchedEffect(playerState.pipActive) {
+        if (wasPipActive && !playerState.pipActive) {
+            vm.onIntent(PlayerIntent.SetPlaying(false))
+        }
+        wasPipActive = playerState.pipActive
+    }
     
     val hPadding = if (playerState.pipActive) 10.dp else 46.dp
     val vPadding = if (playerState.pipActive) 5.dp else 32.dp

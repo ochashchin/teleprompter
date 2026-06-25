@@ -66,6 +66,7 @@ data class FrameState(
     val pausedCountdownElapsedUs: Long                   = 0L,
     val playbackStartUs: Long                            = 0L,
     val pausedElapsedUs: Long                            = 0L,
+    val elapsedUs:       Long                            = 0L,
     val totalDurationMs: Long                            = 0L,
 
     /**
