@@ -129,6 +129,28 @@ class PlayerViewModel(
     initialState = PlayerState(),
 ) {
     private var resetJob: Job? = null
+    private var countdownJob: Job? = null
+    private var upNextJob: Job? = null
+
+    private fun checkCountdown() {
+        countdownJob?.cancel()
+        val state = currentState
+        if (state.isPlaying && !state.countdownDone) {
+            val now = com.oprojectview.core.MonotonicClock.currentTimeUs()
+            val elapsedUs = now - state.countdownStartUs
+            val elapsedMs = elapsedUs / 1000L
+            val totalCountdownMs = 6000L // 5000ms countdown + 1000ms extra delay
+            val remainingMs = totalCountdownMs - elapsedMs
+            if (remainingMs > 0) {
+                countdownJob = viewModelScope.launch {
+                    delay(remainingMs)
+                    onCountdownDone()
+                }
+            } else {
+                onCountdownDone()
+            }
+        }
+    }
 
     override fun onIntent(intent: UiIntent) {
         when (intent) {
@@ -151,6 +173,8 @@ class PlayerViewModel(
 
     override fun clear() {
         resetJob?.cancel()
+        countdownJob?.cancel()
+        upNextJob?.cancel()
         super.clear()
     }
 
@@ -158,6 +182,7 @@ class PlayerViewModel(
 
     private fun load(taskId: Int, isPreview: Boolean, wpm: Int, skipSpinner: Boolean = false) {
         resetJob?.cancel()
+        upNextJob?.cancel()
         val now = com.oprojectview.core.MonotonicClock.currentTimeUs()
         val task = repository.loadTask(taskId)
         val durationMs = calculatePageDurationMs(task?.description ?: "", wpm)
@@ -194,6 +219,7 @@ class PlayerViewModel(
                 isTransitioningToNextTask = false
             )
         }
+        checkCountdown()
     }
 
     private fun onCountdownDone() {
@@ -209,6 +235,7 @@ class PlayerViewModel(
     }
 
     private fun onReplayClicked(isManual: Boolean, skipDelay: Boolean) {
+        upNextJob?.cancel()
         val now = com.oprojectview.core.MonotonicClock.currentTimeUs()
         if (isManual) {
             updateState {
@@ -239,6 +266,7 @@ class PlayerViewModel(
                 )
             }
         }
+        checkCountdown()
     }
 
     private fun onSetPlaying(playing: Boolean) {
@@ -248,19 +276,20 @@ class PlayerViewModel(
             if (playing) {
                 state.copy(
                     isPlaying = true,
-                    playbackStartUs = now - state.pausedElapsedUs,
-                    countdownStartUs = now - state.pausedCountdownElapsedUs,
+                    playbackStartUs = if (state.countdownDone) now - state.pausedElapsedUs else state.playbackStartUs,
+                    countdownStartUs = if (!state.countdownDone) now - state.pausedCountdownElapsedUs else state.countdownStartUs,
                     toolbarVisible = false
                 )
             } else {
                 state.copy(
                     isPlaying = false,
-                    pausedElapsedUs = now - state.playbackStartUs,
-                    pausedCountdownElapsedUs = now - state.countdownStartUs,
+                    pausedElapsedUs = if (state.countdownDone) now - state.playbackStartUs else state.pausedElapsedUs,
+                    pausedCountdownElapsedUs = if (!state.countdownDone) now - state.countdownStartUs else state.pausedCountdownElapsedUs,
                     toolbarVisible = true
                 )
             }
         }
+        checkCountdown()
     }
 
     private fun onScrollProgress(fraction: Float) {
@@ -300,12 +329,27 @@ class PlayerViewModel(
             scrollFraction = 1f,
             isShowingUpNext = true
         ) }
+        checkUpNextCountdown()
+    }
+    
+    private fun checkUpNextCountdown() {
+        upNextJob?.cancel()
+        val state = currentState
+        val isLastTask = state.task?.id == state.allTasks.lastOrNull()?.id
+        val shouldCountdown = !isLastTask || state.hasManuallySelectedUpNext
+        if (shouldCountdown && state.upNextTasks.isNotEmpty()) {
+            upNextJob = viewModelScope.launch {
+                delay(5000L)
+                onUpNextCountdownDone()
+            }
+        }
     }
     
     private fun onUpNextItemSelected(index: Int) {
         val state = currentState
         if (index == state.upNextSelectedIndex && state.hasManuallySelectedUpNext) return
         updateState { it.copy(upNextSelectedIndex = index, hasManuallySelectedUpNext = true) }
+        checkUpNextCountdown()
     }
     
     private fun onUpNextCountdownDone() {
@@ -332,6 +376,7 @@ class PlayerViewModel(
 
     private fun resetPlaybackState() {
         resetJob?.cancel()
+        upNextJob?.cancel()
         resetJob = viewModelScope.launch {
             delay(1000L)
             updateState {

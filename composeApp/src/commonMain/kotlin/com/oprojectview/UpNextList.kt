@@ -60,7 +60,7 @@ fun UpNextList(
     modifier: Modifier = Modifier,
     fillColor: Color? = null,
 ) {
-    val countdownDurationMs = 10000L
+    val countdownDurationMs = 5000L
     val progress = remember(showCountdown, selectedIndex) { Animatable(if (showCountdown) 1f else 0f) }
 
     LaunchedEffect(showCountdown, selectedIndex) {
@@ -71,9 +71,8 @@ fun UpNextList(
             targetValue = 0f,
             animationSpec = tween(durationMillis = countdownDurationMs.toInt(), easing = LinearEasing)
         )
-        if (progress.value == 0f) {
-            onCountdownFinished()
-        }
+        // Note: Actual transition is handled synchronously by PlayerViewModel's background coroutine
+        // to ensure it still functions perfectly while the app is backgrounded in PiP mode.
     }
 
     val baseColor = fillColor ?: MaterialTheme.colorScheme.surface

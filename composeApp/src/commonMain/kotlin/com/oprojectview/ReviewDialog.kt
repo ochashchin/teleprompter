@@ -147,7 +147,7 @@ fun RateNowButton(
     TextButton(
         modifier = modifier,
         onClick = onRateNow,
-        contentPadding = PaddingValues(horizontal = 24.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = ButtonDefaults.textButtonColors(
             containerColor =

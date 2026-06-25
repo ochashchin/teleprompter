@@ -72,7 +72,7 @@ enum class LeadingShapeType {
     CLAM_SHELL, PENTAGON, GEM, SUNNY, VERY_SUNNY,
     COOKIE_4, COOKIE_6, COOKIE_7, COOKIE_9, COOKIE_12,
     BURST, SOFT_BURST, BOOM, SOFT_BOOM, FLOWER,
-    PUFFY, PUFFY_DIAMOND, PIXEL_CIRCLE, HEART,
+    PUFFY, PUFFY_DIAMOND, CIRCLE, HEART,
     GHOSTISH, CLOVER_4, CLOVER_8;
 
     fun polygon() = when (this) {
@@ -101,7 +101,7 @@ enum class LeadingShapeType {
         FLOWER       -> MaterialShapes.Flower
         PUFFY        -> MaterialShapes.Puffy
         PUFFY_DIAMOND -> MaterialShapes.PuffyDiamond
-        PIXEL_CIRCLE -> MaterialShapes.PixelCircle
+        CIRCLE -> MaterialShapes.Circle
         HEART        -> MaterialShapes.Heart
         GHOSTISH     -> MaterialShapes.Ghostish
         CLOVER_4     -> MaterialShapes.Clover4Leaf

@@ -910,12 +910,6 @@ fun TextCentreVerticalScrollBox(
             }
         }
 
-        LaunchedEffect(fraction) {
-            if (fraction >= 1f && playerState.isPlaying) {
-                vm.onIntent(PlayerIntent.SetPlaying(false))
-                onAnimationComplete?.invoke()
-            }
-        }
 
 
 
@@ -1116,6 +1110,36 @@ fun TextCentreVerticalScrollBox(
             val start = trimOffsets?.startOffset ?: containerHeightPx
             val end   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
             start + (end - start) * fraction
+        }
+
+        // The fraction at which the scroll is visually complete.
+        //
+        // When trimOffsets.endOffset is set (Fade mode), the track is already trimmed so
+        // fraction=1 corresponds to the visually-complete moment; keep 1f.
+        //
+        // For the un-trimmed path (None and Print modes):
+        //   yOffset = start + (end - start) * f
+        //   Visually complete when the bottom of the text block has cleared the top of the
+        //   viewport, accounting for top padding: yOffset <= -(textHeightPx + paddingTopPx).
+        //   Solving for f: f_vc = (totalTravel - containerHeightPx + paddingTopPx) / totalTravel
+        val visuallyCompleteFraction = remember(trimOffsets, textHeightPx, containerHeightPx, density, contentPadding) {
+            if (trimOffsets?.endOffset != null || textHeightPx <= 0f || containerHeightPx <= 0f) {
+                1f  // Fade mode (already trimmed); don't change it
+            } else {
+                val effectiveStart = trimOffsets?.startOffset ?: containerHeightPx
+                val effectiveEnd   = trimOffsets?.endOffset   ?: -(textHeightPx + containerHeightPx)
+                val totalTravel    = (effectiveStart - effectiveEnd).coerceAtLeast(1f)
+                val paddingTopPx   = with(density) { contentPadding.calculateTopPadding().toPx() }
+                
+                ((totalTravel - containerHeightPx + paddingTopPx) / totalTravel).coerceIn(0f, 1f)
+            }
+        }
+
+        LaunchedEffect(fraction, visuallyCompleteFraction) {
+            if (fraction >= visuallyCompleteFraction && playerState.isPlaying) {
+                vm.onIntent(PlayerIntent.SetPlaying(false))
+                onAnimationComplete?.invoke()
+            }
         }
 
         val rotatedModifier = if (isHorizontal) {

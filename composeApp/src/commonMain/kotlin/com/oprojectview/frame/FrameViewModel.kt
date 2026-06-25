@@ -9,6 +9,7 @@ import com.oprojectview.animationModeOf
 import com.oprojectview.distortionValueOf
 import com.oprojectview.speedIndexToWpm
 import com.oprojectview.transitionModeOf
+import com.oprojectview.calculatePageDurationMs
 import com.oprojectview.core.BaseViewModel
 import com.oprojectview.core.UiEvent
 import com.oprojectview.core.UiIntent
@@ -110,6 +111,16 @@ sealed interface FrameVmIntent : UiIntent {
         val totalDurationMs: Long
     ) : FrameVmIntent
 
+    data class SyncPlayerPlaybackState(
+        val isPlaying:       Boolean,
+        val countdownDone:   Boolean,
+        val countdownStartUs: Long,
+        val pausedCountdownElapsedUs: Long,
+        val scrollFraction:  Float,
+        val playbackStartUs: Long,
+        val pausedElapsedUs: Long
+    ) : FrameVmIntent
+
     data class SetScrollFraction(val fraction: Float) : FrameVmIntent
     data class SetFontFamilyResolver(val resolver: FontFamily.Resolver) : FrameVmIntent
     data object RequestPip : FrameVmIntent
@@ -175,6 +186,14 @@ class FrameViewModel(
             is FrameVmIntent.SetTargetFps     -> mutateFrame { it.copy(targetFps = intent.fps) }
             is FrameVmIntent.SetSizeClass     -> mutateFrame { it.copy(pipSizeClass = intent.sizeClass) }
             is FrameVmIntent.SyncPlayerState  -> mutateFrame {
+                val paddedDurationMs = if (intent.totalDurationMs > 0 && it.wpm > 0) {
+                    when (intent.animationMode) {
+                        AnimationMode.Scroll -> intent.totalDurationMs + calculatePageDurationMs(intent.scriptText, it.wpm)
+                        AnimationMode.Inline -> intent.totalDurationMs + calculatePageDurationMs(intent.scriptText, it.wpm)
+                        else -> intent.totalDurationMs
+                    }
+                } else intent.totalDurationMs
+
                 it.copy(
                     isPlaying = intent.isPlaying,
                     countdownDone = intent.countdownDone,
@@ -188,7 +207,18 @@ class FrameViewModel(
                     transitionMode = intent.transitionMode,
                     playbackStartUs = intent.playbackStartUs,
                     pausedElapsedUs = intent.pausedElapsedUs,
-                    totalDurationMs = intent.totalDurationMs
+                    totalDurationMs = paddedDurationMs
+                )
+            }
+            is FrameVmIntent.SyncPlayerPlaybackState -> mutateFrame {
+                it.copy(
+                    isPlaying = intent.isPlaying,
+                    countdownDone = intent.countdownDone,
+                    countdownStartUs = intent.countdownStartUs,
+                    pausedCountdownElapsedUs = intent.pausedCountdownElapsedUs,
+                    scrollFraction = intent.scrollFraction,
+                    playbackStartUs = intent.playbackStartUs,
+                    pausedElapsedUs = intent.pausedElapsedUs
                 )
             }
             is FrameVmIntent.SetScrollFraction -> mutateFrame {
@@ -234,7 +264,14 @@ class FrameViewModel(
     }
 
     private fun onSetPlaying(playing: Boolean) {
-        mutateFrame { it.copy(isPlaying = playing) }
+        val nowUs = com.oprojectview.core.MonotonicClock.currentTimeUs()
+        mutateFrame { fs ->
+            var newFs = fs.copy(isPlaying = playing)
+            if (playing && !fs.countdownDone && fs.countdownStartUs <= 0L) {
+                newFs = newFs.copy(countdownStartUs = nowUs)
+            }
+            newFs
+        }
         if (playing) {
             if (_frameState.value.overlayEnabled) {
                 // Only start the render-loop when overlay is active.

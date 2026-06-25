@@ -58,6 +58,10 @@ class IosFrameSink(
     @Volatile
     var onFirstFrameEnqueued: (() -> Unit)? = null
 
+    var getPlaybackState: (() -> com.oprojectview.frame.FrameState)? = null
+    var onReadingCompleted: (() -> Unit)? = null
+    var onReadingStartedOrReset: (() -> Unit)? = null
+
     private var lastFrameTimeUs = 0L
     private var frameCounter    = 0
 
@@ -96,7 +100,27 @@ class IosFrameSink(
             return
         }
 
-        val sampleBuf = sampleFactory.wrap(pixelBuf, frame.presentationTimeUs)
+        val state = getPlaybackState?.invoke()
+        val ptsUs = if (state != null) {
+            if (state.countdownDone) {
+                val elapsed = if (state.isPlaying && state.playbackStartUs > 0L) {
+                    (com.oprojectview.core.MonotonicClock.currentTimeUs() - state.playbackStartUs).coerceAtLeast(0L)
+                } else {
+                    state.pausedElapsedUs
+                }
+                6_000_000L + elapsed
+            } else {
+                if (state.isPlaying && state.countdownStartUs > 0L) {
+                    (com.oprojectview.core.MonotonicClock.currentTimeUs() - state.countdownStartUs).coerceAtLeast(0L)
+                } else {
+                    state.pausedCountdownElapsedUs
+                }
+            }
+        } else {
+            frame.presentationTimeUs
+        }
+
+        val sampleBuf = sampleFactory.wrap(pixelBuf, ptsUs)
         if (sampleBuf == null) {
             println("[IosFrameSink] wrap() returned null sampleBuf, dropping frame")
             pool.release(pixelBuf)
@@ -105,7 +129,7 @@ class IosFrameSink(
 
         val isPlaceholder = frame.isPlaceholder
         mainScope.launch {
-            enqueueOnMain(sampleBuf, pixelBuf, frame.presentationTimeUs, isPlaceholder)
+            enqueueOnMain(sampleBuf, pixelBuf, ptsUs, isPlaceholder)
         }
     }
 
@@ -135,6 +159,19 @@ class IosFrameSink(
                             timescale = 1_000_000
                         )
                         CMTimebaseSetTime(tb, pts)
+                    }
+                }
+
+                val state = getPlaybackState?.invoke()
+                if (state != null) {
+                    val totalUs = (6000L + state.totalDurationMs) * 1000L
+                    if (totalUs > 0L) {
+                        val fraction = presentationTimeUs.toDouble() / totalUs.toDouble()
+                        if (fraction >= 1.0) {
+                            onReadingCompleted?.invoke()
+                        } else if (fraction < 0.9) {
+                            onReadingStartedOrReset?.invoke()
+                        }
                     }
                 }
             }

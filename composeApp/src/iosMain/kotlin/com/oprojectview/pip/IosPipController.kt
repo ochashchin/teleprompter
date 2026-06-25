@@ -18,7 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import platform.AVFoundation.AVLayerVideoGravityResizeAspect
+import platform.AVFoundation.AVLayerVideoGravityResize
 import platform.AVFoundation.AVSampleBufferDisplayLayer
 import platform.AVKit.AVPictureInPictureController
 import platform.AVKit.AVPictureInPictureControllerContentSource
@@ -56,10 +56,27 @@ class IosPipController(
     private val frameViewModel: FrameViewModel,
 ) {
     val displayLayer: AVSampleBufferDisplayLayer = AVSampleBufferDisplayLayer().also {
-        it.videoGravity = AVLayerVideoGravityResizeAspect
+        it.videoGravity = AVLayerVideoGravityResize
     }
 
     var frameSink: IosFrameSink? = null
+        set(value) {
+            field = value
+            value?.getPlaybackState = { frameViewModel.frameStateFlow.value }
+            value?.onReadingCompleted = {
+                if (!hasDispatchedReadingCompleted) {
+                    hasDispatchedReadingCompleted = true
+                    println("[PiP] Dispatching ReadingCompleted because scroll ended")
+                    playerViewModel?.onIntent(PlayerIntent.ReadingCompleted)
+                }
+            }
+            value?.onReadingStartedOrReset = {
+                if (hasDispatchedReadingCompleted) {
+                    hasDispatchedReadingCompleted = false
+                    println("[PiP] Resetting hasDispatchedReadingCompleted because scroll started or reset")
+                }
+            }
+        }
 
     @kotlin.concurrent.Volatile
     private var playerViewModel: PlayerViewModel? = null
@@ -76,6 +93,8 @@ class IosPipController(
     private var pipTransitionCompleted = false
     @kotlin.concurrent.Volatile
     private var isPipStarting = false  // guard against rapid repeated taps
+    // Fix #3 — auto-switch: fire ReadingCompleted exactly once per task
+    private var hasDispatchedReadingCompleted = false
 
     init {
         observeEvents()
@@ -94,6 +113,74 @@ class IosPipController(
 
     fun attachPlayerViewModel(vm: PlayerViewModel) {
         playerViewModel = vm
+        var lastTaskId: Int? = null
+        scope.launch {
+            vm.state.collect { pState ->
+                val t = pState.task ?: return@collect
+
+                // Fix #3 — on task change dispatch SyncPlayerState so PiP shows new text.
+                // Preserve existing fillColorVal so we don't blank the background.
+                val taskChanged = t.id != lastTaskId
+                if (taskChanged) {
+                    lastTaskId = t.id
+                    val currentFill = frameViewModel.frameStateFlow.value.fillColorVal
+                    frameViewModel.onIntent(
+                        FrameVmIntent.SyncPlayerState(
+                            isPlaying                = pState.isPlaying,
+                            countdownDone            = pState.countdownDone,
+                            countdownStartUs         = pState.countdownStartUs,
+                            pausedCountdownElapsedUs = pState.pausedCountdownElapsedUs,
+                            scrollFraction           = 0f,
+                            scriptText               = t.description,
+                            styleSpans               = emptyList(),
+                            fillColorVal             = currentFill,
+                            animationMode            = com.oprojectview.AnimationMode.Scroll,
+                            transitionMode           = com.oprojectview.TransitionMode.None,
+                            playbackStartUs          = pState.playbackStartUs,
+                            pausedElapsedUs          = pState.pausedElapsedUs,
+                            totalDurationMs          = pState.totalDurationMs
+                        )
+                    )
+                } else {
+                    // Fix #4 — keep timebase in sync with actual playback position.
+                    // Compute elapsed seconds and push them into the controlTimebase
+                    // so the native progress bar reflects real script progress.
+                    val elapsedUs = if (pState.countdownDone) {
+                        val elapsed = if (pState.isPlaying && pState.playbackStartUs > 0L) {
+                            (com.oprojectview.frame.FrameProducer.currentTimeUs() - pState.playbackStartUs).coerceAtLeast(0L)
+                        } else {
+                            pState.pausedElapsedUs
+                        }
+                        6_000_000L + elapsed
+                    } else {
+                        if (pState.isPlaying && pState.countdownStartUs > 0L) {
+                            (com.oprojectview.frame.FrameProducer.currentTimeUs() - pState.countdownStartUs).coerceAtLeast(0L)
+                        } else {
+                            pState.pausedCountdownElapsedUs
+                        }
+                    }
+                    val elapsedSec = elapsedUs.toDouble() / 1_000_000.0
+                    controlTimebase?.let { tb ->
+                        CMTimebaseSetTime(
+                            tb,
+                            platform.CoreMedia.CMTimeMakeWithSeconds(elapsedSec, preferredTimescale = 1000)
+                        )
+                    }
+
+                    frameViewModel.onIntent(
+                        FrameVmIntent.SyncPlayerPlaybackState(
+                            isPlaying                = pState.isPlaying,
+                            countdownDone            = pState.countdownDone,
+                            countdownStartUs         = pState.countdownStartUs,
+                            pausedCountdownElapsedUs = pState.pausedCountdownElapsedUs,
+                            scrollFraction           = pState.scrollFraction,
+                            playbackStartUs          = pState.playbackStartUs,
+                            pausedElapsedUs          = pState.pausedElapsedUs
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private fun observeEvents() {
@@ -120,6 +207,10 @@ class IosPipController(
 
     private fun startPip() {
         if (!AVPictureInPictureController.isPictureInPictureSupported()) return
+        if (pipController?.isPictureInPictureActive() == true) {
+            println("[PiP] startPip() ignored — PiP is already active")
+            return
+        }
         if (isPipStarting) {
             println("[PiP] startPip() ignored — already starting")
             return
@@ -128,12 +219,14 @@ class IosPipController(
 
         firstFrameEnqueued = false
         pipTransitionCompleted = false
+        hasDispatchedReadingCompleted = false
 
-        // 1. Auto-start playback first so the viewmodel state is fully ready
-        // and controlTimebase rate will be set to 1.0 when created.
+        // Fix #1 — Do NOT call SetPlaying(true) here.
+        // Spinner timing: overlay + EnterPip set up the FrameState so the spinner
+        // renders correctly. SetPlaying is deferred to didStartPictureInPicture so
+        // the countdown begins only after the PiP window is actually open.
         playerViewModel?.onIntent(PlayerIntent.EnterPip(isNativePip = true))
         frameViewModel.onIntent(FrameVmIntent.SetOverlay(true))
-        frameViewModel.onIntent(FrameVmIntent.SetPlaying(true))
 
         // Create AVPictureInPictureController FIRST — this links AVKit's video pipeline
         // to the display layer, so frames enqueued after this are properly decoded
@@ -215,9 +308,16 @@ class IosPipController(
         updateTimebaseRate(0.0)
         frameViewModel.onIntent(FrameVmIntent.SetOverlay(false))
         frameViewModel.onIntent(FrameVmIntent.ReleasePipSizeOverride)
+        val (nativeW, nativeH) = UIScreen.mainScreen.nativeBounds.useContents {
+            Pair(size.width, size.height)
+        }
+        val sourceW = (nativeW * 0.5).toInt().coerceAtLeast(1)
+        val sourceH = (nativeH * 0.5).toInt().coerceAtLeast(1)
+        frameViewModel.onIntent(FrameVmIntent.SetFrameSize(sourceW, sourceH))
         pipController?.stopPictureInPicture()
 
         playerViewModel?.let { pvm ->
+            pvm.onIntent(PlayerIntent.SetPlaying(false))
             pvm.onIntent(PlayerIntent.ExitPip)
         }
 
@@ -267,6 +367,11 @@ class IosPipController(
             }
             isPipStarting = false
             pipTransitionCompleted = true
+            // Fix #1 — start playback NOW that the PiP window is open.
+            // The spinner will have been visible during the open animation;
+            // starting playback here ensures correct countdown timing.
+            frameViewModel.onIntent(FrameVmIntent.SetPlaying(true))
+            playerViewModel?.onIntent(PlayerIntent.SetPlaying(true))
             maybeSuspendApp()
         }
 
@@ -294,7 +399,40 @@ class IosPipController(
             pictureInPictureController: AVPictureInPictureController,
             setPlaying: Boolean,
         ) {
-            frameViewModel.onIntent(FrameVmIntent.SetPlaying(setPlaying))
+            // Fix #2 — correct pause/resume timestamps so FrameProducer doesn't jump.
+            // Mirror exactly what PlayerViewModel.onPlay/onPause does.
+            val now = com.oprojectview.frame.FrameProducer.currentTimeUs()
+            val fs  = frameViewModel.frameStateFlow.value
+            if (setPlaying) {
+                // Resume: shift playbackStartUs forward by the paused duration
+                val newStartUs = now - fs.pausedElapsedUs
+                frameViewModel.onIntent(
+                    FrameVmIntent.SyncPlayerPlaybackState(
+                        isPlaying                = true,
+                        countdownDone            = fs.countdownDone,
+                        countdownStartUs         = if (!fs.countdownDone) now - fs.pausedCountdownElapsedUs else fs.countdownStartUs,
+                        pausedCountdownElapsedUs = fs.pausedCountdownElapsedUs,
+                        scrollFraction           = fs.scrollFraction,
+                        playbackStartUs          = newStartUs,
+                        pausedElapsedUs          = fs.pausedElapsedUs
+                    )
+                )
+            } else {
+                // Pause: snapshot elapsed time
+                val elapsed = now - fs.playbackStartUs
+                frameViewModel.onIntent(
+                    FrameVmIntent.SyncPlayerPlaybackState(
+                        isPlaying                = false,
+                        countdownDone            = fs.countdownDone,
+                        countdownStartUs         = fs.countdownStartUs,
+                        pausedCountdownElapsedUs = if (!fs.countdownDone) now - fs.countdownStartUs else fs.pausedCountdownElapsedUs,
+                        scrollFraction           = fs.scrollFraction,
+                        playbackStartUs          = fs.playbackStartUs,
+                        pausedElapsedUs          = elapsed.coerceAtLeast(0L)
+                    )
+                )
+            }
+            playerViewModel?.onIntent(PlayerIntent.SetPlaying(setPlaying))
         }
 
         override fun pictureInPictureControllerIsPlaybackPaused(
@@ -304,7 +442,7 @@ class IosPipController(
         override fun pictureInPictureControllerTimeRangeForPlayback(
             pictureInPictureController: AVPictureInPictureController,
         ): CValue<CMTimeRange> {
-            val durationMs = frameViewModel.frameStateFlow.value.totalDurationMs.coerceAtLeast(1000L)
+            val durationMs = (6000L + frameViewModel.frameStateFlow.value.totalDurationMs).coerceAtLeast(1000L)
             val durationSeconds = durationMs / 1000.0
             val durationTime = platform.CoreMedia.CMTimeMakeWithSeconds(
                 durationSeconds, 
@@ -332,6 +470,9 @@ class IosPipController(
             displayLayer.bounds.useContents {
                 println("[PiP] bounds = ${size.width} x ${size.height} (didTransitionToRenderSize: $w x $h)")
             }
+            // Update the display layer bounds so the PiP overlay controls (Play/Pause)
+            // remain perfectly centered within the new window dimensions.
+            displayLayer.bounds = platform.CoreGraphics.CGRectMake(0.0, 0.0, w, h)
             onRenderSizeChanged(w, h)
         }
     }

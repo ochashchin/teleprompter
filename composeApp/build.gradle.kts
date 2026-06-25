@@ -88,6 +88,11 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             implementation(kotlin("test"))
         }
+
+        androidUnitTest.dependencies {
+            implementation(libs.kotlin.testJunit)
+            implementation(libs.junit)
+        }
     }
 }
 

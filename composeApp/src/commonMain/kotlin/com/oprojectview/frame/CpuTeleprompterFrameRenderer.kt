@@ -27,6 +27,7 @@ import com.oprojectview.StyleSpan
 import com.oprojectview.TextFitResult
 import com.oprojectview.TransitionMode
 import com.oprojectview.calculateTextFit
+import com.oprojectview.core.MonotonicClock
 import com.oprojectview.speedIndexToWpm
 import kotlin.concurrent.Volatile
 import kotlin.math.ceil
@@ -160,52 +161,71 @@ class CpuTeleprompterFrameRenderer(
             val measurer = getOrCreateTextMeasurer()
 
             var drawSpinner = false
-            if (!state.countdownDone && state.countdownStartUs > 0L) {
-                val nowUs = com.oprojectview.core.MonotonicClock.currentTimeUs()
-                val elapsedMs = if (state.isPlaying) {
-                    (nowUs - state.countdownStartUs) / 1000L
+            if (!state.countdownDone) {
+                if (state.countdownStartUs > 0L) {
+                    val nowUs = MonotonicClock.currentTimeUs()
+                    val elapsedMs = if (state.isPlaying) {
+                        (nowUs - state.countdownStartUs) / 1000L
+                    } else {
+                        state.pausedCountdownElapsedUs / 1000L
+                    }
+                    if (elapsedMs < 6000L) {
+                        drawSpinner = true
+                    }
                 } else {
-                    state.pausedCountdownElapsedUs / 1000L
-                }
-                if (elapsedMs < 5000L) {
+                    // Initial unsynchronized state on first run
                     drawSpinner = true
-                    val progress = 1f - (elapsedMs.toFloat() / 5000f).coerceIn(0f, 1f)
-                    val pColor = if (state.primaryColorVal != 0L) Color(state.primaryColorVal.toULong()) else Color(0xFF1E88E5)
-                    val bgArcColor = if (state.surfaceVariantColorVal != 0L) Color(state.surfaceVariantColorVal.toULong()) else Color.LightGray
-
-                    val arcPaint = Paint().apply {
-                        color = pColor
-                        style = PaintingStyle.Stroke
-                        strokeWidth = with(density) { 8.dp.toPx() }
-                    }
-                    val bgArcPaint = Paint().apply {
-                        color = bgArcColor
-                        style = PaintingStyle.Stroke
-                        strokeWidth = with(density) { 8.dp.toPx() }
-                    }
-                    val center = Offset(bitmap.width / 2f, bitmap.height / 2f)
-                    val radius = with(density) { 50.dp.toPx() }
-                    canvas.drawArc(
-                        left = center.x - radius,
-                        top = center.y - radius,
-                        right = center.x + radius,
-                        bottom = center.y + radius,
-                        startAngle = -90f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        paint = bgArcPaint
-                    )
-                    canvas.drawArc(
-                        left = center.x - radius,
-                        top = center.y - radius,
-                        right = center.x + radius,
-                        bottom = center.y + radius,
-                        startAngle = -90f + (1f - progress) * 360f,
-                        sweepAngle = progress * 360f,
-                        useCenter = false,
-                        paint = arcPaint
-                    )
                 }
+            }
+
+            if (drawSpinner) {
+                val nowUs = MonotonicClock.currentTimeUs()
+                val elapsedMs = if (state.countdownStartUs > 0L) {
+                    if (state.isPlaying) {
+                        (nowUs - state.countdownStartUs) / 1000L
+                    } else {
+                        state.pausedCountdownElapsedUs / 1000L
+                    }
+                } else {
+                    0L
+                }
+
+                val progress = 1f - (elapsedMs.toFloat() / 6000f).coerceIn(0f, 1f)
+                val pColor = if (state.primaryColorVal != 0L) Color(state.primaryColorVal.toULong()) else Color(0xFF1E88E5)
+                val bgArcColor = if (state.surfaceVariantColorVal != 0L) Color(state.surfaceVariantColorVal.toULong()) else Color.LightGray
+
+                val arcPaint = Paint().apply {
+                    color = pColor
+                    style = PaintingStyle.Stroke
+                    strokeWidth = with(density) { 8.dp.toPx() }
+                }
+                val bgArcPaint = Paint().apply {
+                    color = bgArcColor
+                    style = PaintingStyle.Stroke
+                    strokeWidth = with(density) { 8.dp.toPx() }
+                }
+                val center = Offset(bitmap.width / 2f, bitmap.height / 2f)
+                val radius = with(density) { 50.dp.toPx() }
+                canvas.drawArc(
+                    left = center.x - radius,
+                    top = center.y - radius,
+                    right = center.x + radius,
+                    bottom = center.y + radius,
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    paint = bgArcPaint
+                )
+                canvas.drawArc(
+                    left = center.x - radius,
+                    top = center.y - radius,
+                    right = center.x + radius,
+                    bottom = center.y + radius,
+                    startAngle = -90f + (1f - progress) * 360f,
+                    sweepAngle = progress * 360f,
+                    useCenter = false,
+                    paint = arcPaint
+                )
             }
             
             if (!drawSpinner && measurer != null) {
@@ -330,7 +350,7 @@ class CpuTeleprompterFrameRenderer(
                             }
 
                             val startX = bitmap.width.toFloat()
-                            val endX = -layoutResult.size.width.toFloat()
+                            val endX = -(layoutResult.size.width.toFloat() + bitmap.width.toFloat())
                             val xOffset = startX + (endX - startX) * state.scrollFraction
                             val yOffset = (bitmap.height - layoutResult.size.height) / 2f
 

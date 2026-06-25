@@ -137,6 +137,8 @@ fun PlayerScreenBody(
     // Injected for PiP lifecycle and timing synchronization.
     frameViewModel: FrameViewModel? = null,
 ) {
+    KeepScreenAwake()
+
     val displayState = rememberDisplayTaskState(task.id)
 
     val textSizeItem    = DisplayTaskList.first { it.id == 1 }

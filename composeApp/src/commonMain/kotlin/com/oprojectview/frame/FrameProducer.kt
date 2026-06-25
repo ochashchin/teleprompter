@@ -108,10 +108,23 @@ class FrameProducer(
                 continue
             }
 
-            val elapsedUs = if (currentState.isPlaying) {
-                currentTimeUs() - currentState.playbackStartUs
+            val elapsedUs = if (currentState.countdownDone) {
+                if (currentState.isPlaying) {
+                    (currentTimeUs() - currentState.playbackStartUs).coerceAtLeast(0L)
+                } else {
+                    currentState.pausedElapsedUs
+                }
             } else {
-                currentState.pausedElapsedUs
+                val countdownElapsedUs = if (currentState.isPlaying) {
+                    (currentTimeUs() - currentState.countdownStartUs).coerceAtLeast(0L)
+                } else {
+                    currentState.pausedCountdownElapsedUs
+                }
+                if (countdownElapsedUs < 6_000_000L) {
+                    0L
+                } else {
+                    countdownElapsedUs - 6_000_000L
+                }
             }
             val totalDurationUs = currentState.totalDurationMs * 1000L
             val computedFraction = if (totalDurationUs > 0L) {

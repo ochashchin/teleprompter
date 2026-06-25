@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -98,6 +100,9 @@ fun AppRoot(
     val scriptStyleState  = rememberScriptTextStyleState()
     val displayStyleState = rememberScriptTextStyleState()
     val playerStyleState  = rememberScriptTextStyleState()
+
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
     LaunchedEffect(displayState.task?.id) {
         val id = displayState.task?.id ?: return@LaunchedEffect
@@ -280,6 +285,40 @@ fun AppRoot(
                             ))
                             fvm.onIntent(FrameVmIntent.SetOverlay(true))
                             fvm.onIntent(FrameVmIntent.SetPlaying(false))
+
+                            // Synchronize player state immediately before requesting PiP.
+                            // This ensures the first frames drawn in PiP already have the
+                            // loaded task, countdown state, wpm, and style settings.
+                            val pState = playerVm.state.value
+                            val t = pState.task
+                            if (t != null) {
+                                val animationItem = DisplayTaskList.first { it.id == 4 }
+                                val transitionItem = DisplayTaskList.first { it.id == 5 }
+                                val selectedAnimationIndex = displayState.selectedIndex(animationItem) ?: animationItem.defaultIndex
+                                val selectedTransitionIndex = displayState.selectedIndex(transitionItem) ?: transitionItem.defaultIndex
+                                val animationMode = animationModeOf(selectedAnimationIndex)
+                                val transitionMode = transitionModeOf(selectedTransitionIndex)
+                                val fillColorVal = resolveScriptFillColor(playerStyleState.activeFillColorIndex, isDark, surfaceColor).value.toLong()
+
+                                fvm.onIntent(
+                                    FrameVmIntent.SyncPlayerState(
+                                        isPlaying = pState.isPlaying,
+                                        countdownDone = pState.countdownDone,
+                                        countdownStartUs = pState.countdownStartUs,
+                                        pausedCountdownElapsedUs = pState.pausedCountdownElapsedUs,
+                                        scrollFraction = 0f,
+                                        scriptText = t.description,
+                                        styleSpans = playerStyleState.spans,
+                                        fillColorVal = fillColorVal,
+                                        animationMode = animationMode,
+                                        transitionMode = transitionMode,
+                                        playbackStartUs = pState.playbackStartUs,
+                                        pausedElapsedUs = pState.pausedElapsedUs,
+                                        totalDurationMs = pState.totalDurationMs
+                                    )
+                                )
+                            }
+
                             fvm.onIntent(FrameVmIntent.RequestPip)
                         }
                     }
@@ -596,3 +635,24 @@ private val Screen.ordinal: Int get() = when (this) {
     is Screen.DisplayScreen -> 2
     is Screen.PlayerScreen  -> 3
 }
+
+private fun resolveScriptFillColor(
+    activeFillColorIndex: Int,
+    isDark: Boolean,
+    surfaceColor: Color
+): Color {
+    val colors = listOf(
+        Color(if (isDark) 0xFF421C1C else 0xFFFADBD8),
+        Color(if (isDark) 0xFF1C2D20 else 0xFFC4E4C8),
+        Color(if (isDark) 0xFF2E1C29 else 0xFFE3CCDB),
+        Color(if (isDark) 0xFF3A1C34 else 0xFFFACFEB),
+        Color(if (isDark) 0xFF17331F else 0xFFCFF7D3),
+        surfaceColor
+    )
+    return if (activeFillColorIndex in colors.indices) {
+        colors[activeFillColorIndex]
+    } else {
+        surfaceColor
+    }
+}
+

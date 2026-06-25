@@ -101,11 +101,11 @@ class NewTaskViewModel(
     override fun onIntent(intent: UiIntent) {
         when (intent) {
             is NewTaskIntent.Init             -> init(intent)
-            is NewTaskIntent.TopicChanged     -> updateState { it.copy(topicText  = intent.text) }
-            is NewTaskIntent.ScriptChanged    -> updateState { it.copy(scriptText = intent.text) }
+            is NewTaskIntent.TopicChanged     -> updateState { it.copy(topicText  = intent.text, isPreviewMode = false) }
+            is NewTaskIntent.ScriptChanged    -> updateState { it.copy(scriptText = intent.text, isPreviewMode = false) }
             is NewTaskIntent.NextClicked      -> onNext()
             is NewTaskIntent.BackPressed      -> onBack()
-            is NewTaskIntent.StyleChanged     -> updateState { it.copy(hasStyleChanges = true) }
+            is NewTaskIntent.StyleChanged     -> updateState { it.copy(hasStyleChanges = true, isPreviewMode = false) }
             is NewTaskIntent.StyleSaved       -> updateState { it.copy(hasStyleChanges = false) }
             is NewTaskIntent.SaveConfirmed    -> onSaveConfirmed()
             is NewTaskIntent.DiscardConfirmed -> onDiscardConfirmed()
