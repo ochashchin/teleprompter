@@ -104,7 +104,7 @@ android {
         applicationId = "com.oprojectview"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 28
+        versionCode = 29
         versionName = "2.0"
     }
     packaging {

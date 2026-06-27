@@ -1533,7 +1533,18 @@ fun DisplayTextBar(
         BoxWithConstraints(
             modifier = Modifier
                 .graphicsLayer {
-                    scaleY = if (isMirror) -1f else 1f
+                    if (isMirror) {
+                        if (isHorizontal) {
+                            scaleX = -1f
+                            scaleY = 1f
+                        } else {
+                            scaleX = 1f
+                            scaleY = -1f
+                        }
+                    } else {
+                        scaleX = 1f
+                        scaleY = 1f
+                    }
                 }
                 .fillMaxSize(),
             contentAlignment = Alignment.Center,

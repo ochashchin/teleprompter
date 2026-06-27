@@ -294,10 +294,13 @@ fun AppRoot(
                             if (t != null) {
                                 val animationItem = DisplayTaskList.first { it.id == 4 }
                                 val transitionItem = DisplayTaskList.first { it.id == 5 }
+                                val mirrorItem = DisplayTaskList.first { it.id == 7 }
                                 val selectedAnimationIndex = displayState.selectedIndex(animationItem) ?: animationItem.defaultIndex
                                 val selectedTransitionIndex = displayState.selectedIndex(transitionItem) ?: transitionItem.defaultIndex
+                                val selectedMirrorIndex = displayState.selectedIndex(mirrorItem) ?: mirrorItem.defaultIndex
                                 val animationMode = animationModeOf(selectedAnimationIndex)
                                 val transitionMode = transitionModeOf(selectedTransitionIndex)
+                                val isMirror = selectedMirrorIndex == 1
                                 val fillColorVal = resolveScriptFillColor(playerStyleState.activeFillColorIndex, isDark, surfaceColor).value.toLong()
 
                                 fvm.onIntent(
@@ -314,7 +317,8 @@ fun AppRoot(
                                         transitionMode = transitionMode,
                                         playbackStartUs = pState.playbackStartUs,
                                         pausedElapsedUs = pState.pausedElapsedUs,
-                                        totalDurationMs = pState.totalDurationMs
+                                        totalDurationMs = pState.totalDurationMs,
+                                        isMirror = isMirror
                                     )
                                 )
                             }

@@ -100,7 +100,6 @@ fun ReviewDialog(
                 ) {
                     DialogButton(
                         text = stringResource(Res.string.rate_us_later),
-                        fontSize = fontSize(18.dp),
                         hovered = false,
                         modifier = Modifier.fillMaxHeight(),
                         onClick = {
@@ -113,7 +112,6 @@ fun ReviewDialog(
 
                     DialogButton(
                         text = stringResource(Res.string.rate_us_rate_now),
-                        fontSize = fontSize(18.dp),
                         hovered = true,
                         modifier = Modifier.fillMaxHeight(),
                         onClick = {
@@ -130,7 +128,7 @@ fun ReviewDialog(
 private fun DialogButton(
     text: String,
     modifier: Modifier = Modifier,
-    fontSize: TextUnit,
+    fontSize: TextUnit = MaterialTheme.typography.titleMedium.fontSize,
     hovered: Boolean = true,
     onClick: () -> Unit
 ) {

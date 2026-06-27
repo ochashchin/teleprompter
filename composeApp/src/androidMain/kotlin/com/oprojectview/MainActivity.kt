@@ -57,12 +57,14 @@ class MainActivity : ComponentActivity() {
                 onExitApp         = { finishAffinity() },
                 frameViewModel    = frameViewModel,
                 onViewModelsReady = { playerVm ->
-                    pipController = PipController(
-                        activity = this,
-                        frameViewModel = frameViewModel,
-                        playerViewModel = playerVm,
-                        lifecycleOwner = this,
-                    )
+                    if (pipController == null) {
+                        pipController = PipController(
+                            activity = this,
+                            frameViewModel = frameViewModel,
+                            playerViewModel = playerVm,
+                            lifecycleOwner = this,
+                        )
+                    }
                 },
             )
         }

@@ -108,7 +108,8 @@ sealed interface FrameVmIntent : UiIntent {
         val transitionMode: TransitionMode,
         val playbackStartUs: Long,
         val pausedElapsedUs: Long,
-        val totalDurationMs: Long
+        val totalDurationMs: Long,
+        val isMirror:        Boolean
     ) : FrameVmIntent
 
     data class SyncPlayerPlaybackState(
@@ -199,7 +200,8 @@ class FrameViewModel(
                     transitionMode = intent.transitionMode,
                     playbackStartUs = intent.playbackStartUs,
                     pausedElapsedUs = intent.pausedElapsedUs,
-                    totalDurationMs = intent.totalDurationMs
+                    totalDurationMs = intent.totalDurationMs,
+                    isMirror = intent.isMirror
                 )
             }
             is FrameVmIntent.SyncPlayerPlaybackState -> mutateFrame {

@@ -124,6 +124,7 @@ class IosPipController(
                 if (taskChanged) {
                     lastTaskId = t.id
                     val currentFill = frameViewModel.frameStateFlow.value.fillColorVal
+                    val currentMirror = frameViewModel.frameStateFlow.value.isMirror
                     frameViewModel.onIntent(
                         FrameVmIntent.SyncPlayerState(
                             isPlaying                = pState.isPlaying,
@@ -138,7 +139,8 @@ class IosPipController(
                             transitionMode           = com.oprojectview.TransitionMode.None,
                             playbackStartUs          = pState.playbackStartUs,
                             pausedElapsedUs          = pState.pausedElapsedUs,
-                            totalDurationMs          = pState.totalDurationMs
+                            totalDurationMs          = pState.totalDurationMs,
+                            isMirror                 = currentMirror
                         )
                     )
                 } else {

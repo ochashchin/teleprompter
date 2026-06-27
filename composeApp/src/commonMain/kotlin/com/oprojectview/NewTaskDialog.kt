@@ -84,7 +84,6 @@ fun SaveChangesDialog(
                 ) {
                     DialogButton(
                         text = stringResource(Res.string.dialog_discard),
-                        fontSize = fontSize(18.dp),
                         hovered = false,
                         modifier = Modifier.fillMaxHeight(),
                         onClick = {
@@ -97,7 +96,6 @@ fun SaveChangesDialog(
 
                     DialogButton(
                         text = stringResource(Res.string.dialog_save),
-                        fontSize = fontSize(18.dp),
                         hovered = true,
                         modifier = Modifier.fillMaxHeight(),
                         onClick = {
@@ -114,7 +112,7 @@ fun SaveChangesDialog(
 private fun DialogButton(
     text: String,
     modifier: Modifier = Modifier,
-    fontSize: TextUnit,
+    fontSize: TextUnit = MaterialTheme.typography.titleMedium.fontSize,
     hovered: Boolean = true,
     onClick: () -> Unit
 ) {

@@ -215,7 +215,8 @@ fun PlayerScreenBody(
         playerState.playbackStartUs,
         playerState.pausedElapsedUs,
         playerState.totalDurationMs,
-        fillColor
+        fillColor,
+        isMirror
     ) {
         val t = playerState.task ?: return@LaunchedEffect
         frameViewModel?.onIntent(
@@ -232,7 +233,8 @@ fun PlayerScreenBody(
                 transitionMode = transitionMode,
                 playbackStartUs = playerState.playbackStartUs,
                 pausedElapsedUs = playerState.pausedElapsedUs,
-                totalDurationMs = playerState.totalDurationMs
+                totalDurationMs = playerState.totalDurationMs,
+                isMirror = isMirror
             )
         )
     }
@@ -295,7 +297,7 @@ fun PlayerScreenBody(
             animationSpec = if (playerState.isTransitioningToNextTask) androidx.compose.animation.core.tween(200) else if (isShowingUpNext) androidx.compose.animation.core.tween(200) else androidx.compose.animation.core.snap()
         )
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .graphicsLayer { alpha = if (countdownDone) textAlpha else 0f }
                 .fillMaxSize(),
             contentAlignment = Alignment.Center,
@@ -316,7 +318,7 @@ fun PlayerScreenBody(
                 countdownDone       = countdownDone,
                 initialScrollFraction = scrollFraction,
                 onScrollFraction    = { vm.onIntent(PlayerIntent.ScrollProgress(it)) },
-                modifier            = modifier,
+                modifier            = Modifier.fillMaxSize(),
                 onAnimationComplete = {
                     if (displayState.isAnimationLoopEnabled()) {
                         val skipDelay = animationMode != AnimationMode.Inline

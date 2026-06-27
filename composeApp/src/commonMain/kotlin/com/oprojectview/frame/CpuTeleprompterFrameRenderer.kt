@@ -231,8 +231,13 @@ class CpuTeleprompterFrameRenderer(
                                 ) {
                                     withTransform({
                                         if (state.isMirror) {
-                                            translate(size.width, 0f)
-                                            scale(-1f, 1f, pivot = Offset.Zero)
+                                            if (state.isHorizontal) {
+                                                translate(size.width, 0f)
+                                                scale(-1f, 1f, pivot = Offset.Zero)
+                                            } else {
+                                                translate(0f, size.height)
+                                                scale(1f, -1f, pivot = Offset.Zero)
+                                            }
                                         }
                                     }) {
                                         drawText(layoutResult, topLeft = Offset(xOffset, yOffset))
@@ -255,8 +260,13 @@ class CpuTeleprompterFrameRenderer(
                                 ) {
                                     withTransform({
                                         if (state.isMirror) {
-                                            translate(size.width, 0f)
-                                            scale(-1f, 1f, pivot = Offset.Zero)
+                                            if (state.isHorizontal) {
+                                                translate(size.width, 0f)
+                                                scale(-1f, 1f, pivot = Offset.Zero)
+                                            } else {
+                                                translate(0f, size.height)
+                                                scale(1f, -1f, pivot = Offset.Zero)
+                                            }
                                         }
                                     }) {
                                         drawText(layoutResult, topLeft = Offset(xOffset, yOffset))
@@ -347,8 +357,13 @@ class CpuTeleprompterFrameRenderer(
                                 ) {
                                     withTransform({
                                         if (state.isMirror) {
-                                            translate(size.width, 0f)
-                                            scale(-1f, 1f, pivot = Offset.Zero)
+                                            if (state.isHorizontal) {
+                                                translate(size.width, 0f)
+                                                scale(-1f, 1f, pivot = Offset.Zero)
+                                            } else {
+                                                translate(0f, size.height)
+                                                scale(1f, -1f, pivot = Offset.Zero)
+                                            }
                                         }
                                     }) {
                                         drawText(layoutResult, topLeft = Offset(xOffset, yOffset))
@@ -371,8 +386,13 @@ class CpuTeleprompterFrameRenderer(
                                 ) {
                                     withTransform({
                                         if (state.isMirror) {
-                                            translate(size.width, 0f)
-                                            scale(-1f, 1f, pivot = Offset.Zero)
+                                            if (state.isHorizontal) {
+                                                translate(size.width, 0f)
+                                                scale(-1f, 1f, pivot = Offset.Zero)
+                                            } else {
+                                                translate(0f, size.height)
+                                                scale(1f, -1f, pivot = Offset.Zero)
+                                            }
                                         }
                                     }) {
                                         drawText(layoutResult, topLeft = Offset(xOffset, yOffset))
@@ -501,8 +521,13 @@ class CpuTeleprompterFrameRenderer(
                                         ) {
                                             withTransform({
                                                 if (state.isMirror) {
-                                                    translate(size.width, 0f)
-                                                    scale(-1f, 1f, pivot = Offset.Zero)
+                                                    if (state.isHorizontal) {
+                                                        translate(size.width, 0f)
+                                                        scale(-1f, 1f, pivot = Offset.Zero)
+                                                    } else {
+                                                        translate(0f, size.height)
+                                                        scale(1f, -1f, pivot = Offset.Zero)
+                                                    }
                                                 }
                                             }) {
                                                 drawText(pageLayout, topLeft = Offset(xOffset, yOffset))
@@ -542,8 +567,13 @@ class CpuTeleprompterFrameRenderer(
                                         ) {
                                             withTransform({
                                                 if (state.isMirror) {
-                                                    translate(size.width, 0f)
-                                                    scale(-1f, 1f, pivot = Offset.Zero)
+                                                    if (state.isHorizontal) {
+                                                        translate(size.width, 0f)
+                                                        scale(-1f, 1f, pivot = Offset.Zero)
+                                                    } else {
+                                                        translate(0f, size.height)
+                                                        scale(1f, -1f, pivot = Offset.Zero)
+                                                    }
                                                 }
                                             }) {
                                                 drawText(pageLayout, topLeft = Offset(xOffset, yOffset))

@@ -311,49 +311,49 @@ fun DisplayScreenBody(
     val mirrorItem      = DisplayTaskList.first { it.id == 7 }
     val overlayItem     = DisplayTaskList.first { it.id == 8 }
 
-    var selectedSizeIndex        by remember {
+    var selectedSizeIndex        by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(textSizeItem) ?: textSizeItem.defaultIndex
         )
     }
 
-    var selectedOrientationIndex by remember {
+    var selectedOrientationIndex by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(orientationItem) ?: orientationItem.defaultIndex
         )
     }
 
-    var selectedSpeedIndex       by remember {
+    var selectedSpeedIndex       by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(speedItem) ?: speedItem.defaultIndex
         )
     }
 
-    var selectedAnimationIndex   by remember {
+    var selectedAnimationIndex   by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(animationItem) ?: animationItem.defaultIndex
         )
     }
 
-    var selectedTransitionIndex  by remember {
+    var selectedTransitionIndex  by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(transitionItem) ?: transitionItem.defaultIndex
         )
     }
 
-    var selectedDistortionIndex  by remember {
+    var selectedDistortionIndex  by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(distortionItem) ?: distortionItem.defaultIndex
         )
     }
 
-    var selectedMirrorIndex      by remember {
+    var selectedMirrorIndex      by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(mirrorItem) ?: mirrorItem.defaultIndex
         )
     }
 
-    var selectedOverlayIndex     by remember {
+    var selectedOverlayIndex     by remember(task.id) {
         mutableStateOf(
             displayState.selectedIndex(overlayItem) ?: overlayItem.defaultIndex
         )
@@ -396,7 +396,7 @@ fun DisplayScreenBody(
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
-                    modifier = modifier,
+                    modifier = Modifier.fillMaxSize(),
                     shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surface,
                 ) {
@@ -413,7 +413,7 @@ fun DisplayScreenBody(
                         styleSpans        = styleSpans,
                         fillColor         = fillColor,
                         preview           = true,
-                        modifier          = modifier,
+                        modifier          = Modifier.fillMaxSize(),
                     )
                 }
             }
@@ -421,7 +421,7 @@ fun DisplayScreenBody(
             SegmentedList(
                 items         = DisplayTaskList,
                 displayState  = displayState,
-                modifier      = modifier.padding(top = 12.dp),
+                modifier      = Modifier.padding(top = 12.dp),
                 onSelectionChanged = { item, index ->
                     when (item.id) {
                         1 -> selectedSizeIndex        = index
