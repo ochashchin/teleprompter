@@ -6,12 +6,8 @@ workflows:
     environment:
       xcode: 26.6               # Use Xcode 26.6 to satisfy Apple's requirements
       java: 17                  # Temurin Java 17 for Gradle
-      vars:
-        # These variables will be safely stored and encrypted in the Codemagic dashboard UI:
-        APP_STORE_CONNECT_ISSUER_ID: Encrypted(...)
-        APP_STORE_CONNECT_KEY_IDENTIFIER: Encrypted(...)
-        APP_STORE_CONNECT_PRIVATE_KEY: Encrypted(...)
-        APP_ID: Encrypted(...) # Your Apple App ID (numeric ID from App Store Connect)
+      groups:
+        - app_store_credentials
     triggering:
       events:
         - push
