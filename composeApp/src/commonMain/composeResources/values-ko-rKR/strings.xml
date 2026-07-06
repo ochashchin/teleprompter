@@ -115,7 +115,7 @@
     <string name="help_transition">전환 — 시각 효과를 선택합니다: 없음, 페이드 또는 인쇄.</string>
     <string name="help_distortion">왜곡 — 왜곡 방지 관점을 선택합니다: 0°, 45° 또는 70°.</string>
     <string name="help_mirror">거울 — 텔레프롬프터 장비를 위해 즉각적인 텍스트 반전을 활성화합니다.</string>
-    <string name="help_overlay">오버레이 — 떠 있는 PiP 창에서 스크립트를 계속 표시합니다.</string>
+    <string name="help_overlay">오버레이 — 카메라 녹화 중이거나 다른 앱 위에 표시되는 플로팅 PiP 창에서 스크립트를 계속 표시합니다.</string>
 
     <string name="rate_us_title">평가해 주세요!</string>
     <string name="rate_us_supporting_text">여러분의 피드백은 저희에게 큰 의미가 있습니다! 스토어 페이지에 댓글을 남겨주세요.</string>

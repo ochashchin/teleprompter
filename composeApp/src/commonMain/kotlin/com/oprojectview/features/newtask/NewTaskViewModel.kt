@@ -223,6 +223,23 @@ class NewTaskViewModel(
         clearAndReturn()
     }
 
+    fun hasUnsavedChanges(): Boolean {
+        val state = currentState
+        return when {
+            state.isPreviewMode -> false
+            state.hasStyleChanges && !state.hasContent -> true
+            !state.hasContent -> false
+            state.editingTaskId != null -> {
+                val existing = repository.loadTask(state.editingTaskId)
+                val unchanged = existing != null &&
+                        state.effectiveTitle == existing.title &&
+                        state.scriptText.trim() == existing.description
+                !(unchanged && !state.hasStyleChanges)
+            }
+            else -> true
+        }
+    }
+
     private fun commitAndReturn() {
         val state = currentState
         var savedTaskId: Int? = state.editingTaskId

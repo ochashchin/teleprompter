@@ -16,6 +16,7 @@ class CameraControlState {
     var isFrontCamera by mutableStateOf(true)
     var zoomOptions by mutableStateOf(listOf(1f))
     var currentZoomIndex by mutableStateOf(0)
+    var isTorchSupported by mutableStateOf(false)
 }
 
 interface PermissionHelper {
@@ -41,14 +42,13 @@ expect fun rememberCameraCalibrator(
 
 expect suspend fun exportVideoToGallery(filePath: String, context: Any, fileName: String)
 
-expect fun getUniqueExportFileName(context: Any, fileName: String): String
-
 @Composable
 expect fun CalibrationOverlay(
     visible: Boolean,
     onDismiss: () -> Unit,
     onCalibrationCompleted: (CalibrationData) -> Unit,
     cameraControlState: CameraControlState,
+    isHorizontal: Boolean = false,
     modifier: Modifier = Modifier
 )
 

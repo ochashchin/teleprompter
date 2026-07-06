@@ -115,7 +115,7 @@
     <string name="help_transition">Transizione — Seleziona effetti visivi: Nessuna, Dissolvenza o Stampa.</string>
     <string name="help_distortion">Distorsione — Seleziona la prospettiva anti-distorsione: 0°, 45° o 70°.</string>
     <string name="help_mirror">Specchio — Abilita l'inversione immediata del testo per i dispositivi teleprompter.</string>
-    <string name="help_overlay">Sovrapposizione — Mantieni il tuo script visibile in una finestra fluttuante (PiP).</string>
+    <string name="help_overlay">Sovrapposizione — Mantieni il tuo script visibile durante la registrazione con la fotocamera o in una finestra fluttuante PiP sopra altre app.</string>
 
     <string name="rate_us_title">Per favore valutaci!</string>
     <string name="rate_us_supporting_text">Il tuo feedback è molto importante per noi! Lascia un commento sulla pagina dello store.</string>

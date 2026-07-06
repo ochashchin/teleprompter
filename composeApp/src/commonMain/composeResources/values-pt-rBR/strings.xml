@@ -114,7 +114,7 @@
     <string name="help_transition">Transição — Selecione efeitos visuais: Nenhuma, Desaparecer ou Imprimir.</string>
     <string name="help_distortion">Distorção — Selecione a perspectiva anti-distorção: 0°, 45° ou 70°.</string>
     <string name="help_mirror">Espelhar — Inverta o texto instantaneamente para rigs de teleprompter.</string>
-    <string name="help_overlay">Sobreposição — Mantenha seu roteiro visível em uma janela flutuante PiP.</string>
+    <string name="help_overlay">Sobreposição — Mantenha seu roteiro visível durante a gravação com a câmera ou em uma janela flutuante PiP sobre outros aplicativos.</string>
 
     <string name="rate_us_title">Avalie-nos!</string>
     <string name="rate_us_supporting_text">Seu feedback é muito importante! Por favor, deixe um comentário na página da loja.</string>

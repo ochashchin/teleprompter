@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalForeignApi::class)
+@file:OptIn(ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
 
 package com.oprojectview
 
@@ -13,6 +13,16 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import platform.UIKit.UIScreen
 import platform.UIKit.UIViewController
+import platform.UIKit.UIPanGestureRecognizer
+import platform.UIKit.UIRectEdgeLeft
+import platform.UIKit.UIGestureRecognizerStateBegan
+import platform.UIKit.UIGestureRecognizerStateEnded
+import platform.Foundation.NSSelectorFromString
+import platform.darwin.NSObject
+import kotlinx.cinterop.ObjCAction
+import com.oprojectview.navigation.ExitHandler
+import com.oprojectview.navigation.ExitReason
+import com.oprojectview.navigation.RootViewModel
 
 /**
  * Scale factor applied to native screen pixels for the PiP source canvas.
@@ -92,8 +102,11 @@ fun MainViewController(): UIViewController {
     frameViewModel.replaceSink(iosFrameSink)
 
     // ── 5. Compose UIViewController ───────────────────────────────────────────
+    val rootViewModel = RootViewModel()
+
     val controller = ComposeUIViewController {
         App(
+            rootViewModel     = rootViewModel,
             frameViewModel    = frameViewModel,
             // Called by App once PlayerViewModel is alive inside Compose.
             // We complete IosPipController's wiring here.
@@ -102,6 +115,17 @@ fun MainViewController(): UIViewController {
             },
         )
     }
+
+    // Add native iOS edge swipe gesture recognizer to detect swipe back navigation
+    val gestureHandler = EdgeSwipeGestureHandler(rootViewModel)
+    rootViewModel.platformGestureHandler = gestureHandler // Retain reference!
+
+    val selector = NSSelectorFromString("handleSwipe:")
+    // Use standard UIPanGestureRecognizer, restricted to the left edge via gestureRecognizerShouldBegin
+    val recognizer = UIPanGestureRecognizer(target = gestureHandler, action = selector).apply {
+        delegate = gestureHandler
+    }
+    controller.view.addGestureRecognizer(recognizer)
 
     // Add the displayLayer as a tiny 1x1 sublayer to the view controller's view.
     // This places it in the active view hierarchy, which is required by iOS.
@@ -115,4 +139,69 @@ fun MainViewController(): UIViewController {
     }
 
     return controller
+}
+
+class EdgeSwipeGestureHandler(
+    private val exitHandler: ExitHandler
+) : NSObject(), platform.UIKit.UIGestureRecognizerDelegateProtocol {
+
+    init {
+        println("[EdgeSwipe] Handler initialized")
+    }
+
+    @ObjCAction
+    fun handleSwipe(sender: UIPanGestureRecognizer) {
+        val view = sender.view ?: return
+        val state = sender.state
+        val translationX = sender.translationInView(view).useContents { x }
+        val velocityX = sender.velocityInView(view).useContents { x }
+        
+        // Log changes in state
+        if (state == UIGestureRecognizerStateBegan || state == UIGestureRecognizerStateEnded) {
+            println("[EdgeSwipe] handleSwipe state=$state, translationX=$translationX, velocityX=$velocityX, shouldIntercept=${exitHandler.shouldInterceptBack}")
+        }
+
+        when (state) {
+            UIGestureRecognizerStateBegan -> {
+                if (exitHandler.shouldInterceptBack) {
+                    println("[EdgeSwipe] Intercepting exit request on Began")
+                    exitHandler.requestExit(ExitReason.Back)
+                    // Disable and re-enable to cancel the current gesture
+                    sender.enabled = false
+                    sender.enabled = true
+                }
+            }
+            UIGestureRecognizerStateEnded -> {
+                if (!exitHandler.shouldInterceptBack) {
+                    val width = view.bounds.useContents { size.width }
+                    println("[EdgeSwipe] Ended: translationX=$translationX, width=$width")
+                    // 30% width swipe or fast positive swipe velocity
+                    if (translationX > width * 0.3 || velocityX > 300.0) {
+                        println("[EdgeSwipe] Ended threshold met, requesting exit")
+                        exitHandler.requestExit(ExitReason.Back)
+                    }
+                }
+            }
+            else -> {}
+        }
+    }
+
+    override fun gestureRecognizerShouldBegin(gestureRecognizer: platform.UIKit.UIGestureRecognizer): Boolean {
+        val view = gestureRecognizer.view ?: return false
+        val locationX = gestureRecognizer.locationInView(view).useContents { x }
+        // Only begin if the touch is within 40 points of the left edge
+        if (locationX > 40.0) {
+            return false
+        }
+        println("[EdgeSwipe] Gesture began at edge: locationX=$locationX")
+        return true
+    }
+
+    override fun gestureRecognizer(
+        gestureRecognizer: platform.UIKit.UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWithGestureRecognizer: platform.UIKit.UIGestureRecognizer
+    ): Boolean {
+        // Allow recognizing simultaneously with Compose scroll/pan gestures
+        return true
+    }
 }

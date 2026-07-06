@@ -39,6 +39,7 @@ fun DraggableCameraOverlay(
     parentHeight: Dp,
     isExpanded: Boolean = false,
     onZoomStateAvailable: (Float, Float) -> Unit = { _, _ -> },
+    onTorchStateAvailable: (Boolean) -> Unit = {},
     taskId: Int,
     visible: Boolean = true,
     modifier: Modifier = Modifier
@@ -123,6 +124,7 @@ fun DraggableCameraOverlay(
             onVideoSaved = onVideoSaved,
             onZoomStateAvailable = onZoomStateAvailable,
             onPreviewStateChanged = { isPreviewReady = it },
+            onTorchStateAvailable = onTorchStateAvailable,
             alpha = finalAlpha,
             cornerRadiusDp = currentCorner
         )

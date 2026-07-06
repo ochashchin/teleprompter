@@ -47,14 +47,9 @@ import androidx.compose.ui.platform.LocalUriHandler
 import com.oprojectview.frame.FrameViewModel
 import com.oprojectview.frame.FrameVmIntent
 import com.oprojectview.navigation.PlatformBackHandler
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.ui.unit.dp
 import com.oprojectview.navigation.RootEvent
 import com.oprojectview.navigation.RootViewModel
 import com.oprojectview.navigation.Screen
-import kotlinx.coroutines.delay
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.draft_title
 import org.jetbrains.compose.resources.stringResource
@@ -194,13 +189,15 @@ fun AppRoot(
         )
     }
 
-    LaunchedEffect(screen) {
+    LaunchedEffect(screen, newTaskState) {
         if (screen == Screen.NewTaskScreen) {
             viewModel.setBackInterceptor { newTaskVm.onIntent(NewTaskIntent.BackPressed); true }
+            viewModel.shouldInterceptBack = newTaskVm.hasUnsavedChanges()
         } else if (screen == Screen.PlayerScreen) {
-            viewModel.setBackInterceptor { playerVm.onIntent(com.oprojectview.features.player.PlayerIntent.BackClicked); true }
+            // Managed dynamically by PlayerScreenBody's callbacks
         } else {
             viewModel.setBackInterceptor(null)
+            viewModel.shouldInterceptBack = false
         }
     }
 
@@ -395,7 +392,6 @@ fun AppRoot(
         screen           = screen,
         prevScreen       = prevScreen,
         playerStyleState = playerStyleState,
-        onEdgeSwipeBack  = { viewModel.handleBack() },
         staticContent    = { s ->
             when (s) {
                 is Screen.TaskScreen    -> TaskScreenStatic(
@@ -508,6 +504,8 @@ fun AppRoot(
                             styleSpans        = activeSpans,
                             fillColor         = playerStyleState.resolveActiveFillColor(),
                             frameViewModel    = frameViewModel,
+                            onSetBackInterceptor = { viewModel.setBackInterceptor(it) },
+                            onUpdateShouldInterceptBack = { viewModel.shouldInterceptBack = it }
                         )
                     }
                 }
@@ -524,7 +522,6 @@ private fun ScreenLayout(
     screen:           Screen,
     prevScreen:       Screen,
     playerStyleState: ScriptTextStyleState,
-    onEdgeSwipeBack:  () -> Unit,
     staticContent:    @Composable (Screen) -> Unit,
     dynamicContent:   @Composable (Screen) -> Unit,
     modifier:         Modifier = Modifier,
@@ -533,30 +530,7 @@ private fun ScreenLayout(
     val playerFillColor = playerStyleState.resolveActiveFillColor()
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    // Only intercept if the gesture starts within 40dp of the left edge
-                    if (down.position.x < 40.dp.toPx()) {
-                        var dragAmount = 0f
-                        do {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull()
-                            if (change != null && change.pressed) {
-                                dragAmount += change.position.x - change.previousPosition.x
-                                // If user swiped right by more than 50px, trigger back
-                                if (dragAmount > 50f) {
-                                    change.consume()
-                                    onEdgeSwipeBack()
-                                    break
-                                }
-                            }
-                        } while (event.changes.any { it.pressed })
-                    }
-                }
-            }
+        modifier = modifier.fillMaxSize()
     ) {
         AnimatedContent(
             targetState    = screen,

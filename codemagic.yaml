@@ -1,0 +1,46 @@
+workflows:
+  ios-app-store:
+    name: iOS App Store Publish
+    max_build_duration: 60
+    instance_type: mac_mini_m2   # M2 Mac Mini running macOS Tahoe
+    environment:
+      xcode: 26.6               # Use Xcode 26.6 to satisfy Apple's requirements
+      java: 17                  # Temurin Java 17 for Gradle
+      vars:
+        # These variables will be safely stored and encrypted in the Codemagic dashboard UI:
+        APP_STORE_CONNECT_ISSUER_ID: Encrypted(...)
+        APP_STORE_CONNECT_KEY_IDENTIFIER: Encrypted(...)
+        APP_STORE_CONNECT_PRIVATE_KEY: Encrypted(...)
+        APP_ID: Encrypted(...) # Your Apple App ID (numeric ID from App Store Connect)
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Initialize keychain
+        script: |
+          keychain initialize
+      - name: Fetch signing files from Apple
+        script: |
+          # Codemagic will automatically download your certificates and profiles for your bundle ID
+          app-store-connect fetch-signing-files "com.oprojectview" --project-type ios --create
+      - name: Set up code signing certificates
+        script: |
+          keychain add-certificates
+      - name: Build Xcode Archive and Export IPA
+        script: |
+          # This builds the Xcode project which automatically invokes KMP Gradle task
+          xcode-project build-ipa \
+            --project iosApp/iosApp.xcodeproj \
+            --scheme iosApp \
+            --configuration Release
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true # Automatically submits to TestFlight

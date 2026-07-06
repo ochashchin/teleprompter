@@ -102,7 +102,7 @@
     <string name="help_transition">Übergang — Wählen Sie visuelle Effekte: Keine, Verblassen oder Drucken.</string>
     <string name="help_distortion">Verzerrung — Wählen Sie die Anti-Verzerrungs-Perspektive: 0°, 45° oder 70°.</string>
     <string name="help_mirror">Spiegeln — Aktivieren Sie die sofortige Textumkehr für Teleprompter-Rigs.</string>
-    <string name="help_overlay">Überlagerung — Halten Sie Ihr Skript in einem schwebenden Fenster (PiP) sichtbar.</string>
+    <string name="help_overlay">Überlagerung — Halten Sie Ihr Skript während der Kameraaufnahme oder in einem schwebenden PiP-Fenster über anderen Apps sichtbar.</string>
 
     <string name="rate_us_title">Bitte bewerten Sie uns!</string>
     <string name="rate_us_supporting_text">Ihr Feedback ist uns sehr wichtig! Bitte hinterlassen Sie einen Kommentar im Store.</string>

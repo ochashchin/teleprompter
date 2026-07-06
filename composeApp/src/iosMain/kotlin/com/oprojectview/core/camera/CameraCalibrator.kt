@@ -14,6 +14,13 @@ import platform.AVFoundation.requestAccessForMediaType
 import platform.Foundation.NSURL
 import platform.Photos.PHAssetChangeRequest
 import platform.Photos.PHPhotoLibrary
+import platform.Photos.PHAccessLevelAddOnly
+import platform.Photos.PHAuthorizationStatus
+import platform.Photos.PHAuthorizationStatusAuthorized
+import platform.Photos.PHAuthorizationStatusDenied
+import platform.Photos.PHAuthorizationStatusLimited
+import platform.Photos.PHAuthorizationStatusNotDetermined
+import platform.Photos.PHAuthorizationStatusRestricted
 import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationOpenSettingsURLString
 import kotlin.coroutines.resume
@@ -77,7 +84,7 @@ class IosPermissionHelper(
     override fun openSettings() {
         val url = NSURL.URLWithString(UIApplicationOpenSettingsURLString)
         if (url != null) {
-            UIApplication.sharedApplication.openURL(url)
+            UIApplication.sharedApplication.openURL(url, options = emptyMap<Any?, Any?>(), completionHandler = null)
         }
     }
 }
@@ -117,11 +124,42 @@ actual fun rememberCameraCalibrator(
 
 // ─── Export to Photos Library ─────────────────────────────────────────────────
 
+private suspend fun requestPhotosPermission(): Boolean {
+    val status = PHPhotoLibrary.authorizationStatusForAccessLevel(PHAccessLevelAddOnly)
+    if (status == PHAuthorizationStatusAuthorized || status == PHAuthorizationStatusLimited) {
+        return true
+    }
+    if (status == PHAuthorizationStatusDenied || status == PHAuthorizationStatusRestricted) {
+        println("exportVideoToGallery: Photos access denied/restricted (status=$status)")
+        return false
+    }
+
+    // status is PHAuthorizationStatusNotDetermined, request authorization
+    return kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+        PHPhotoLibrary.requestAuthorizationForAccessLevel(PHAccessLevelAddOnly) { newStatus ->
+            val granted = newStatus == PHAuthorizationStatusAuthorized || newStatus == PHAuthorizationStatusLimited
+            println("exportVideoToGallery: Photos authorization request result (status=$newStatus, granted=$granted)")
+            continuation.resume(granted)
+        }
+    }
+}
+
 @OptIn(ExperimentalForeignApi::class)
 actual suspend fun exportVideoToGallery(filePath: String, context: Any, fileName: String) {
     val fileManager = platform.Foundation.NSFileManager.defaultManager
     val sourceURL = NSURL.fileURLWithPath(filePath)
     
+    val sourcePath = sourceURL.path
+    if (sourcePath == null || !fileManager.fileExistsAtPath(sourcePath)) {
+        println("exportVideoToGallery error: source file does not exist at path: $filePath")
+        return
+    }
+
+    if (!requestPhotosPermission()) {
+        println("exportVideoToGallery error: Photo library permission denied")
+        return
+    }
+
     val paths = platform.Foundation.NSSearchPathForDirectoriesInDomains(
         platform.Foundation.NSCachesDirectory,
         platform.Foundation.NSUserDomainMask,
@@ -140,9 +178,20 @@ actual suspend fun exportVideoToGallery(filePath: String, context: Any, fileName
             fileManager.removeItemAtURL(destinationURL, null)
         }
         val success = fileManager.copyItemAtURL(sourceURL, destinationURL, null)
-        if (success) destinationURL else sourceURL
+        if (success && destinationPath != null && fileManager.fileExistsAtPath(destinationPath)) {
+            destinationURL
+        } else {
+            println("exportVideoToGallery warning: failed to copy item, falling back to sourceURL")
+            sourceURL
+        }
     } else {
         sourceURL
+    }
+
+    val finalPath = finalURL.path
+    if (finalPath == null || !fileManager.fileExistsAtPath(finalPath)) {
+        println("exportVideoToGallery error: final URL path is invalid or file does not exist: $finalPath")
+        return
     }
 
     kotlinx.coroutines.suspendCancellableCoroutine<Unit> { continuation ->
@@ -152,74 +201,18 @@ actual suspend fun exportVideoToGallery(filePath: String, context: Any, fileName
         }) { success: Boolean, error: platform.Foundation.NSError? ->
             if (!success) {
                 error?.let { println("exportVideoToGallery error: ${it.localizedDescription}") }
+            } else {
+                println("exportVideoToGallery: Successfully saved video to Photo Library.")
             }
             if (finalURL != sourceURL) {
-                fileManager.removeItemAtURL(finalURL, null)
+                val finalPathStr = finalURL.path
+                if (finalPathStr != null && fileManager.fileExistsAtPath(finalPathStr)) {
+                    fileManager.removeItemAtURL(finalURL, null)
+                }
             }
             continuation.resume(Unit)
         }
     }
-}
-
-@OptIn(ExperimentalForeignApi::class)
-actual fun getUniqueExportFileName(context: Any, fileName: String): String {
-    val fileManager = platform.Foundation.NSFileManager.defaultManager
-    val paths = platform.Foundation.NSSearchPathForDirectoriesInDomains(
-        platform.Foundation.NSCachesDirectory,
-        platform.Foundation.NSUserDomainMask,
-        true
-    )
-    val cacheDirectory = paths.firstOrNull() as? String
-    
-    var name = fileName
-    val dotIndex = fileName.lastIndexOf('.')
-    val nameWithoutExtension = if (dotIndex != -1) fileName.substring(0, dotIndex) else fileName
-    val extension = if (dotIndex != -1) fileName.substring(dotIndex) else ""
-    
-    var counter = 1
-    
-    val recentFilenames = mutableSetOf<String>()
-    val status = platform.Photos.PHPhotoLibrary.authorizationStatus()
-    val hasPermission = status == platform.Photos.PHAuthorizationStatusAuthorized ||
-            status == platform.Photos.PHAuthorizationStatusLimited
-            
-    if (hasPermission) {
-        try {
-            val fetchOptions = platform.Photos.PHFetchOptions().apply {
-                sortDescriptors = listOf(platform.Foundation.NSSortDescriptor.sortDescriptorWithKey("creationDate", false))
-                predicate = platform.Foundation.NSPredicate.predicateWithFormat("mediaType == %d", platform.Photos.PHAssetMediaTypeVideo)
-            }
-            val fetchResult = platform.Photos.PHAsset.fetchAssetsWithOptions(fetchOptions)
-            val count = fetchResult.count.toInt()
-            val checkCount = minOf(count, 100)
-            for (i in 0 until checkCount) {
-                val asset = fetchResult.objectAtIndex(i.toULong()) as? platform.Photos.PHAsset
-                if (asset != null) {
-                    val resources = platform.Photos.PHAssetResource.assetResourcesForAsset(asset)
-                    val resource = resources.firstOrNull() as? platform.Photos.PHAssetResource
-                    val originalFilename = resource?.originalFilename
-                    if (originalFilename != null) {
-                        recentFilenames.add(originalFilename)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-    
-    while (true) {
-        val localPath = if (cacheDirectory != null) "$cacheDirectory/$name" else null
-        val existsLocally = localPath != null && fileManager.fileExistsAtPath(localPath)
-        val existsInPhotos = recentFilenames.contains(name)
-        
-        if (!existsLocally && !existsInPhotos) {
-            break
-        }
-        name = "$nameWithoutExtension ($counter)$extension"
-        counter++
-    }
-    return name
 }
 
 // ─── Calibration Overlay ──────────────────────────────────────────────────────
@@ -232,6 +225,7 @@ actual fun CalibrationOverlay(
     onDismiss: () -> Unit,
     onCalibrationCompleted: (CalibrationData) -> Unit,
     cameraControlState: CameraControlState,
+    isHorizontal: Boolean,
     modifier: Modifier
 ) {
     if (visible) {
@@ -251,7 +245,12 @@ actual fun CalibrationOverlay(
             isFrontCamera = cameraControlState.isFrontCamera,
             onFlipCamera = {
                 cameraControlState.isFrontCamera = !cameraControlState.isFrontCamera
+                if (cameraControlState.isFrontCamera) {
+                    cameraControlState.flashEnabled = false
+                }
             },
+            isTorchSupported = cameraControlState.isTorchSupported,
+            isHorizontal = isHorizontal,
             modifier = modifier
         )
     }

@@ -113,7 +113,7 @@
     <string name="help_transition">Przejście — Wybierz efekty wizualne: Brak, Zanikanie lub Drukowanie.</string>
     <string name="help_distortion">Zniekształcenie — Wybierz perspektywę anty-zniekształceniową: 0°, 45° lub 70°.</string>
     <string name="help_mirror">Lustro — Włącz natychmiastowe odwrócenie tekstu dla urządzeń teleprompter.</string>
-    <string name="help_overlay">Nakładka — Utrzymuj swój skrypt widocznym w pływającym oknie (PiP).</string>
+    <string name="help_overlay">Nakładka — Utrzymuj swój skrypt widocznym podczas nagrywania kamerą lub w pływającym oknie PiP nad innymi aplikacjami.</string>
 
     <string name="rate_us_title">Proszę, oceń nas!</string>
     <string name="rate_us_supporting_text">Twoja opinia wiele dla nas znaczy! Zostaw komentarz na stronie sklepu.</string>

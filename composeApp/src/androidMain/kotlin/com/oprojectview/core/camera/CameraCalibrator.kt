@@ -154,57 +154,13 @@ actual suspend fun exportVideoToGallery(filePath: String, context: Any, fileName
     }
 }
 
-actual fun getUniqueExportFileName(context: Any, fileName: String): String {
-    val ctx = context as? android.content.Context ?: return fileName
-    val resolver = ctx.contentResolver
-    val uri = android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-    val projection = arrayOf(android.provider.MediaStore.Video.Media.DISPLAY_NAME)
-    
-    var name = fileName
-    val dotIndex = fileName.lastIndexOf('.')
-    val nameWithoutExtension = if (dotIndex != -1) fileName.substring(0, dotIndex) else fileName
-    val extension = if (dotIndex != -1) fileName.substring(dotIndex) else ""
-    
-    var counter = 1
-    
-    while (true) {
-        val selection = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            "${android.provider.MediaStore.Video.Media.DISPLAY_NAME} = ? AND ${android.provider.MediaStore.Video.Media.RELATIVE_PATH} LIKE ?"
-        } else {
-            "${android.provider.MediaStore.Video.Media.DISPLAY_NAME} = ?"
-        }
-        val selectionArgs = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            arrayOf(name, "DCIM/Teleprompter%")
-        } else {
-            arrayOf(name)
-        }
-        
-        var exists = false
-        try {
-            resolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    exists = true
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        
-        if (!exists) {
-            break
-        }
-        name = "$nameWithoutExtension ($counter)$extension"
-        counter++
-    }
-    return name
-}
-
 @Composable
 actual fun CalibrationOverlay(
     visible: Boolean,
     onDismiss: () -> Unit,
     onCalibrationCompleted: (CalibrationData) -> Unit,
     cameraControlState: CameraControlState,
+    isHorizontal: Boolean,
     modifier: androidx.compose.ui.Modifier
 ) {
     if (visible) {
@@ -224,7 +180,12 @@ actual fun CalibrationOverlay(
             isFrontCamera = cameraControlState.isFrontCamera,
             onFlipCamera = {
                 cameraControlState.isFrontCamera = !cameraControlState.isFrontCamera
+                if (cameraControlState.isFrontCamera) {
+                    cameraControlState.flashEnabled = false
+                }
             },
+            isTorchSupported = cameraControlState.isTorchSupported,
+            isHorizontal = isHorizontal,
             modifier = modifier
         )
     }

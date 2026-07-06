@@ -115,7 +115,7 @@
     <string name="help_transition">การเปลี่ยน — เลือกเอฟเฟกต์ภาพ: ไม่มี เลือน หรือพิมพ์</string>
     <string name="help_distortion">ความบิดเบี้ยว — เลือกมุมมองป้องกันความบิดเบี้ยว: 0°, 45° หรือ 70°</string>
     <string name="help_mirror">กระจก — พลิกข้อความทันทีสำหรับอุปกรณ์เทเลพรอมเตอร์</string>
-    <string name="help_overlay">การวางซ้อน — ให้สคริปต์มองเห็นได้ในหน้าต่าง PiP</string>
+    <string name="help_overlay">การวางซ้อน — ให้สคริปต์ของคุณมองเห็นได้ในระหว่างการบันทึกด้วยกล้องหรือในหน้าต่าง PiP ลอยเหนือแอปอื่น ๆ</string>
 
     <string name="rate_us_title">กรุณาให้คะแนนเรา!</string>
     <string name="rate_us_supporting_text">ความคิดเห็นของคุณมีความหมายมาก! กรุณาแสดงความคิดเห็นในหน้าร้านค้า</string>

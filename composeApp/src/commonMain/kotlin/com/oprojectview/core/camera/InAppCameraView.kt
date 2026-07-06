@@ -14,6 +14,7 @@ expect fun InAppCameraView(
     onVideoSaved: (String) -> Unit,
     onZoomStateAvailable: (Float, Float) -> Unit = { _, _ -> },
     onPreviewStateChanged: (Boolean) -> Unit = {},
+    onTorchStateAvailable: (Boolean) -> Unit = {},
     alpha: Float = 1f,
     cornerRadiusDp: Dp = 0.dp
 )

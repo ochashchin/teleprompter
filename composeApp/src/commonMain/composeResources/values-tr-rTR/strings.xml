@@ -115,7 +115,7 @@
     <string name="help_transition">Geçiş — Görsel efektleri seçin: Yok, Solma veya Yazdırma.</string>
     <string name="help_distortion">Bozulma — Bozulma önleyici perspektifi seçin: 0°, 45° veya 70°.</string>
     <string name="help_mirror">Ayna — Yansıtıcı teleprompter cihazları için metni anında ters çevirin.</string>
-    <string name="help_overlay">Yer Paylaşımı — Diğer uygulamaları kullanırken senaryonuzu yüzen bir pencerede görünür tutun.</string>
+    <string name="help_overlay">Yer Paylaşımı — Kamera kaydı sırasında veya diğer uygulamaların üzerindeki yüzen bir PiP penceresinde senaryonuzu görünür tutun.</string>
 
     <string name="rate_us_title">Lütfen bizi değerlendirin!</string>
     <string name="rate_us_supporting_text">Geri bildiriminiz bizim için çok önemli! Lütfen mağaza sayfasında bir yorum bırakın.</string>

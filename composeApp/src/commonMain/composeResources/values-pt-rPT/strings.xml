@@ -113,7 +113,7 @@
     <string name="help_transition">Transição — Selecione efeitos visuais: Nenhuma, Desvanecer ou Imprimir.</string>
     <string name="help_distortion">Distorção — Selecione a perspetiva anti-distorção: 0°, 45° ou 70°.</string>
     <string name="help_mirror">Espelhar — Inverta o texto instantaneamente para dispositivos de teleponto refletivos.</string>
-    <string name="help_overlay">Sobreposição — Mantenha o seu guião visível numa janela flutuante (PiP).</string>
+    <string name="help_overlay">Sobreposição — Mantenha o seu guião visível durante a gravação com a câmara ou numa janela flutuante PiP sobre outras aplicações.</string>
 
     <string name="rate_us_title">Por favor, avalie-nos!</string>
     <string name="rate_us_supporting_text">O seu feedback é muito importante para nós! Por favor, deixe um comentário na página da loja.</string>

@@ -114,7 +114,7 @@
     <string name="help_transition">Transition — Sélectionnez des effets visuels : Aucune, Fondu ou Impression.</string>
     <string name="help_distortion">Distorsion — Sélectionnez la perspective anti-distorsion : 0°, 45° ou 70°.</string>
     <string name="help_mirror">Miroir — Activez l'inversion instantanée du texte pour les prompteurs réfléchissants.</string>
-    <string name="help_overlay">Superposition — Gardez votre script visible dans une fenêtre flottante (PiP).</string>
+    <string name="help_overlay">Superposition — Gardez votre script visible pendant l'enregistrement avec la caméra ou dans une fenêtre flottante PiP au-dessus d'autres applications.</string>
 
     <string name="rate_us_title">Veuillez nous évaluer !</string>
     <string name="rate_us_supporting_text">Vos commentaires nous sont très précieux ! Veuillez laisser un commentaire sur la page du magasin.</string>

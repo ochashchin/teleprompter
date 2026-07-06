@@ -48,9 +48,16 @@ actual fun InAppCameraView(
     onVideoSaved: (String) -> Unit,
     onZoomStateAvailable: (Float, Float) -> Unit,
     onPreviewStateChanged: (Boolean) -> Unit,
+    onTorchStateAvailable: (Boolean) -> Unit,
     alpha: Float,
     cornerRadiusDp: androidx.compose.ui.unit.Dp
 ) {
+    val currentOnTorchStateAvailable by rememberUpdatedState(onTorchStateAvailable)
+    LaunchedEffect(calibrationData.isFrontCamera) {
+        if (calibrationData.isFrontCamera) {
+            currentOnTorchStateAvailable(false)
+        }
+    }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val mainExecutor = remember(context) { ContextCompat.getMainExecutor(context) }
@@ -182,6 +189,7 @@ actual fun InAppCameraView(
             preview.setSurfaceProvider(previewView.surfaceProvider)
             
             cameraControl = camera.cameraControl
+            onTorchStateAvailable(!calibrationData.isFrontCamera && camera.cameraInfo.hasFlashUnit())
             
             // Observe zoom state to notify parent
             camera.cameraInfo.zoomState.observe(lifecycleOwner) { zoomState ->
@@ -237,6 +245,7 @@ actual fun InAppCameraView(
                 )
                 preview.setSurfaceProvider(previewView.surfaceProvider)
                 cameraControl = previewOnlyCamera.cameraControl
+                onTorchStateAvailable(!calibrationData.isFrontCamera && previewOnlyCamera.cameraInfo.hasFlashUnit())
                 
                 previewOnlyCamera.cameraInfo.zoomState.observe(lifecycleOwner) { zoomState ->
                      if (zoomState != null) {

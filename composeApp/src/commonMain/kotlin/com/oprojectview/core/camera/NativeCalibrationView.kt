@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinmultiplatform.composeapp.generated.resources.Res
@@ -48,6 +49,8 @@ fun NativeCalibrationView(
     onTorchChanged: (Boolean) -> Unit,
     isFrontCamera: Boolean,
     onFlipCamera: () -> Unit,
+    isTorchSupported: Boolean,
+    isHorizontal: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -126,15 +129,16 @@ fun NativeCalibrationView(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
+                            .rotate(if (isHorizontal) 90f else 0f)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.25f))
-                            .clickable {
+                            .clickable(enabled = isTorchSupported) {
                                 onTorchChanged(!isTorchOn)
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isTorchOn) Icons.Rounded.FlashOn else Icons.Rounded.FlashOff,
+                            imageVector = if (isTorchSupported && isTorchOn) Icons.Rounded.FlashOn else Icons.Rounded.FlashOff,
                             contentDescription = stringResource(Res.string.calibration_toggle_flash_desc),
                             tint = Color.White
                         )
@@ -143,6 +147,7 @@ fun NativeCalibrationView(
                     Box(
                         modifier = Modifier
                             .size(80.dp)
+                            .rotate(if (isHorizontal) 90f else 0f)
                             .border(4.dp, Color.White, CircleShape)
                             .clip(CircleShape)
                             .clickable {
@@ -179,6 +184,7 @@ fun NativeCalibrationView(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
+                            .rotate(if (isHorizontal) 90f else 0f)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.25f))
                             .clickable { onFlipCamera() },

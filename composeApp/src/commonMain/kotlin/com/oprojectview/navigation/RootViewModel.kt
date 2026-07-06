@@ -47,7 +47,22 @@ sealed interface RootIntent : UiIntent {
  */
 class RootViewModel : BaseViewModel<RootState, RootEvent>(
     initialState = RootState(currentScreen = Screen.TaskScreen),
-) {
+), ExitHandler {
+
+    override var shouldInterceptBack: Boolean = false
+
+    /**
+     * Retains platform-specific gesture targets/handlers to prevent them from being
+     * garbage-collected by Kotlin/Native when Objective-C targets only hold weak references.
+     */
+    var platformGestureHandler: Any? = null
+
+    override fun requestExit(reason: ExitReason) {
+        when (reason) {
+            ExitReason.Back -> handleBack()
+            ExitReason.Close -> handleBack()
+        }
+    }
 
     // ── NavStack ──────────────────────────────────────────────────────────────
 

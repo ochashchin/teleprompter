@@ -115,7 +115,7 @@
     <string name="help_transition">トランジション — 視覚効果（なし、フェード、プリント）を選択します。</string>
     <string name="help_distortion">歪み — 歪み防止パースペクティブ（0°、45°、70°）を選択します。</string>
     <string name="help_mirror">ミラー — テレプロンプター用にテキストを瞬時に反転します。</string>
-    <string name="help_overlay">オーバーレイ — スクリプトをフローティング（PiP）ウィンドウで表示し続けます。</string>
+    <string name="help_overlay">オーバーレイ — カメラ録画中や他のアプリの上に重ねて表示されるフローティングPiPウィンドウで、スクリプトを表示し続けます。</string>
 
     <string name="rate_us_title">評価をお願いします！</string>
     <string name="rate_us_supporting_text">あなたのフィードバックは私たちにとって非常に重要です！ストアページにコメントを残してください。</string>

@@ -114,7 +114,7 @@
     <string name="help_transition">Transición — Selecciona efectos visuales: Ninguna, Desvanecimiento o Impresión.</string>
     <string name="help_distortion">Distorsión — Selecciona la perspectiva antidistorsión: 0°, 45° o 70°.</string>
     <string name="help_mirror">Espejo — Habilita la inversión instantánea del texto para dispositivos teleprompter.</string>
-    <string name="help_overlay">Superposición — Mantén tu guion visible en una ventana flotante (PiP).</string>
+    <string name="help_overlay">Superposición — Mantén tu guion visible durante la grabación con la cámara o en una ventana flotante PiP sobre outras aplicaciones.</string>
 
     <string name="rate_us_title">¡Por favor, califícanos!</string>
     <string name="rate_us_supporting_text">¡Tus comentarios son muy importantes para nosotros! Por favor, deja un comentario en la página de la tienda.</string>

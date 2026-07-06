@@ -115,7 +115,7 @@
     <string name="help_transition">Chuyển tiếp — Chọn hiệu ứng: Không có, Mờ dần hoặc In.</string>
     <string name="help_distortion">Biến dạng — Chọn góc chống biến dạng: 0°, 45° hoặc 70°.</string>
     <string name="help_mirror">Gương — Bật chế độ đảo ngược văn bản tức thì cho máy nhắc chữ.</string>
-    <string name="help_overlay">Lớp phủ — Giữ kịch bản của bạn luôn hiển thị trong cửa sổ PiP nổi.</string>
+    <string name="help_overlay">Lớp phủ — Giữ kịch bản của bạn luôn hiển thị trong quá trình ghi hình bằng camera hoặc trong cửa sổ PiP nổi trên các ứng dụng khác.</string>
 
     <string name="rate_us_title">Vui lòng đánh giá chúng tôi!</string>
     <string name="rate_us_supporting_text">Phản hồi của bạn có ý nghĩa rất lớn đối với chúng tôi! Vui lòng để lại nhận xét trên cửa hàng.</string>

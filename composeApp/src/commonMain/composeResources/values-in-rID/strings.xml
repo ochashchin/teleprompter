@@ -119,7 +119,7 @@
     <string name="help_transition">Transisi — Pilih efek visual: Tidak ada, Pudar, atau Cetak untuk sinkronisasi.</string>
     <string name="help_distortion">Distorsi — Pilih perspektif anti-distorsi: 0°, 45°, atau 70°.</string>
     <string name="help_mirror">Cermin — Balikkan teks secara instan untuk perangkat teleprompter reflektif.</string>
-    <string name="help_overlay">Hamparan — Jaga agar skrip tetap terlihat di jendela PiP mengambang.</string>
+    <string name="help_overlay">Hamparan — Jaga agar skrip Anda tetap terlihat selama perekaman kamera atau di jendela PiP mengambang di atas aplikasi lain.</string>
 
     <string name="rate_us_title">Tolong beri nilai kami!</string>
     <string name="rate_us_supporting_text">Umpan balik Anda sangat berarti! Silakan berikan komentar di halaman toko.</string>

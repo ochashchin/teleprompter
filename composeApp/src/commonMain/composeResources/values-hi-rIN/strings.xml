@@ -115,7 +115,7 @@
     <string name="help_transition">परिवर्तन — दृश्य प्रभाव चुनें: कोई नहीं, धुंधला, या प्रिंट।</string>
     <string name="help_distortion">विरूपण — परिप्रेक्ष्य चुनें: 0°, 45°, या 70°।</string>
     <string name="help_mirror">दर्पण — टेलीप्रॉम्प्टर के लिए टेक्स्ट को उल्टा करें।</string>
-    <string name="help_overlay">ओवरले — अपने स्क्रिप्ट को PiP विंडो में दृश्यमान रखें।</string>
+    <string name="help_overlay">ओवरले — कैमरा रिकॉर्डिंग के दौरान या अन्य ऐप्स के ऊपर फ्लोटिंग PiP विंडो में अपने स्क्रिप्ट को दृश्यमान रखें।</string>
 
     <string name="rate_us_title">कृपया हमें रेट करें!</string>
     <string name="rate_us_supporting_text">आपकी प्रतिक्रिया हमारे लिए बहुत मायने रखती है! कृपया स्टोर पेज पर टिप्पणी दें।</string>

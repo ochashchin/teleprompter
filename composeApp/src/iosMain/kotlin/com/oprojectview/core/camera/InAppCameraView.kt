@@ -133,9 +133,16 @@ actual fun InAppCameraView(
     onVideoSaved: (String) -> Unit,
     onZoomStateAvailable: (Float, Float) -> Unit,
     onPreviewStateChanged: (Boolean) -> Unit,
+    onTorchStateAvailable: (Boolean) -> Unit,
     alpha: Float,
     cornerRadiusDp: androidx.compose.ui.unit.Dp
 ) {
+    val currentOnTorchStateAvailable by rememberUpdatedState(onTorchStateAvailable)
+    LaunchedEffect(calibrationData.isFrontCamera) {
+        if (calibrationData.isFrontCamera) {
+            currentOnTorchStateAvailable(false)
+        }
+    }
     val session = remember { AVCaptureSession() }
     val previewLayer = remember {
         AVCaptureVideoPreviewLayer(session = session).also {
@@ -230,6 +237,7 @@ actual fun InAppCameraView(
 
         val device = selectedDevice
         if (device != null) {
+            onTorchStateAvailable(!calibrationData.isFrontCamera && device.hasTorch)
             try {
                 // ── Add video input ────────────────────────────────────────
                 val input = AVCaptureDeviceInput.deviceInputWithDevice(device, null)
@@ -294,6 +302,7 @@ actual fun InAppCameraView(
         } else {
             // Simulator or headless environment fallback:
             // Report mock zoom state so the Zoom buttons render on screen.
+            onTorchStateAvailable(false)
             onZoomStateAvailable(1f, 10f)
             isPreviewActive = true
             activeDevice = null
@@ -417,6 +426,15 @@ actual fun InAppCameraView(
         if (isRecording) {
             wasRecording = true
             if (!movieOutput.isRecording()) {
+                // Wait for the session to be fully running and the video connection to be established
+                // before attempting to start recording. This prevents the "No active/enabled connections" crash.
+                var retries = 0
+                while (!session.isRunning() || movieOutput.connectionWithMediaType(AVMediaTypeVideo) == null) {
+                    if (retries > 50) break // Timeout after 5 seconds to prevent infinite suspension
+                    delay(100)
+                    retries++
+                }
+
                 val paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, true)
                 val cacheDirectory = paths.firstOrNull() as? String
                 if (cacheDirectory != null) {
@@ -424,8 +442,6 @@ actual fun InAppCameraView(
                     val fileURL = NSURL.fileURLWithPath("$cacheDirectory/recorded_video_$timestamp.mp4")
                     
                     // Retrieve and configure the video connection on movieOutput
-                    val connections = movieOutput.connections
-                    logInfo("[Camera] Starting recording to: $fileURL. Active connections count: ${connections.size}")
                     val videoConnection = movieOutput.connectionWithMediaType(AVMediaTypeVideo)
                     if (videoConnection != null) {
                         videoConnection.enabled = true
@@ -435,12 +451,11 @@ actual fun InAppCameraView(
                         if (videoConnection.isVideoOrientationSupported()) {
                             videoConnection.videoOrientation = AVCaptureVideoOrientationPortrait
                         }
-                        logInfo("[Camera] Video connection configured: enabled=${videoConnection.enabled}, orientation=${videoConnection.videoOrientation}")
+                        logInfo("[Camera] Starting recording to: $fileURL. Video connection configured.")
+                        movieOutput.startRecordingToOutputFileURL(fileURL, recordDelegate)
                     } else {
-                        logInfo("[Camera] Warning: No video connection found for movieOutput!")
+                        logInfo("[Camera] Warning: No video connection found for movieOutput! Skipping recording to avoid crash.")
                     }
-                    
-                    movieOutput.startRecordingToOutputFileURL(fileURL, recordDelegate)
                 }
             }
         } else {

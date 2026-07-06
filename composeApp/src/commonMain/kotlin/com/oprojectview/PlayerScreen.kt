@@ -30,11 +30,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +46,10 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.oprojectview.core.LocalPlatformContext
+import com.oprojectview.core.MonotonicClock
 import com.oprojectview.core.camera.CalibrationData
 import com.oprojectview.core.camera.CalibrationOverlay
 import com.oprojectview.core.camera.CameraCalibrationBottomSheet
@@ -71,7 +76,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.format.*
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
-import com.oprojectview.core.camera.getUniqueExportFileName
 
 @Composable
 fun PlayerScreenStatic(
@@ -167,6 +171,8 @@ fun PlayerScreenBody(
     onReadingComplete: () -> Unit = {},
     // Injected for PiP lifecycle and timing synchronization.
     frameViewModel: FrameViewModel? = null,
+    onSetBackInterceptor: (((() -> Boolean)?) -> Unit) = {},
+    onUpdateShouldInterceptBack: (Boolean) -> Unit = {},
 ) {
     KeepScreenAwake()
 
@@ -209,6 +215,7 @@ fun PlayerScreenBody(
     val playerState    by vm.state.collectAsState()
     val countdownDone  = playerState.countdownDone
     val scrollFraction = playerState.scrollFraction
+    val isShowingUpNext = playerState.isShowingUpNext
 
     val settings = LocalSettings.current
     val context = LocalPlatformContext.current ?: Unit
@@ -250,24 +257,19 @@ fun PlayerScreenBody(
         }
         val dateString = dateFormatter.format(localDateTime.date)
 
-        val baseName = "$finalTopic-$dateString.mp4"
-        var name = getUniqueExportFileName(context, baseName)
-
-        val exportedNamesStr = settings.getString("exported_video_filenames", "")
-        val exportedNames = exportedNamesStr.split(",").filter { it.isNotEmpty() }.toSet()
-
-        val dotIndex = name.lastIndexOf('.')
-        val nameWithoutExtension = if (dotIndex != -1) name.substring(0, dotIndex) else name
-        val extension = if (dotIndex != -1) name.substring(dotIndex) else ""
-
-        var counter = 1
-        while (name in exportedNames) {
-            name = "$nameWithoutExtension ($counter)$extension"
-            counter++
+        val timeFormatter = LocalTime.Format {
+            hour()
+            char(':')
+            minute()
         }
+        val timeString = timeFormatter.format(localDateTime.time)
 
-        exportFilename = name
+        val baseName = "$finalTopic-$dateString-$timeString.mp4"
+
+        exportFilename = baseName
         isReadingFinished = true
+        recordedVideoPath = null // Reset before waiting for new path
+        showExportDialog = true  // Show immediately to eliminate UI delay
         vm.onIntent(PlayerIntent.SetPlaying(false))
     }
 
@@ -283,18 +285,41 @@ fun PlayerScreenBody(
     val isCameraOverlayActive = selectedOverlayIndex == 1 && (!calibrationPending || isCalibrationActive)
     var tempSaveSettings by remember { mutableStateOf(false) }
 
-    // The export interception is only needed while the camera is actively recording
-    // (i.e. before the UpNext screen is shown). Once the UpNext list is visible the
-    // recording has already stopped and any export was already handled, so the system
-    // back gesture must be allowed to reach the normal BackClicked handler directly.
-    PlatformBackHandler(enabled = isCameraOverlayActive && countdownDone && !isReadingFinished && !playerState.isShowingUpNext) {
-        pendingExitAction = { vm.onIntent(PlayerIntent.BackClicked) }
-        triggerExportFlow()
+    val currentOnSetBackInterceptor by rememberUpdatedState(onSetBackInterceptor)
+    val currentOnUpdateShouldInterceptBack by rememberUpdatedState(onUpdateShouldInterceptBack)
+    LaunchedEffect(isCameraOverlayActive, isReadingFinished, showExportDialog, isExporting, isShowingUpNext) {
+        val shouldIntercept = isCameraOverlayActive && !isReadingFinished && !showExportDialog && !isShowingUpNext
+        currentOnUpdateShouldInterceptBack(shouldIntercept)
+        currentOnSetBackInterceptor {
+            if (isCameraOverlayActive && !isReadingFinished && !showExportDialog && !isShowingUpNext) {
+                pendingExitAction = { vm.onIntent(PlayerIntent.BackClicked) }
+                triggerExportFlow()
+                true
+            } else if (showExportDialog && !isExporting) {
+                showExportDialog = false
+                isReadingFinished = false
+                val exitAction = pendingExitAction
+                if (exitAction != null) {
+                    exitAction()
+                    pendingExitAction = null
+                } else {
+                    vm.onIntent(PlayerIntent.BackClicked)
+                }
+                true
+            } else if (isExporting) {
+                true
+            } else {
+                vm.onIntent(PlayerIntent.BackClicked)
+                true
+            }
+        }
     }
 
-    // Block back navigation while export dialog is visible
-    PlatformBackHandler(enabled = showExportDialog || isExporting) {
-        // Intentionally consume back press — dialog is modal
+    DisposableEffect(Unit) {
+        onDispose {
+            onSetBackInterceptor(null)
+            onUpdateShouldInterceptBack(false)
+        }
     }
 
     val cameraControlState = remember(task.id) {
@@ -383,6 +408,29 @@ fun PlayerScreenBody(
         hasAudioPermissionFn = { permissionHelper.hasAudioPermission() }
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, permissionHelper) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                if (permissionHelper.hasCameraPermission()) {
+                    showSettingsDialog = false
+                    if (showCalibrationWarning) {
+                        showCalibrationWarning = false
+                        if (permissionHelper.hasAudioPermission()) {
+                            proceedToCalibration()
+                        } else {
+                            permissionHelper.requestAudioPermission()
+                        }
+                    }
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     // Intercept/Pause task transition playback if calibration is pending
     LaunchedEffect(task.id, calibrationPending) {
         if (calibrationPending) {
@@ -416,7 +464,6 @@ fun PlayerScreenBody(
     val vPadding = if (playerState.pipActive) 5.dp else 32.dp
     val contentPadding = PaddingValues(start = hPadding, end = hPadding, top = vPadding, bottom = vPadding)
 
-    val isShowingUpNext = playerState.isShowingUpNext
     val upNextSelectedIndex = playerState.upNextSelectedIndex
     val upNextTasks = playerState.upNextTasks
     val allTasks = playerState.allTasks
@@ -474,7 +521,7 @@ fun PlayerScreenBody(
             progress.stop()
             return@LaunchedEffect
         }
-        val elapsedUs = com.oprojectview.core.MonotonicClock.currentTimeUs() - playerState.countdownStartUs
+        val elapsedUs = MonotonicClock.currentTimeUs() - playerState.countdownStartUs
         val elapsedMs = elapsedUs / 1000L
         val remainingMs = (countdownDurationMs - elapsedMs).toInt()
         if (remainingMs > 0) {
@@ -602,7 +649,7 @@ fun PlayerScreenBody(
                 toolbarVisible = playerState.toolbarVisible,
                 onToolbarTap   = { vm.onIntent(PlayerIntent.ScreenTapped) },
                 onBack         = {
-                    if (isCameraOverlayActive && countdownDone && !isReadingFinished && !showExportDialog && !isShowingUpNext) {
+                    if (isCameraOverlayActive && !isReadingFinished && !showExportDialog && !isShowingUpNext) {
                         pendingExitAction = { vm.onIntent(PlayerIntent.BackClicked) }
                         triggerExportFlow()
                     } else if (!showExportDialog && !isExporting) {
@@ -610,7 +657,7 @@ fun PlayerScreenBody(
                     }
                 },
                 onClose        = {
-                    if (isCameraOverlayActive && countdownDone && !isReadingFinished && !showExportDialog && !isShowingUpNext) {
+                    if (isCameraOverlayActive && !isReadingFinished && !showExportDialog && !isShowingUpNext) {
                         pendingExitAction = { vm.onIntent(PlayerIntent.CloseClicked) }
                         triggerExportFlow()
                     } else if (!showExportDialog && !isExporting) {
@@ -628,7 +675,7 @@ fun PlayerScreenBody(
         // Draggable camera preview PiP overlay
         val isTransitioning = playerState.isTransitioningToNextTask
         if (isCameraOverlayActive) {
-            val isRecording = countdownDone && !isShowingUpNext && !isReadingFinished
+            val isRecording = !isShowingUpNext && !isReadingFinished
             val isOverlayVisible = !showCalibrationWarning && !isShowingUpNext && !showExportDialog && !isTransitioning
             DraggableCameraOverlay(
                 calibrationData = CalibrationData(
@@ -643,10 +690,10 @@ fun PlayerScreenBody(
                 isRecording = isRecording,
                 onVideoSaved = { path ->
                     recordedVideoPath = path
-                    if (isReadingFinished) {
-                        if (path.isNotEmpty()) {
-                            showExportDialog = true
-                        } else {
+                    if (isReadingFinished && path.isEmpty()) {
+                        // If the recording was aborted or failed entirely, auto-dismiss the dialog
+                        if (showExportDialog && !isExporting) {
+                            showExportDialog = false
                             isReadingFinished = false
                             val exitAction = pendingExitAction
                             if (exitAction != null) {
@@ -680,6 +727,9 @@ fun PlayerScreenBody(
                     cameraControlState.currentZoomIndex = if (newIndex >= 0) newIndex else dynamicZooms.indexOf(1f).coerceAtLeast(0)
                     cameraControlState.zoomRatio = dynamicZooms.getOrNull(cameraControlState.currentZoomIndex) ?: 1f
                 },
+                onTorchStateAvailable = { isSupported ->
+                    cameraControlState.isTorchSupported = isSupported
+                },
                 taskId = task.id,
                 visible = isOverlayVisible,
                 modifier = Modifier.align(Alignment.BottomStart)
@@ -692,14 +742,16 @@ fun PlayerScreenBody(
             onConfirm = {
                 isExporting = true
                 scope.launch {
+                    // Wait up to 5 seconds for AVFoundation/CameraX to finish flushing the file
+                    var waitCount = 0
+                    while (recordedVideoPath == null && waitCount < 50) {
+                        delay(100)
+                        waitCount++
+                    }
+
                     recordedVideoPath?.let { path ->
-                        exportVideoToGallery(path, context, exportFilename)
-                        
-                        // Add exportFilename to persisted list of exported files
-                        val exportedNamesStr = settings.getString("exported_video_filenames", "")
-                        val exportedNames = exportedNamesStr.split(",").filter { it.isNotEmpty() }.toMutableSet()
-                        if (exportedNames.add(exportFilename)) {
-                            settings.putString("exported_video_filenames", exportedNames.joinToString(","))
+                        if (path.isNotEmpty()) {
+                            exportVideoToGallery(path, context, exportFilename)
                         }
                     }
                     isExporting = false
@@ -803,6 +855,7 @@ fun PlayerScreenBody(
                 vm.onIntent(PlayerIntent.ReplayClicked(isManual = true))
             },
             cameraControlState = cameraControlState,
+            isHorizontal = isHorizontal,
             modifier = Modifier.fillMaxSize()
         )
 
