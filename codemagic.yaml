@@ -25,7 +25,7 @@ workflows:
       - name: Set up code signing certificates
         script: |
           echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
-          keychain add-certificates --p12 /tmp/certificate.p12 --p12-password $CM_CERTIFICATE_PASSWORD
+          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password $CM_CERTIFICATE_PASSWORD
       - name: Build Xcode Archive and Export IPA
         script: |
           # This builds the Xcode project which automatically invokes KMP Gradle task
