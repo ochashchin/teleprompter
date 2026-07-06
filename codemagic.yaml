@@ -21,7 +21,7 @@ workflows:
       - name: Fetch signing files from Apple
         script: |
           # Codemagic will automatically download your certificates and profiles for your bundle ID
-          app-store-connect fetch-signing-files "com.oprojectview" --project-type ios --create
+          app-store-connect fetch-signing-files "com.oprojectview" --type IOS_APP_STORE --create
       - name: Set up code signing certificates
         script: |
           keychain add-certificates
