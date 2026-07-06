@@ -18,13 +18,14 @@ workflows:
       - name: Initialize keychain
         script: |
           keychain initialize
-      - name: Fetch signing files from Apple
+      - name: Set up provisioning profile
         script: |
-          # Codemagic will automatically download your certificates and profiles for your bundle ID
-          app-store-connect fetch-signing-files "com.oprojectview" --type IOS_APP_STORE --create
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo $CM_PROVISIONING_PROFILE | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
       - name: Set up code signing certificates
         script: |
-          keychain add-certificates
+          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates --p12 /tmp/certificate.p12 --p12-password $CM_CERTIFICATE_PASSWORD
       - name: Build Xcode Archive and Export IPA
         script: |
           # This builds the Xcode project which automatically invokes KMP Gradle task
