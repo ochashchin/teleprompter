@@ -32,7 +32,7 @@ workflows:
           xcode-project build-ipa \
             --project iosApp/iosApp.xcodeproj \
             --scheme iosApp \
-            --configuration Release
+            --config Release
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
