@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
     <string name="screen_tasks">Teleprompter</string>
@@ -140,4 +139,38 @@
     <string name="seed_task5_title">โปรโมชันในบรรทัด</string>
     <string name="seed_task5_desc">อ่าน • บันทึก • เผยแพร่ • ทำซ้ำ • มีสมาธิ • ฟังดูเป็นธรรมชาติ • สร้างสรรค์อย่างมั่นใจ</string>
     <string name="seed_task5_spans">0|5|1|0|0|-1;5|6|0|0|0|0;6|14|1|0|0|-1;14|15|0|0|0|1;15|24|1|0|0|-1;24|25|0|0|0|2;25|32|1|0|0|-1;32|33|0|0|0|3;33|42|1|0|0|-1;42|43|0|0|0|4;43|62|1|0|0|-1;62|63|0|0|0|0;63|85|1|0|0|-1</string>
+
+    <string name="calibration_sheet_title">เตรียมกล้องของคุณ</string>
+    <string name="calibration_sheet_description">ก่อนเริ่มบันทึก ตรวจสอบให้แน่ใจว่าคุณมองเห็นชัดเจนและรู้สึกสบายกับมุมมองกล้อง</string>
+    <string name="calibration_framing_title">การจัดเฟรม</string>
+    <string name="calibration_framing_desc">จัดตำแหน่งตัวเองให้อยู่ในเฟรมอย่างเป็นธรรมชาติ</string>
+    <string name="calibration_lens_face_title">กล้อง</string>
+    <string name="calibration_lens_face_desc">เลือกกล้องหน้า (เซลฟี่) หรือกล้องหลัง</string>
+    <string name="calibration_zoom_title">ซูม</string>
+    <string name="calibration_zoom_desc">ปรับซูมจนกว่าภาพจะดูเหมาะสม</string>
+    <string name="calibration_flash_title">แสงสว่าง</string>
+    <string name="calibration_flash_desc">เปิดแฟลชหากคุณต้องการแสงเพิ่มเติม</string>
+    <string name="calibration_sheet_footer">เมื่อคุณพอใจกับการตั้งค่าแล้ว ให้แตะ [check] เพื่อยืนยันการตั้งค่ากล้อง</string>
+    <string name="calibration_action_continue">ต่อไป</string>
+    <string name="calibration_capture_desc">ถ่ายภาพ</string>
+    <string name="calibration_close_desc">ปิด</string>
+    <string name="calibration_toggle_flash_desc">เปิด/ปิดแฟลช</string>
+    <string name="calibration_flip_camera_desc">สลับกล้อง</string>
+
+    <string name="option_overlay_none">ไม่มี</string>
+    <string name="option_overlay_camera">กล้อง</string>
+    <string name="option_overlay_window">หน้าต่าง</string>
+
+    <string name="calibration_action_cancel">ยกเลิก</string>
+    <string name="calibration_action_open">เปิดกล้อง</string>
+    <string name="calibration_save_settings">บันทึกการตั้งค่า</string>
+
+    <string name="export_dialog_title">บันทึกวิดีโอที่บันทึกไว้หรือไม่?</string>
+    <string name="export_dialog_action_no">ไม่</string>
+    <string name="export_dialog_action_yes">ใช่</string>
+
+    <string name="camera_permission_title">การเข้าถึงกล้อง</string>
+    <string name="camera_permission_supporting_text">กรุณาเปิดใช้งานในตั้งค่าระบบ</string>
+    <string name="camera_permission_settings">การตั้งค่า</string>
+    <string name="camera_permission_cancel">ยกเลิก</string>
 </resources>

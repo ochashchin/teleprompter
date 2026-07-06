@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
     <string name="screen_tasks">Teleprompter</string>
@@ -62,7 +61,7 @@
     <string name="display_transition_desc">Yok, solma, yazdırma</string>
     <string name="display_distortion_desc">0°, 45°, 70°</string>
     <string name="display_mirror_desc">Devre dışı, etkin</string>
-    <string name="display_overlay_desc">Devre dışı, etkin</string>
+    <string name="display_overlay_desc">Hiçbiri, kamera, pencere</string>
 
     <!-- ── Display settings options ──────────────────────────────────── -->
     <string name="option_small">Küçük</string>
@@ -140,4 +139,38 @@
     <string name="seed_task5_title">Satır içi tanıtım</string>
     <string name="seed_task5_desc">Oku • Kaydet • Yayınla • Tekrarla • Odaklan • Doğal Seslen • Güvenle Oluştur</string>
     <string name="seed_task5_spans">0|4|1|0|0|-1;4|5|0|0|0|0;5|13|1|0|0|-1;13|14|0|0|0|1;14|23|1|0|0|-1;23|24|0|0|0|2;24|34|1|0|0|-1;34|35|0|0|0|3;35|44|1|0|0|-1;44|45|0|0|0|4;45|59|1|0|0|-1;59|60|0|0|0|0;60|76|1|0|0|-1</string>
+
+    <string name="calibration_sheet_title">Kameranızı Hazırlayın</string>
+    <string name="calibration_sheet_description">Kayda başlamadan önce net bir şekilde göründüğünüzden ve kamera görünümünden memnun olduğunuzdan emin olun.</string>
+    <string name="calibration_framing_title">Kadro</string>
+    <string name="calibration_framing_desc">Kendinizi doğal bir şekilde kadraja yerleştirin.</string>
+    <string name="calibration_lens_face_title">Kamera</string>
+    <string name="calibration_lens_face_desc">Ön (selfie) veya arka kamerayı seçin.</string>
+    <string name="calibration_zoom_title">Yakınlaştırma</string>
+    <string name="calibration_zoom_desc">Görüntü uygun hale gelene kadar yakınlaştırmayı ayarlayın.</string>
+    <string name="calibration_flash_title">Işık</string>
+    <string name="calibration_flash_desc">Daha fazla ışığa ihtiyacınız varsa flaşı açın.</string>
+    <string name="calibration_sheet_footer">Ayarlarınızdan memnun olduğunuzda, kamera ayarlarını onaylamak için [check] öğesine dokunun.</string>
+    <string name="calibration_action_continue">Devam</string>
+    <string name="calibration_capture_desc">Çek</string>
+    <string name="calibration_close_desc">Kapat</string>
+    <string name="calibration_toggle_flash_desc">Flaşı aç/kapat</string>
+    <string name="calibration_flip_camera_desc">Kamerayı değiştir</string>
+
+    <string name="option_overlay_none">Yok</string>
+    <string name="option_overlay_camera">Kamera</string>
+    <string name="option_overlay_window">Pencere</string>
+
+    <string name="calibration_action_cancel">İptal</string>
+    <string name="calibration_action_open">Kamerayı aç</string>
+    <string name="calibration_save_settings">Ayarları kaydet</string>
+
+    <string name="export_dialog_title">Video kaydı kaydedilsin mi?</string>
+    <string name="export_dialog_action_no">Hayır</string>
+    <string name="export_dialog_action_yes">Evet</string>
+
+    <string name="camera_permission_title">Kamera erişimi</string>
+    <string name="camera_permission_supporting_text">Lütfen sistem ayarlarından etkinleştirin.</string>
+    <string name="camera_permission_settings">Ayarlar</string>
+    <string name="camera_permission_cancel">İptal</string>
 </resources>

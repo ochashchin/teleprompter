@@ -35,13 +35,50 @@ class SettingsNewTaskRepository(
     // ── Seeding ───────────────────────────────────────────────────────────────
 
     override fun ensureSeeded(seedTasks: List<SeedTask>) {
-        if (settings.getBoolean(KEY_POPULATED, false)) return
+        val ids = loadIds()
+        if (settings.getBoolean(KEY_POPULATED, false)) {
+            // Update existing installations to localized titles/descriptions on language changes
+            // The first 5 tasks are the mock tasks, originally assigned IDs 1 to 5.
+            seedTasks.forEachIndexed { idx, s ->
+                val mockTaskId = idx + 1
+                if (ids.contains(mockTaskId)) {
+                    settings[keyTitle(mockTaskId)] = s.title
+                    settings[keyDesc(mockTaskId)]  = s.desc
+                }
+            }
+            
+            // Migrate any old user task where overlay was 1 (Enabled in old setup) to 2 (PiP in new setup).
+            // We use a flag to ensure this migration only happens once per app installation,
+            // so we don't accidentally migrate users who intentionally choose 1 (Window) in the new setup.
+            if (!settings.getBoolean("migrated_overlay_1_to_2", false)) {
+                ids.forEach { id ->
+                    val isOldEnabled = settings.getBoolean("display_task_${id}_item_8_itemOpt_1", false)
+                    if (isOldEnabled) {
+                        settings.remove("display_task_${id}_item_8_itemOpt_1")
+                        settings.putBoolean("display_task_${id}_item_8_itemOpt_2", true)
+                    }
+                }
+                settings.putBoolean("migrated_overlay_1_to_2", true)
+            }
+            return
+        }
         var id  = settings.getInt(KEY_NEXT_ID, 1)
-        val ids = mutableListOf<Int>()
+        val newIds = mutableListOf<Int>()
         seedTasks.forEach { s ->
             writeTaskKeys(id, s.title, s.desc, s.shapeOrdinal)
             settings["script_style_${id}_spans"] = s.spans
             settings["script_style_${id}_fill"] = s.scriptFillColor
+            
+            if (s.overlay == 1) {
+                settings["task_${id}_calibrated_active"] = true
+                settings["task_${id}_calibrated_zoom"] = 1.0f
+                settings["task_${id}_calibrated_exposure"] = 0.0f
+                settings["task_${id}_calibrated_is_front"] = true
+                settings["task_${id}_calibrated_width"] = 1920
+                settings["task_${id}_calibrated_height"] = 1080
+                settings["task_${id}_calibrated_orientation"] = 0
+                settings["task_${id}_calibrated_flash"] = false
+            }
             
             settings["display_task_${id}_item_1_itemOpt_${s.textSize}"] = true
             settings["display_task_${id}_item_2_itemOpt_${s.orientation}"] = true
@@ -53,9 +90,9 @@ class SettingsNewTaskRepository(
             settings["display_task_${id}_item_8_itemOpt_${s.overlay}"] = true
             settings["display_task_${id}_loop"] = s.loop
             
-            ids.add(id++)
+            newIds.add(id++)
         }
-        saveIds(ids)
+        saveIds(newIds)
         settings[KEY_NEXT_ID]   = id
         settings[KEY_POPULATED] = true
     }

@@ -55,9 +55,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(
-                .playback,
-                mode: .moviePlayback,
-                options: [.mixWithOthers]
+                .playAndRecord,
+                mode: .videoRecording,
+                options: [.mixWithOthers, .defaultToSpeaker]
             )
             try session.setActive(true)
         } catch {

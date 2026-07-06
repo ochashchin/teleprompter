@@ -73,6 +73,18 @@ class DisplayTaskState(
         }
         settings.putBoolean(settingsKey(taskId, item.id, optionIndex), true)
 
+        // Clear camera calibration keys when overlay mode is None (0) or Window (2)
+        if (item.id == 8 && (optionIndex == 0 || optionIndex == 2)) {
+            settings.remove("task_${taskId}_calibrated_active")
+            settings.remove("task_${taskId}_calibrated_zoom")
+            settings.remove("task_${taskId}_calibrated_exposure")
+            settings.remove("task_${taskId}_calibrated_is_front")
+            settings.remove("task_${taskId}_calibrated_width")
+            settings.remove("task_${taskId}_calibrated_height")
+            settings.remove("task_${taskId}_calibrated_orientation")
+            settings.remove("task_${taskId}_calibrated_flash")
+        }
+
         // 2. Update MutableState → triggers immediate recomposition in every
         //    composable that reads selectedIndex(item) for this item.
         getOrInit(item).value = optionIndex

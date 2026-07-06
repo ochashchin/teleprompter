@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ── Toolbar titles ──────────────────────────────────────────────── -->
     <string name="screen_tasks">テレプロンプター</string>
@@ -62,7 +61,7 @@
     <string name="display_transition_desc">なし、フェード、プリント</string>
     <string name="display_distortion_desc">0°、45°、70°</string>
     <string name="display_mirror_desc">無効、有効</string>
-    <string name="display_overlay_desc">無効、有効</string>
+    <string name="display_overlay_desc">なし、カメラ、ウィンドウ</string>
 
     <!-- ── Display settings options ──────────────────────────────────── -->
     <string name="option_small">小</string>
@@ -140,4 +139,38 @@
     <string name="seed_task5_title">インラインプロモ</string>
     <string name="seed_task5_desc">読む • 録画する • 公開する • 繰り返す • 集中を保つ • 自然に聞こえる • 自信を持って作成</string>
     <string name="seed_task5_spans">0|3|1|0|0|-1;3|4|0|0|0|0;4|10|1|0|0|-1;10|11|0|0|0|1;11|17|1|0|0|-1;17|18|0|0|0|2;18|24|1|0|0|-1;24|25|0|0|0|3;25|32|1|0|0|-1;32|33|0|0|0|4;33|42|1|0|0|-1;42|43|0|0|0|0;43|52|1|0|0|-1</string>
+
+    <string name="calibration_sheet_title">カメラの準備</string>
+    <string name="calibration_sheet_description">録画を始める前に、はっきり映っていることとカメラの映り具合に問題がないことを確認してください。</string>
+    <string name="calibration_framing_title">フレーミング</string>
+    <string name="calibration_framing_desc">自然な位置でフレーム内に収まるようにしてください。</string>
+    <string name="calibration_lens_face_title">カメラ</string>
+    <string name="calibration_lens_face_desc">フロント（自撮り）またはバックカメラを選択してください。</string>
+    <string name="calibration_zoom_title">ズーム</string>
+    <string name="calibration_zoom_desc">見た目が適切になるまでズームを調整してください。</string>
+    <string name="calibration_flash_title">照明</string>
+    <string name="calibration_flash_desc">必要に応じてフラッシュをオンにしてください。</string>
+    <string name="calibration_sheet_footer">設定に満足したら、[check]をタップしてカメラ設定を確定してください。</string>
+    <string name="calibration_action_continue">続ける</string>
+    <string name="calibration_capture_desc">撮影</string>
+    <string name="calibration_close_desc">閉じる</string>
+    <string name="calibration_toggle_flash_desc">フラッシュ切替</string>
+    <string name="calibration_flip_camera_desc">カメラ切替</string>
+
+    <string name="option_overlay_none">なし</string>
+    <string name="option_overlay_camera">カメラ</string>
+    <string name="option_overlay_window">ウィンドウ</string>
+
+    <string name="calibration_action_cancel">キャンセル</string>
+    <string name="calibration_action_open">カメラを開く</string>
+    <string name="calibration_save_settings">設定を保存</string>
+
+    <string name="export_dialog_title">動画を保存しますか？</string>
+    <string name="export_dialog_action_no">いいえ</string>
+    <string name="export_dialog_action_yes">はい</string>
+
+    <string name="camera_permission_title">カメラアクセス</string>
+    <string name="camera_permission_supporting_text">システム設定で有効にしてください。</string>
+    <string name="camera_permission_settings">設定</string>
+    <string name="camera_permission_cancel">キャンセル</string>
 </resources>

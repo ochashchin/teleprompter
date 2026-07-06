@@ -28,11 +28,12 @@ kotlin {
     }
 
     // Declare the iOS targets once
+    val iosX64Target = iosX64()
     val iosArm64Target = iosArm64()
     val iosSimulatorArm64Target = iosSimulatorArm64()
 
     // Configure the targets using the variables declared above
-    listOf(iosArm64Target, iosSimulatorArm64Target).forEach { target ->
+    listOf(iosX64Target, iosArm64Target, iosSimulatorArm64Target).forEach { target ->
         target.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
@@ -70,7 +71,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.multiplatform.settings)
             implementation(libs.multiplatform.settings.no.arg)
-
+            implementation(libs.kotlinx.datetime)
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
         }
 
@@ -81,6 +82,12 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.material)
+
+            // CameraX & ExifInterface
+            implementation("androidx.exifinterface:exifinterface:1.3.7")
+            implementation("androidx.camera:camera-camera2:1.4.1")
+            implementation("androidx.camera:camera-lifecycle:1.4.1")
+            implementation("androidx.camera:camera-view:1.4.1")
         }
 
         commonTest.dependencies {

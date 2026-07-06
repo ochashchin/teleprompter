@@ -91,6 +91,9 @@ import kotlinmultiplatform.composeapp.generated.resources.option_large
 import kotlinmultiplatform.composeapp.generated.resources.option_massive
 import kotlinmultiplatform.composeapp.generated.resources.option_maximize
 import kotlinmultiplatform.composeapp.generated.resources.option_none
+import kotlinmultiplatform.composeapp.generated.resources.option_overlay_camera
+import kotlinmultiplatform.composeapp.generated.resources.option_overlay_none
+import kotlinmultiplatform.composeapp.generated.resources.option_overlay_window
 import kotlinmultiplatform.composeapp.generated.resources.option_normal
 import kotlinmultiplatform.composeapp.generated.resources.option_print
 import kotlinmultiplatform.composeapp.generated.resources.option_scroll
@@ -440,7 +443,7 @@ fun DisplayScreenBody(
         // ── Play FAB ─────────────────────────────────────────────────────────
         FabBarLayout(
             text    = stringResource(Res.string.fab_play),
-            onClick = { onPlayClick(selectedOverlayIndex == 1) },
+            onClick = { onPlayClick(selectedOverlayIndex == 2) },
             modifier = Modifier.fillMaxSize(),
             icon = {
                 Icon(
@@ -763,10 +766,11 @@ val DisplayTaskList: List<DisplayTaskItem> = listOf(
         Res.string.display_overlay,
         Res.string.display_overlay_desc,
         listOf(
-            Res.string.option_disabled,
-            Res.string.option_enabled,
+            Res.string.option_overlay_none,
+            Res.string.option_overlay_camera,
+            Res.string.option_overlay_window,
         ),
-        Res.string.option_disabled,
+        Res.string.option_overlay_none,
     ),
 )
 

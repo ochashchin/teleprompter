@@ -170,7 +170,7 @@ class PipController(
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setAutoEnterEnabled(overlayEnabled)
+            builder.setAutoEnterEnabled(overlayEnabled && isPlaying)
             builder.setSeamlessResizeEnabled(true)
         }
 

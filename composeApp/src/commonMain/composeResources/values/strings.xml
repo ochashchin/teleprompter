@@ -62,7 +62,7 @@
     <string name="display_transition_desc">None, fade, print</string>
     <string name="display_distortion_desc">0°, 45°, 70°</string>
     <string name="display_mirror_desc">Disabled, enabled</string>
-    <string name="display_overlay_desc">Disabled, enabled</string>
+    <string name="display_overlay_desc">None, camera, window</string>
 
     <!-- ── Display settings options ──────────────────────────────────── -->
     <string name="option_small">Small</string>
@@ -140,4 +140,39 @@
     <string name="seed_task5_title">Inline promo</string>
     <string name="seed_task5_desc">Read • Record • Publish • Repeat • Stay Focused • Sound Natural • Create With Confidence</string>
     <string name="seed_task5_spans">0|5|1|0|0|-1;5|6|0|0|0|0;6|14|1|0|0|-1;14|15|0|0|0|1;15|24|1|0|0|-1;24|25|0|0|0|2;25|33|1|0|0|-1;33|34|0|0|0|3;34|48|1|0|0|-1;48|49|0|0|0|4;49|64|1|0|0|-1;64|65|0|0|0|0;65|88|1|0|0|-1</string>
+
+    <!-- Camera Calibration & Export Dialog Strings -->
+    <string name="calibration_sheet_title">Prepare Your Camera</string>
+    <string name="calibration_sheet_description">Before recording, make sure you're clearly visible and comfortable with your camera view.</string>
+    <string name="calibration_framing_title">Framing</string>
+    <string name="calibration_framing_desc">Position yourself naturally in the frame.</string>
+    <string name="calibration_lens_face_title">Camera</string>
+    <string name="calibration_lens_face_desc">Choose the Front (Selfie) or Back camera.</string>
+    <string name="calibration_zoom_title">Zoom</string>
+    <string name="calibration_zoom_desc">Adjust the zoom until the view looks right.</string>
+    <string name="calibration_flash_title">Lighting</string>
+    <string name="calibration_flash_desc">Turn on the flash if you need more light.</string>
+    <string name="calibration_sheet_footer">When you're happy with your setup, tap [check] to confirm your camera settings.</string>
+    <string name="calibration_action_continue">Continue</string>
+    <string name="calibration_capture_desc">Capture</string>
+    <string name="calibration_close_desc">Close</string>
+    <string name="calibration_toggle_flash_desc">Toggle Flash</string>
+    <string name="calibration_flip_camera_desc">Flip Camera</string>
+
+    <string name="option_overlay_none">None</string>
+    <string name="option_overlay_camera">Camera</string>
+    <string name="option_overlay_window">Window</string>
+
+    <string name="calibration_action_cancel">Cancel</string>
+    <string name="calibration_action_open">Open Camera</string>
+    <string name="calibration_save_settings">Save settings</string>
+
+    <string name="export_dialog_title">Save video record?</string>
+    <string name="export_dialog_action_no">No</string>
+    <string name="export_dialog_action_yes">Yes</string>
+
+    <string name="camera_permission_title">Camera access needed</string>
+    <string name="camera_permission_supporting_text">Please enable it in your system settings.</string>
+    <string name="camera_permission_settings">Settings</string>
+    <string name="camera_permission_cancel">Cancel</string>
 </resources>

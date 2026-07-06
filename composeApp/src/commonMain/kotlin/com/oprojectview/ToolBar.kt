@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -151,6 +150,7 @@ private fun ToolbarIcon(
         IconButton(
             modifier = Modifier
                 .aspectRatio(1f)
+                .padding(4.dp)
                 .fillMaxHeight()
                 .graphicsLayer { rotationZ = rotation },
             onClick = onClick,
@@ -158,7 +158,7 @@ private fun ToolbarIcon(
                 containerColor = containerColor,
                 contentColor =
                     if (focused)
-                        MaterialTheme.colorScheme.onSecondaryContainer
+                        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.25f)
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant
             )

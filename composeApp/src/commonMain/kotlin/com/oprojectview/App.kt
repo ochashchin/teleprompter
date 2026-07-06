@@ -89,7 +89,7 @@ fun App(
             val seedTasks = listOf(
                 SeedTask(t1_title, t1_desc, shapeOrdinal = 2, spans = t1_spans, textSize = 2, orientation = 0, speed = 1, animation = 0, transition = 1, distortion = 0, mirror = 0, overlay = 0, loop = false, scriptFillColor = 3),
                 SeedTask(t2_title, t2_desc, shapeOrdinal = 5, spans = t2_spans, textSize = 3, orientation = 0, speed = 0, animation = 1, transition = 0, distortion = 0, mirror = 0, overlay = 0, loop = false, scriptFillColor = 2),
-                SeedTask(t3_title, t3_desc, shapeOrdinal = 25, spans = t3_spans, textSize = 0, orientation = 0, speed = 0, animation = 1, transition = 0, distortion = 0, mirror = 0, overlay = 1, loop = false, scriptFillColor = 0),
+                SeedTask(t3_title, t3_desc, shapeOrdinal = 25, spans = t3_spans, textSize = 0, orientation = 0, speed = 0, animation = 1, transition = 0, distortion = 0, mirror = 0, overlay = 2, loop = false, scriptFillColor = 0),
                 SeedTask(t4_title, t4_desc, shapeOrdinal = 10, spans = t4_spans, textSize = 1, orientation = 1, speed = 2, animation = 0, transition = 2, distortion = 1, mirror = 0, overlay = 0, loop = false, scriptFillColor = 1),
                 SeedTask(t5_title, t5_desc, shapeOrdinal = 0, spans = t5_spans, textSize = 5, orientation = 1, speed = 0, animation = 2, transition = 0, distortion = 0, mirror = 0, overlay = 0, loop = true, scriptFillColor = -1)
             )

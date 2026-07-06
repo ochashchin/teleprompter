@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -104,7 +105,7 @@ private fun PlayBarIcon(
 ) {
     if (icon != null) {
         val inverseOnSurface = MaterialTheme.colorScheme.inverseOnSurface
-        val containerColor = androidx.compose.runtime.remember(focused, inverseOnSurface) {
+        val containerColor = remember(focused, inverseOnSurface) {
             if (focused) {
                 inverseOnSurface.copy(alpha = 0.5f)
             } else {
@@ -116,6 +117,7 @@ private fun PlayBarIcon(
             modifier = Modifier
                 .aspectRatio(1f)
                 .fillMaxHeight()
+                .padding(4.dp)
                 .graphicsLayer { rotationZ = rotation },
             onClick = onClick,
             colors = IconButtonDefaults.iconButtonColors(

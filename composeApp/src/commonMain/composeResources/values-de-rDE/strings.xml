@@ -1,11 +1,8 @@
-<?xml version='1.0' encoding='utf-8'?>
 <resources>
-    
     <string name="screen_tasks">Teleprompter</string>
     <string name="screen_new_task">Neuer Prompt</string>
     <string name="screen_display">Anzeige</string>
 
-    
     <string name="cd_back">Zurück</string>
     <string name="cd_close">Schließen</string>
     <string name="cd_search">Suchen</string>
@@ -23,28 +20,22 @@
     <string name="cd_help">Hilfe</string>
     <string name="cd_loop">Schleife</string>
 
-    
     <string name="fab_new">Neu</string>
     <string name="fab_next">Weiter</string>
     <string name="fab_play">Start</string>
 
-    
     <string name="search_hint">Suchen …</string>
 
-    
     <string name="topic_label">Thema</string>
     <string name="topic_placeholder">Thema eingeben</string>
 
-    
     <string name="script_label">Skript</string>
     <string name="script_placeholder">Geben Sie Ihr Skript ein oder fügen Sie es ein</string>
 
-    
     <string name="dialog_save_changes_title">Änderungen speichern?</string>
     <string name="dialog_discard">Verwerfen</string>
     <string name="dialog_save">Speichern</string>
 
-    
     <string name="display_text_size">Textgröße</string>
     <string name="display_orientation">Ausrichtung</string>
     <string name="display_speed">Geschwindigkeit</string>
@@ -54,7 +45,6 @@
     <string name="display_mirror">Spiegeln</string>
     <string name="display_overlay">Überlagerung</string>
 
-    
     <string name="display_text_size_desc">Klein, normal, groß, riesig, massiv</string>
     <string name="display_orientation_desc">Vertikal, horizontal</string>
     <string name="display_speed_desc">Langsam, normal, schnell</string>
@@ -62,9 +52,8 @@
     <string name="display_transition_desc">Keine, verblassen, drucken</string>
     <string name="display_distortion_desc">0°, 45°, 70°</string>
     <string name="display_mirror_desc">Deaktiviert, aktiviert</string>
-    <string name="display_overlay_desc">Deaktiviert, aktiviert</string>
+    <string name="display_overlay_desc">Keine, kamera, fenster</string>
 
-    
     <string name="option_small">Klein</string>
     <string name="option_normal">Normal</string>
     <string name="option_large">Groß</string>
@@ -93,17 +82,14 @@
     <string name="option_disabled">Deaktiviert</string>
     <string name="option_enabled">Aktiviert</string>
 
-    
     <string name="style_bold">Fett</string>
     <string name="style_italic">Kursiv</string>
     <string name="style_underline">Unterstrichen</string>
     <string name="style_text_color">Textfarbe</string>
     <string name="style_fill_color">Füllfarbe</string>
 
-    
     <string name="draft_title">Entwurf</string>
 
-    
     <string name="help_bold">Fett — Heben Sie wichtige Wörter, Überschriften oder Kernaussagen hervor.</string>
     <string name="help_italic">Kursiv — Markieren Sie Notizen, Hinweise oder Phrasen, die eine andere Betonung erfordern.</string>
     <string name="help_underline">Unterstrichen — Markieren Sie wichtige Informationen, die nicht übersehen werden dürfen.</string>
@@ -124,7 +110,6 @@
     <string name="rate_us_later">Später</string>
     <string name="label_up_next">Als Nächstes</string>
 
-    <!-- ── Mock Data ────────────────────────────────────────────────────── -->
     <string name="seed_task1_title">Reise-Vlog</string>
     <string name="seed_task1_desc">Begleite mich auf der Erkundung versteckter Reiseziele, lokaler Speisen und unvergesslicher Erlebnisse weltweit.\n\nErlebe Kulturen durch die Augen der Einheimischen.\n\nProbiere unglaubliche Gerichte und entdecke bemerkenswerte Geschichten.\n\nAbenteuer warten an jeder Ecke.</string>
     <string name="seed_task1_spans">0|13|1|0|0|-1;92|102|1|1|1|0;114|120|1|0|0|1;166|174|1|0|0|2;239|248|1|0|0|3</string>
@@ -140,4 +125,38 @@
     <string name="seed_task5_title">Integrierte Promo</string>
     <string name="seed_task5_desc">Lesen • Aufnehmen • Veröffentlichen • Wiederholen • Fokussiert bleiben • Natürlich klingen • Mit Zuversicht erstellen</string>
     <string name="seed_task5_spans">0|6|1|0|0|-1;6|7|0|0|0|0;7|18|1|0|0|-1;18|19|0|0|0|1;19|36|1|0|0|-1;36|37|0|0|0|2;37|50|1|0|0|-1;50|51|0|0|0|3;51|71|1|0|0|-1;71|72|0|0|0|4;72|91|1|0|0|-1;91|92|0|0|0|0;92|117|1|0|0|-1</string>
+
+    <string name="calibration_sheet_title">Bereiten Sie Ihre Kamera vor</string>
+    <string name="calibration_sheet_description">Stellen Sie vor der Aufnahme sicher, dass Sie gut sichtbar sind und sich mit der Kameraperspektive wohlfühlen.</string>
+    <string name="calibration_framing_title">Bildausschnitt</string>
+    <string name="calibration_framing_desc">Positionieren Sie sich natürlich im Bild.</string>
+    <string name="calibration_lens_face_title">Kamera</string>
+    <string name="calibration_lens_face_desc">Wählen Sie die Frontkamera (Selfie) oder die Rückkamera.</string>
+    <string name="calibration_zoom_title">Zoom</string>
+    <string name="calibration_zoom_desc">Passen Sie den Zoom an, bis der Bildausschnitt passt.</string>
+    <string name="calibration_flash_title">Beleuchtung</string>
+    <string name="calibration_flash_desc">Schalten Sie den Blitz ein, wenn Sie mehr Licht benötigen.</string>
+    <string name="calibration_sheet_footer">Wenn Sie mit Ihren Einstellungen zufrieden sind, tippen Sie auf [check], um Ihre Kameraeinstellungen zu bestätigen.</string>
+    <string name="calibration_action_continue">Weiter</string>
+    <string name="calibration_capture_desc">Aufnehmen</string>
+    <string name="calibration_close_desc">Schließen</string>
+    <string name="calibration_toggle_flash_desc">Blitz umschalten</string>
+    <string name="calibration_flip_camera_desc">Kamera wechseln</string>
+
+    <string name="option_overlay_none">Keine</string>
+    <string name="option_overlay_camera">Kamera</string>
+    <string name="option_overlay_window">Fenster</string>
+
+    <string name="calibration_action_cancel">Abbrechen</string>
+    <string name="calibration_action_open">Kamera öffnen</string>
+    <string name="calibration_save_settings">Einstellungen speichern</string>
+
+    <string name="export_dialog_title">Videoaufnahme speichern?</string>
+    <string name="export_dialog_action_no">Nein</string>
+    <string name="export_dialog_action_yes">Ja</string>
+
+    <string name="camera_permission_title">Kamerazugriff</string>
+    <string name="camera_permission_supporting_text">Bitte aktivieren Sie ihn in Ihren Systemeinstellungen.</string>
+    <string name="camera_permission_settings">Einstellungen</string>
+    <string name="camera_permission_cancel">Abbrechen</string>
 </resources>

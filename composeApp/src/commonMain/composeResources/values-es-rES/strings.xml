@@ -1,4 +1,3 @@
-<?xml version='1.0' encoding='utf-8'?>
 <resources>
     
     <string name="screen_tasks">Teleprompter</string>
@@ -62,7 +61,7 @@
     <string name="display_transition_desc">Ninguna, desvanecimiento, impresión</string>
     <string name="display_distortion_desc">0°, 45°, 70°</string>
     <string name="display_mirror_desc">Desactivado, activado</string>
-    <string name="display_overlay_desc">Desactivada, activada</string>
+    <string name="display_overlay_desc">Ninguna, cámara, ventana</string>
 
     
     <string name="option_small">Pequeño</string>
@@ -93,7 +92,6 @@
     <string name="option_disabled">Desactivado</string>
     <string name="option_enabled">Activado</string>
 
-    
     <string name="style_bold">Negrita</string>
     <string name="style_italic">Cursiva</string>
     <string name="style_underline">Subrayado</string>
@@ -140,4 +138,38 @@
     <string name="seed_task5_title">Promoción integrada</string>
     <string name="seed_task5_desc">Lee • Graba • Publica • Repite • Mantente enfocado • Suena natural • Crea con confianza</string>
     <string name="seed_task5_spans">0|4|1|0|0|-1;4|5|0|0|0|0;5|12|1|0|0|-1;12|13|0|0|0|1;13|22|1|0|0|-1;22|23|0|0|0|2;23|31|1|0|0|-1;31|32|0|0|0|3;32|51|1|0|0|-1;51|52|0|0|0|4;52|67|1|0|0|-1;67|68|0|0|0|0;68|87|1|0|0|-1</string>
+
+    <string name="calibration_sheet_title">Siapkan Kamera Anda</string>
+    <string name="calibration_sheet_description">Sebelum merekam, pastikan Anda terlihat dengan jelas dan nyaman dengan tampilan kamera.</string>
+    <string name="calibration_framing_title">Pembingkaian</string>
+    <string name="calibration_framing_desc">Posisikan diri Anda secara alami di dalam bingkai.</string>
+    <string name="calibration_lens_face_title">Kamera</string>
+    <string name="calibration_lens_face_desc">Pilih kamera Depan (Selfie) atau Belakang.</string>
+    <string name="calibration_zoom_title">Zoom</string>
+    <string name="calibration_zoom_desc">Sesuaikan zoom hingga tampilannya sesuai.</string>
+    <string name="calibration_flash_title">Pencahayaan</string>
+    <string name="calibration_flash_desc">Nyalakan lampu kilat jika Anda memerlukan lebih banyak cahaya.</string>
+    <string name="calibration_sheet_footer">Jika pengaturan sudah sesuai, ketuk [check] untuk mengonfirmasi pengaturan kamera Anda.</string>
+    <string name="calibration_action_continue">Lanjutkan</string>
+    <string name="calibration_capture_desc">Ambil Gambar</string>
+    <string name="calibration_close_desc">Tutup</string>
+    <string name="calibration_toggle_flash_desc">Aktifkan/Nonaktifkan Lampu Kilat</string>
+    <string name="calibration_flip_camera_desc">Ganti Kamera</string>
+
+    <string name="option_overlay_none">Tidak Ada</string>
+    <string name="option_overlay_camera">Kamera</string>
+    <string name="option_overlay_window">Jendela</string>
+
+    <string name="calibration_action_cancel">Batal</string>
+    <string name="calibration_action_open">Buka Kamera</string>
+    <string name="calibration_save_settings">Simpan pengaturan</string>
+
+    <string name="export_dialog_title">Simpan rekaman video?</string>
+    <string name="export_dialog_action_no">Tidak</string>
+    <string name="export_dialog_action_yes">Ya</string>
+
+    <string name="camera_permission_title">Acceso a la cámara</string>
+    <string name="camera_permission_supporting_text">Por favor, actívalo en la configuración del sistema.</string>
+    <string name="camera_permission_settings">Einstellungen</string>
+    <string name="camera_permission_cancel">Abbrechen</string>
 </resources>

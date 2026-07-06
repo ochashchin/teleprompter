@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -79,70 +80,76 @@ fun UpNextList(
     val surfaceColor = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.5f)
         .compositeOver(baseColor)
     
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = modifier.aspectRatio(1f),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = stringResource(Res.string.label_up_next).uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = stringResource(Res.string.label_up_next).uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
-        val hasMoreThan4 = tasks.size >= 4
-        Box(modifier = Modifier.fillMaxWidth().heightIn(max = 336.dp)) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer { alpha = 0.99f }
-                    .drawWithContent {
-                        drawContent()
-                        if (hasMoreThan4) {
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black),
-                                    startY = size.height - 82.dp.toPx(),
-                                    endY = size.height
-                                ),
-                                blendMode = BlendMode.DstOut
+            val hasMoreThan3 = tasks.size >= 3
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 234.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = 0.99f }
+                        .drawWithContent {
+                            drawContent()
+                            if (hasMoreThan3) {
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black),
+                                        startY = size.height - 82.dp.toPx(),
+                                        endY = size.height
+                                    ),
+                                    blendMode = BlendMode.DstOut
+                                )
+                            }
+                        },
+                    contentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    itemsIndexed(
+                        items = tasks,
+                        key = { _, item -> item.id },
+                    ) { index, task ->
+                        val itemShape = if (tasks.size == 1) {
+                            RoundedCornerShape(28.dp)
+                        } else if (index == 0) {
+                            RoundedCornerShape(
+                                topStart = 28.dp, topEnd = 28.dp,
+                                bottomStart = 8.dp, bottomEnd = 8.dp,
                             )
+                        } else if (index == tasks.lastIndex) {
+                            RoundedCornerShape(
+                                topStart = 8.dp, topEnd = 8.dp,
+                                bottomStart = 28.dp, bottomEnd = 28.dp,
+                            )
+                        } else {
+                            RoundedCornerShape(8.dp)
                         }
-                    },
-                contentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                itemsIndexed(
-                    items = tasks,
-                    key = { _, item -> item.id },
-                ) { index, task ->
-                    val itemShape = if (tasks.size == 1) {
-                        RoundedCornerShape(28.dp)
-                    } else if (index == 0) {
-                        RoundedCornerShape(
-                            topStart = 28.dp, topEnd = 28.dp,
-                            bottomStart = 8.dp, bottomEnd = 8.dp,
-                        )
-                    } else if (index == tasks.lastIndex) {
-                        RoundedCornerShape(
-                            topStart = 8.dp, topEnd = 8.dp,
-                            bottomStart = 28.dp, bottomEnd = 28.dp,
-                        )
-                    } else {
-                        RoundedCornerShape(8.dp)
-                    }
 
-                    val isSelected = index == selectedIndex
-                    
-                    UpNextListItem(
-                        task = task,
-                        shape = itemShape,
-                        surfaceColor = surfaceColor,
-                        isSelected = isSelected,
-                        showProgress = isSelected && showCountdown,
-                        progressProvider = { progress.value },
-                        onClick = { onItemSelected(index) }
-                    )
+                        val isSelected = index == selectedIndex
+                        
+                        UpNextListItem(
+                            task = task,
+                            shape = itemShape,
+                            surfaceColor = surfaceColor,
+                            isSelected = isSelected,
+                            showProgress = isSelected && showCountdown,
+                            progressProvider = { progress.value },
+                            onClick = { onItemSelected(index) }
+                        )
+                    }
                 }
             }
         }

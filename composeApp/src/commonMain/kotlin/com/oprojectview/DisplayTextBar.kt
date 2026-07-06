@@ -1516,7 +1516,7 @@ fun DisplayTextBar(
     }
 
     BoxWithConstraints(
-        modifier = Modifier
+        modifier = modifier
             .graphicsLayer {
                 this.alpha = alpha
                 scaleX = if (isHorizontal) distortionMode else 1f

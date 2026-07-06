@@ -413,20 +413,7 @@ fun AppRoot(
                     onBack = { newTaskVm.onIntent(NewTaskIntent.BackPressed) },
                 )
                 is Screen.PlayerScreen  -> {
-                    if (!playerState.pipActive) {
-                        PlayerScreenStatic(
-                            taskId         = playerState.task?.id ?: 0,
-                            toolbarVisible = playerState.toolbarVisible,
-                            isPlaying      = playerState.isPlaying,
-                            isFinished     = playerState.scrollFraction >= 1f,
-                            onToolbarTap   = { playerVm.onIntent(PlayerIntent.ScreenTapped) },
-                            onBack         = { playerVm.onIntent(PlayerIntent.BackClicked) },
-                            onClose        = { playerVm.onIntent(PlayerIntent.CloseClicked) },
-                            onPlayPauseClick = { playerVm.onIntent(PlayerIntent.SetPlaying(!playerState.isPlaying)) },
-                            onReplayClick  = { playerVm.onIntent(PlayerIntent.ReplayClicked(isManual = true)) },
-                            fillColor      = playerStyleState.resolveActiveFillColor(),
-                        )
-                    }
+                    // Handled internally by PlayerScreenBody for correct layer ordering
                 }
             }
         },
@@ -585,48 +572,60 @@ private fun ScreenLayout(
             Box(modifier = Modifier.fillMaxSize().background(bgColor))
         }
 
-        SafeAreaLayout {
-            Box(modifier = Modifier.fillMaxSize()) {
-                AnimatedContent(
-                    targetState    = screen,
-                    transitionSpec = {
-                        val isBack = targetState.ordinal < initialState.ordinal
-                        if (initialState is Screen.DisplayScreen && targetState is Screen.NewTaskScreen) {
-                            slideInHorizontally(tween(350)) { -it } togetherWith
-                            slideOutHorizontally(tween(350)) { it }
-                        } else if (isBack) {
-                            slideInHorizontally(tween(350)) { -it } togetherWith
-                            slideOutHorizontally(tween(350)) { it }
-                        } else if (initialState is Screen.PlayerScreen && targetState is Screen.DisplayScreen) {
-                            slideInHorizontally(tween(350)) { -it } togetherWith
-                            slideOutHorizontally(tween(350)) { it } using
-                            SizeTransform(clip = true)
-                        } else {
-                            slideInHorizontally(tween(350)) { it } togetherWith
-                            slideOutHorizontally(tween(350)) { -it } using
-                            SizeTransform(clip = true)
-                        }
-                    },
-                    label    = "dynamicLayer",
-                    modifier = Modifier.fillMaxSize(),
-                ) { s -> dynamicContent(s) }
+        Box(modifier = Modifier.fillMaxSize()) {
+            AnimatedContent(
+                targetState    = screen,
+                transitionSpec = {
+                    val isBack = targetState.ordinal < initialState.ordinal
+                    if (initialState is Screen.DisplayScreen && targetState is Screen.NewTaskScreen) {
+                        slideInHorizontally(tween(350)) { -it } togetherWith
+                        slideOutHorizontally(tween(350)) { it }
+                    } else if (isBack) {
+                        slideInHorizontally(tween(350)) { -it } togetherWith
+                        slideOutHorizontally(tween(350)) { it }
+                    } else if (initialState is Screen.PlayerScreen && targetState is Screen.DisplayScreen) {
+                        slideInHorizontally(tween(350)) { -it } togetherWith
+                        slideOutHorizontally(tween(350)) { it } using
+                        SizeTransform(clip = false)
+                    } else {
+                        slideInHorizontally(tween(350)) { it } togetherWith
+                        slideOutHorizontally(tween(350)) { -it } using
+                        SizeTransform(clip = false)
+                    }
+                },
+                label    = "dynamicLayer",
+                modifier = Modifier.fillMaxSize(),
+            ) { s ->
+                if (s is Screen.PlayerScreen) {
+                    dynamicContent(s)
+                } else {
+                    SafeAreaLayout {
+                        dynamicContent(s)
+                    }
+                }
+            }
 
-                AnimatedContent(
-                    targetState    = screen,
-                    transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
-                    label          = "staticLayer",
-                    modifier       = Modifier.fillMaxSize(),
+            AnimatedContent(
+                targetState    = screen,
+                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
+                label          = "staticLayer",
+                modifier       = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter,
+            ) { s ->
+                Box(
+                    modifier = if (s is Screen.PlayerScreen) {
+                        Modifier.fillMaxSize()
+                    } else {
+                        Modifier.fillMaxWidth().wrapContentHeight(Alignment.Top)
+                    },
                     contentAlignment = Alignment.TopCenter,
-                ) { s ->
-                    Box(
-                        modifier = if (s is Screen.PlayerScreen) {
-                            Modifier.fillMaxSize()
-                        } else {
-                            Modifier.fillMaxWidth().wrapContentHeight(Alignment.Top)
-                        },
-                        contentAlignment = Alignment.TopCenter,
-                    ) {
+                ) {
+                    if (s is Screen.PlayerScreen) {
                         staticContent(s)
+                    } else {
+                        SafeAreaLayout {
+                            staticContent(s)
+                        }
                     }
                 }
             }

@@ -251,7 +251,7 @@ class FrameViewModel(
                 transitionMode = transitionModeOf(idx(5)),
                 distortionMode = distortionValueOf(idx(6)),
                 isMirror       = idx(7) == 1,
-                overlayEnabled = idx(8) == 1,
+                overlayEnabled = idx(8) == 2,
                 isLoopEnabled  = ds.isAnimationLoopEnabled(),
             )
         }

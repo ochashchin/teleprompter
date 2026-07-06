@@ -6,7 +6,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import com.oprojectview.core.LocalPlatformContext
 import com.oprojectview.core.WindowModeObserver
 import com.oprojectview.frame.FrameViewModel
 import com.oprojectview.frame.LogFrameSink
@@ -53,20 +55,24 @@ class MainActivity : ComponentActivity() {
         WindowModeObserver.setMultiWindow(isInMultiWindowMode)
 
         setContent {
-            App(
-                onExitApp         = { finishAffinity() },
-                frameViewModel    = frameViewModel,
-                onViewModelsReady = { playerVm ->
-                    if (pipController == null) {
-                        pipController = PipController(
-                            activity = this,
-                            frameViewModel = frameViewModel,
-                            playerViewModel = playerVm,
-                            lifecycleOwner = this,
-                        )
-                    }
-                },
-            )
+            androidx.compose.runtime.CompositionLocalProvider(
+                LocalPlatformContext provides LocalContext.current
+            ) {
+                App(
+                    onExitApp         = { finishAffinity() },
+                    frameViewModel    = frameViewModel,
+                    onViewModelsReady = { playerVm ->
+                        if (pipController == null) {
+                            pipController = PipController(
+                                activity = this@MainActivity,
+                                frameViewModel = frameViewModel,
+                                playerViewModel = playerVm,
+                                lifecycleOwner = this@MainActivity,
+                            )
+                        }
+                    },
+                )
+            }
         }
     }
 

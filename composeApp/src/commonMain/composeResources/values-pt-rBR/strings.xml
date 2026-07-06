@@ -1,4 +1,3 @@
-<?xml version='1.0' encoding='utf-8'?>
 <resources>
     
     <string name="screen_tasks">Teleprompter</string>
@@ -62,7 +61,7 @@
     <string name="display_transition_desc">Nenhuma, desaparecer, imprimir</string>
     <string name="display_distortion_desc">0°, 45°, 70°</string>
     <string name="display_mirror_desc">Desativado, ativado</string>
-    <string name="display_overlay_desc">Desativada, ativada</string>
+    <string name="display_overlay_desc">Nenhuma, câmera, janela</string>
 
     
     <string name="option_small">Pequeno</string>
@@ -93,7 +92,6 @@
     <string name="option_disabled">Desativado</string>
     <string name="option_enabled">Ativado</string>
 
-    
     <string name="style_bold">Negrito</string>
     <string name="style_italic">Itálico</string>
     <string name="style_underline">Sublinhado</string>
@@ -140,4 +138,38 @@
     <string name="seed_task5_title">Promoção integrada</string>
     <string name="seed_task5_desc">Leia • Grave • Publique • Repita • Mantenha o Foco • Soe Natural • Crie Com Confiança</string>
     <string name="seed_task5_spans">0|5|1|0|0|-1;5|6|0|0|0|0;6|13|1|0|0|-1;13|14|0|0|0|1;14|24|1|0|0|-1;24|25|0|0|0|2;25|33|1|0|0|-1;33|34|0|0|0|3;34|51|1|0|0|-1;51|52|0|0|0|4;52|65|1|0|0|-1;65|66|0|0|0|0;66|85|1|0|0|-1</string>
+
+    <string name="calibration_sheet_title">Prepare sua câmera</string>
+    <string name="calibration_sheet_description">Antes de gravar, certifique-se de que você está claramente visível e confortável com a visualização da câmera.</string>
+    <string name="calibration_framing_title">Enquadramento</string>
+    <string name="calibration_framing_desc">Posicione-se naturalmente dentro do enquadramento.</string>
+    <string name="calibration_lens_face_title">Câmera</string>
+    <string name="calibration_lens_face_desc">Escolha a câmera frontal (selfie) ou traseira.</string>
+    <string name="calibration_zoom_title">Zoom</string>
+    <string name="calibration_zoom_desc">Ajuste o zoom até que a imagem fique como desejado.</string>
+    <string name="calibration_flash_title">Iluminação</string>
+    <string name="calibration_flash_desc">Ative o flash se precisar de mais luz.</string>
+    <string name="calibration_sheet_footer">Quando estiver satisfeito com a configuração, toque em [check] para confirmar as configurações da câmera.</string>
+    <string name="calibration_action_continue">Continuar</string>
+    <string name="calibration_capture_desc">Capturar</string>
+    <string name="calibration_close_desc">Fechar</string>
+    <string name="calibration_toggle_flash_desc">Alternar flash</string>
+    <string name="calibration_flip_camera_desc">Trocar câmera</string>
+
+    <string name="option_overlay_none">Nenhum</string>
+    <string name="option_overlay_camera">Câmera</string>
+    <string name="option_overlay_window">Janela</string>
+
+    <string name="calibration_action_cancel">Cancelar</string>
+    <string name="calibration_action_open">Abrir câmera</string>
+    <string name="calibration_save_settings">Salvar configurações</string>
+
+    <string name="export_dialog_title">Salvar gravação de vídeo?</string>
+    <string name="export_dialog_action_no">Não</string>
+    <string name="export_dialog_action_yes">Sim</string>
+
+    <string name="camera_permission_title">Acesso à câmera</string>
+    <string name="camera_permission_supporting_text">Ative-o nas configurações do sistema.</string>
+    <string name="camera_permission_settings">Configurações</string>
+    <string name="camera_permission_cancel">Cancelar</string>
 </resources>

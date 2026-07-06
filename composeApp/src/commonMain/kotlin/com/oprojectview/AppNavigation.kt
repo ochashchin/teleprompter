@@ -127,27 +127,33 @@ fun AppNavigation(
 
     // Dispatch Load to the right VM when destination changes.          ← STEP 4
     LaunchedEffect(destination) {
-        val dest = destination
-        if (dest is Destination.Detail) {
-            displayVm.onIntent(DisplayIntent.Load(dest.taskId, dest.isPreview))
-        } else if (dest is Destination.PlayDetail) {
-            val displayTaskState = DisplayTaskState(taskId = dest.taskId, settings = settings)
-            val speedItem = DisplayTaskList.first { it.id == 3 }
-            val selectedSpeedIndex = displayTaskState.selectedIndex(speedItem) ?: speedItem.defaultIndex
-            val wpm = speedIndexToWpm(selectedSpeedIndex)
-            playerVm.onIntent(PlayerIntent.Load(dest.taskId, dest.isPreview, wpm))
+        when (destination) {
+            is Destination.Detail -> {
+                displayVm.onIntent(DisplayIntent.Load(destination.taskId, destination.isPreview))
+            }
+            is Destination.PlayDetail -> {
+                val displayTaskState = DisplayTaskState(taskId = destination.taskId, settings = settings)
+                val speedItem = DisplayTaskList.first { it.id == 3 }
+                val selectedSpeedIndex = displayTaskState.selectedIndex(speedItem) ?: speedItem.defaultIndex
+                val wpm = speedIndexToWpm(selectedSpeedIndex)
+                playerVm.onIntent(PlayerIntent.Load(destination.taskId, destination.isPreview, wpm))
+            }
+            else -> {}
         }
     }
 
     // Collect TaskList events
     LaunchedEffect(taskListVm) {
         taskListVm.events.collect { event ->
-            if (event is TaskListEvent.NavigateToNewTask) {
-                newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = null, draftTitle = draftTitle))
-                nav.push(Destination.NewDetail)
-            } else if (event is TaskListEvent.NavigateToEditTask) {
-                newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = event.taskId, draftTitle = draftTitle))
-                nav.push(Destination.NewDetail)
+            when (event) {
+                is TaskListEvent.NavigateToNewTask -> {
+                    newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = null, draftTitle = draftTitle))
+                    nav.push(Destination.NewDetail)
+                }
+                is TaskListEvent.NavigateToEditTask -> {
+                    newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = event.taskId, draftTitle = draftTitle))
+                    nav.push(Destination.NewDetail)
+                }
             }
         }
     }
@@ -155,24 +161,31 @@ fun AppNavigation(
     // Collect NewTask events
     LaunchedEffect(newTaskVm) {
         newTaskVm.events.collect { event ->
-            if (event is NewTaskEvent.PrefillFields) {
-                topicFieldState.edit  { replace(0, length, event.topic)  }
-                scriptFieldState.edit { replace(0, length, event.script) }
-            } else if (event is NewTaskEvent.ClearFields) {
-                topicFieldState.edit  { replace(0, length, "") }
-                scriptFieldState.edit { replace(0, length, "") }
-            } else if (event is NewTaskEvent.DismissKeyboard) {
-                focusManager.clearFocus(force = true)
-                delay(500)
-            } else if (event is NewTaskEvent.NavigateToDetail) {
-                taskListVm.onIntent(TaskListIntent.Load)
-                nav.push(Destination.Detail(taskId = event.taskId, isPreview = event.isPreview))
-            } else if (event is NewTaskEvent.NavigateBack) {
-                taskListVm.onIntent(TaskListIntent.Load)
-                nav.popToRoot()
-            } else if (event is NewTaskEvent.NavigateBackAfterSave) {
-                taskListVm.onIntent(TaskListIntent.Load)
-                nav.popToRoot()
+            when (event) {
+                is NewTaskEvent.PrefillFields -> {
+                    topicFieldState.edit  { replace(0, length, event.topic)  }
+                    scriptFieldState.edit { replace(0, length, event.script) }
+                }
+                is NewTaskEvent.ClearFields -> {
+                    topicFieldState.edit  { replace(0, length, "") }
+                    scriptFieldState.edit { replace(0, length, "") }
+                }
+                is NewTaskEvent.DismissKeyboard -> {
+                    focusManager.clearFocus(force = true)
+                    delay(500)
+                }
+                is NewTaskEvent.NavigateToDetail -> {
+                    taskListVm.onIntent(TaskListIntent.Load)
+                    nav.push(Destination.Detail(taskId = event.taskId, isPreview = event.isPreview))
+                }
+                is NewTaskEvent.NavigateBack -> {
+                    taskListVm.onIntent(TaskListIntent.Load)
+                    nav.popToRoot()
+                }
+                is NewTaskEvent.NavigateBackAfterSave -> {
+                    taskListVm.onIntent(TaskListIntent.Load)
+                    nav.popToRoot()
+                }
             }
         }
     }
@@ -180,31 +193,34 @@ fun AppNavigation(
     // Collect Display events                                           ← STEP 4
     LaunchedEffect(displayVm) {
         displayVm.events.collect { event ->
-            if (event is DisplayEvent.NavigateToPlay) {
-                if (event.overlayEnabled) {
-                    frameViewModel?.let { fvm ->
-                        fvm.onIntent(FrameVmIntent.SyncDisplayState(
-                            DisplayTaskState(taskId = event.taskId, settings = settings)
-                        ))
-                        fvm.onIntent(FrameVmIntent.SetOverlay(true))
-                        fvm.onIntent(FrameVmIntent.SetPlaying(true))
+            when (event) {
+                is DisplayEvent.NavigateToPlay -> {
+                    if (event.overlayEnabled) {
+                        frameViewModel?.let { fvm ->
+                            fvm.onIntent(FrameVmIntent.SyncDisplayState(
+                                DisplayTaskState(taskId = event.taskId, settings = settings)
+                            ))
+                            fvm.onIntent(FrameVmIntent.SetOverlay(true))
+                            fvm.onIntent(FrameVmIntent.SetPlaying(true))
+                        }
                     }
+                    nav.push(Destination.PlayDetail(taskId = event.taskId, isPreview = event.isPreview))
                 }
-                nav.push(Destination.PlayDetail(taskId = event.taskId, isPreview = event.isPreview))
-            } else if (event is DisplayEvent.NavigateBack) {
-                if (event.isPreview) {
-                    val task = displayState.task
-                    if (task != null) {
-                        newTaskVm.onIntent(
-                            NewTaskIntent.ReturnFromPreview(
-                                title  = task.title,
-                                script = task.description,
+                is DisplayEvent.NavigateBack -> {
+                    if (event.isPreview) {
+                        val task = displayState.task
+                        if (task != null) {
+                            newTaskVm.onIntent(
+                                NewTaskIntent.ReturnFromPreview(
+                                    title  = task.title,
+                                    script = task.description,
+                                )
                             )
-                        )
+                        }
+                        nav.push(Destination.NewDetail)
+                    } else {
+                        nav.pop()
                     }
-                    nav.push(Destination.NewDetail)
-                } else {
-                    nav.pop()
                 }
             }
         }
@@ -222,14 +238,22 @@ fun AppNavigation(
     // Collect Player events                                            ← STEP 4
     LaunchedEffect(playerVm) {
         playerVm.events.collect { event ->
-            if (event is PlayerEvent.NavigateToDetail) {
-                nav.push(Destination.Detail(taskId = event.taskId, isPreview = event.isPreview))
-            } else if (event is PlayerEvent.NavigateToRoot) {
-                nav.popToRoot()
-            } else if (event is PlayerEvent.RequestEnterPip) {
-                /* platform layer handles */
-            } else if (event is PlayerEvent.RequestExitPip) {
-                /* platform layer handles */
+            when (event) {
+                is PlayerEvent.NavigateToDetail -> {
+                    nav.push(Destination.Detail(taskId = event.taskId, isPreview = event.isPreview))
+                }
+                is PlayerEvent.NavigateToRoot -> {
+                    nav.popToRoot()
+                }
+                is PlayerEvent.RequestEnterPip -> {
+                    /* platform layer handles */
+                }
+                is PlayerEvent.RequestExitPip -> {
+                    /* platform layer handles */
+                }
+                is PlayerEvent.PreloadNextTaskStyles -> {
+                    /* platform layer handles / no-op in common nav */
+                }
             }
         }
     }
@@ -240,134 +264,125 @@ fun AppNavigation(
         destination  = destination,
         lastNavEvent = lastNavEvent,
         staticContent = { dest ->
-            if (dest is Destination.TaskList) {
-                TaskScreenStatic(
-                    searchActive  = taskListState.isSearchActive,
-                    query         = taskListState.query,
-                    onQueryChange = { taskListVm.onIntent(TaskListIntent.QueryChanged(it)) },
-                    onClear       = { taskListVm.onIntent(TaskListIntent.QueryChanged("")) },
-                    onBack        = { taskListVm.onIntent(TaskListIntent.SearchClosed) },
-                    onSearchOpen  = { taskListVm.onIntent(TaskListIntent.SearchOpened) },
-                )
-            } else if (dest is Destination.Detail) {
-                DisplayScreenStatic(
-                    onBack = { displayVm.onIntent(DisplayIntent.BackClicked) },
-                )
-            } else if (dest is Destination.NewDetail) {
-                NewTaskScreenStatic(
-                    onBack = { newTaskVm.onIntent(NewTaskIntent.BackPressed) },
-                )
-            } else if (dest is Destination.PlayDetail) {
-                PlayerScreenStatic(
-                    taskId         = dest.taskId,
-                    toolbarVisible = playerState.toolbarVisible,
-                    isPlaying      = playerState.isPlaying,
-                    isFinished     = playerState.scrollFraction >= 1f,
-                    onToolbarTap   = { playerVm.onIntent(PlayerIntent.ScreenTapped) },
-                    onBack         = { playerVm.onIntent(PlayerIntent.BackClicked) },
-                    onClose        = { playerVm.onIntent(PlayerIntent.CloseClicked) },
-                    onPlayPauseClick = { playerVm.onIntent(PlayerIntent.SetPlaying(!playerState.isPlaying)) },
-                    onReplayClick  = { playerVm.onIntent(PlayerIntent.ReplayClicked(isManual = true)) },
-                    fillColor      = rememberScriptTextStyleState(dest.taskId).resolveActiveFillColor(),
-                )
+            when (dest) {
+                is Destination.TaskList -> {
+                    TaskScreenStatic(
+                        searchActive  = taskListState.isSearchActive,
+                        query         = taskListState.query,
+                        onQueryChange = { taskListVm.onIntent(TaskListIntent.QueryChanged(it)) },
+                        onClear       = { taskListVm.onIntent(TaskListIntent.QueryChanged("")) },
+                        onBack        = { taskListVm.onIntent(TaskListIntent.SearchClosed) },
+                        onSearchOpen  = { taskListVm.onIntent(TaskListIntent.SearchOpened) },
+                    )
+                }
+                is Destination.Detail -> {
+                    DisplayScreenStatic(
+                        onBack = { displayVm.onIntent(DisplayIntent.BackClicked) },
+                    )
+                }
+                is Destination.NewDetail -> {
+                    NewTaskScreenStatic(
+                        onBack = { newTaskVm.onIntent(NewTaskIntent.BackPressed) },
+                    )
+                }
+                is Destination.PlayDetail -> {
+                    // Handled internally by PlayerScreenBody for correct layer ordering
+                }
             }
         },
         dynamicContent = { dest ->
-            if (dest is Destination.TaskList) {
-                TaskScreenBody(
-                    visibleTasks = taskListState.visibleTasks.map { item ->
-                        Task(
-                            id           = item.id,
-                            title        = item.title,
-                            description  = item.description,
-                            leadingShape = LeadingShapeType.entries
-                                .getOrElse(item.leadingShapeOrdinal) { LeadingShapeType.HEART },
-                        )
-                    },
-                    onDismiss   = { task ->
-                        taskListVm.onIntent(TaskListIntent.TaskDismissed(
-                            TaskListItem(task.id, task.title, task.description, task.leadingShape.ordinal)
-                        ))
-                    },
-                    onItemClick = { task ->
-                        taskListVm.onIntent(TaskListIntent.TaskClicked(
-                            TaskListItem(task.id, task.title, task.description, task.leadingShape.ordinal)
-                        ))
-                    },
-                    onNewClick  = { taskListVm.onIntent(TaskListIntent.NewTaskClicked) },
-                    modifier    = Modifier.fillMaxSize(),
-                )
-            } else if (dest is Destination.Detail) {
-                val task = displayState.task?.let { dt ->
-                    Task(
-                        id           = dt.id,
-                        title        = dt.title,
-                        description  = dt.description,
-                        leadingShape = LeadingShapeType.entries
-                            .getOrElse(dt.shapeOrdinal) { LeadingShapeType.HEART },
-                    )
-                }
-                if (task != null) {
-                    val displayTaskState = remember(task.id, settings) {
-                        DisplayTaskState(taskId = task.id, settings = settings)
-                    }
-                    val overlayItem    = remember { DisplayTaskList.first { it.id == 8 } }
-                    val overlayEnabled = remember(task.id) {
-                        (displayTaskState.selectedIndex(overlayItem)
-                            ?: overlayItem.defaultIndex) == 1
-                    }
-                    DisplayScreenBody(
-                        task        = task,
-                        onPlayClick = {
-                            displayVm.onIntent(DisplayIntent.PlayClicked(overlayEnabled))
+            when (dest) {
+                is Destination.TaskList -> {
+                    TaskScreenBody(
+                        visibleTasks = taskListState.visibleTasks.map { item ->
+                            Task(
+                                id           = item.id,
+                                title        = item.title,
+                                description  = item.description,
+                                leadingShape = LeadingShapeType.entries
+                                    .getOrElse(item.leadingShapeOrdinal) { LeadingShapeType.HEART },
+                            )
                         },
+                        onDismiss   = { task ->
+                            taskListVm.onIntent(TaskListIntent.TaskDismissed(
+                                TaskListItem(task.id, task.title, task.description, task.leadingShape.ordinal)
+                            ))
+                        },
+                        onItemClick = { task ->
+                            taskListVm.onIntent(TaskListIntent.TaskClicked(
+                                TaskListItem(task.id, task.title, task.description, task.leadingShape.ordinal)
+                            ))
+                        },
+                        onNewClick  = { taskListVm.onIntent(TaskListIntent.NewTaskClicked) },
                         modifier    = Modifier.fillMaxSize(),
-                        fillColor   = rememberScriptTextStyleState(task.id).resolveActiveFillColor(),
                     )
                 }
-            } else if (dest is Destination.PlayDetail) {
-                val task = playerState.task?.let { pt ->
-                    Task(
-                        id           = pt.id,
-                        title        = pt.title,
-                        description  = pt.description,
-                        leadingShape = LeadingShapeType.entries
-                            .getOrElse(pt.shapeOrdinal) { LeadingShapeType.HEART },
+                is Destination.Detail -> {
+                    val task = displayState.task?.let { dt ->
+                        Task(
+                            id           = dt.id,
+                            title        = dt.title,
+                            description  = dt.description,
+                            leadingShape = LeadingShapeType.entries
+                                .getOrElse(dt.shapeOrdinal) { LeadingShapeType.HEART },
+                        )
+                    }
+                    if (task != null) {
+                        DisplayScreenBody(
+                            task        = task,
+                            onPlayClick = { isWindowOverlay ->
+                                displayVm.onIntent(DisplayIntent.PlayClicked(isWindowOverlay))
+                            },
+                            modifier    = Modifier.fillMaxSize(),
+                            fillColor   = rememberScriptTextStyleState(task.id).resolveActiveFillColor(),
+                        )
+                    }
+                }
+                is Destination.PlayDetail -> {
+                    val task = playerState.task?.let { pt ->
+                        Task(
+                            id           = pt.id,
+                            title        = pt.title,
+                            description  = pt.description,
+                            leadingShape = LeadingShapeType.entries
+                                .getOrElse(pt.shapeOrdinal) { LeadingShapeType.HEART },
+                        )
+                    }
+                    if (task != null) {
+                        PlayerScreenBody(
+                            task              = task,
+                            onReadingComplete = { playerVm.onIntent(PlayerIntent.ReadingCompleted) },
+                            modifier          = Modifier.fillMaxSize(),
+                            fillColor         = rememberScriptTextStyleState(task.id).resolveActiveFillColor(),
+                        )
+                    }
+                }
+                is Destination.NewDetail -> {
+                    val screenState = remember(topicFieldState, scriptFieldState, settings) {
+                        NewTaskScreenState(
+                            topicState  = topicFieldState,
+                            scriptState = scriptFieldState,
+                            settings    = settings,
+                        )
+                    }
+                    NewTaskScreenBody(
+                        state           = screenState,
+                        onBack          = { newTaskVm.onIntent(NewTaskIntent.BackPressed) },
+                        onNextClick     = { newTaskVm.onIntent(NewTaskIntent.NextClicked) },
+                        showSaveDialog  = newTaskState.showSaveDialog,
+                        onDismissDialog = { newTaskVm.onIntent(NewTaskIntent.DialogDismissed) },
+                        onSave          = { newTaskVm.onIntent(NewTaskIntent.SaveConfirmed) },
+                        onDiscard       = { newTaskVm.onIntent(NewTaskIntent.DiscardConfirmed) },
+                        modifier        = Modifier.fillMaxSize(),
                     )
                 }
-                if (task != null) {
-                    PlayerScreenBody(
-                        task              = task,
-                        onReadingComplete = { playerVm.onIntent(PlayerIntent.ReadingCompleted) },
-                        modifier          = Modifier.fillMaxSize(),
-                        fillColor         = rememberScriptTextStyleState(task.id).resolveActiveFillColor(),
-                    )
-                }
-            } else if (dest is Destination.NewDetail) {
-                val screenState = remember(topicFieldState, scriptFieldState, settings) {
-                    NewTaskScreenState(
-                        topicState  = topicFieldState,
-                        scriptState = scriptFieldState,
-                        settings    = settings,
-                    )
-                }
-                NewTaskScreenBody(
-                    state           = screenState,
-                    onBack          = { newTaskVm.onIntent(NewTaskIntent.BackPressed) },
-                    onNextClick     = { newTaskVm.onIntent(NewTaskIntent.NextClicked) },
-                    showSaveDialog  = newTaskState.showSaveDialog,
-                    onDismissDialog = { newTaskVm.onIntent(NewTaskIntent.DialogDismissed) },
-                    onSave          = { newTaskVm.onIntent(NewTaskIntent.SaveConfirmed) },
-                    onDiscard       = { newTaskVm.onIntent(NewTaskIntent.DiscardConfirmed) },
-                    modifier        = Modifier.fillMaxSize(),
-                )
             }
         },
         modifier = modifier,
     )
 }
 
-// ── ScreenLayout (unchanged from Step 3) ─────────────────────────────────────
+// ── ScreenLayout (normalized) ─────────────────────────────────────────────────
 
 @Composable
 private fun ScreenLayout(
@@ -377,44 +392,55 @@ private fun ScreenLayout(
     dynamicContent: @Composable (Destination) -> Unit,
     modifier:       Modifier = Modifier,
 ) {
-    SafeAreaLayout {
-        Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState    = destination,
+            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
+            label          = "staticLayer",
+            modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
+        ) { dest ->
+            if (dest !is Destination.PlayDetail) {
+                SafeAreaLayout {
+                    staticContent(dest)
+                }
+            }
+        }
 
-            AnimatedContent(
-                targetState    = destination,
-                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
-                label          = "staticLayer",
-                modifier       = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-            ) { dest -> staticContent(dest) }
+        AnimatedContent(
+            targetState = destination,
+            transitionSpec = {
+                val isBack = lastNavEvent is NavigationUiEvent.TransitionBack ||
+                        lastNavEvent is NavigationUiEvent.PopToRoot
 
-            AnimatedContent(
-                targetState = destination,
-                transitionSpec = {
-                    val isBack = lastNavEvent is NavigationUiEvent.TransitionBack ||
-                            lastNavEvent is NavigationUiEvent.PopToRoot
-
-                    if (initialState is Destination.Detail &&
-                        (initialState as Destination.Detail).isPreview &&
-                        targetState is Destination.NewDetail) {
-                        slideInHorizontally(tween(350)) { -it } togetherWith
-                                slideOutHorizontally(tween(350)) { it }
-                    } else if (isBack || targetState is Destination.TaskList) {
-                        slideInHorizontally(tween(350)) { -it } togetherWith
-                                slideOutHorizontally(tween(350)) { it }
-                    } else if (initialState is Destination.PlayDetail &&
-                        targetState is Destination.Detail) {
-                        slideInHorizontally(tween(350)) { -it } togetherWith
-                                slideOutHorizontally(tween(350)) { it } using
-                                SizeTransform(clip = true)
-                    } else {
-                        slideInHorizontally(tween(350)) { it } togetherWith
-                                slideOutHorizontally(tween(350)) { -it } using
-                                SizeTransform(clip = true)
-                    }
-                },
-                label    = "dynamicLayer",
-                modifier = Modifier.fillMaxSize(),
-            ) { dest -> dynamicContent(dest) }
+                if (initialState is Destination.Detail &&
+                    (initialState as Destination.Detail).isPreview &&
+                    targetState is Destination.NewDetail) {
+                    slideInHorizontally(tween(350)) { -it } togetherWith
+                            slideOutHorizontally(tween(350)) { it }
+                } else if (isBack || targetState is Destination.TaskList) {
+                    slideInHorizontally(tween(350)) { -it } togetherWith
+                            slideOutHorizontally(tween(350)) { it }
+                } else if (initialState is Destination.PlayDetail &&
+                    targetState is Destination.Detail) {
+                    slideInHorizontally(tween(350)) { -it } togetherWith
+                            slideOutHorizontally(tween(350)) { it } using
+                            SizeTransform(clip = false)
+                } else {
+                    slideInHorizontally(tween(350)) { it } togetherWith
+                            slideOutHorizontally(tween(350)) { -it } using
+                            SizeTransform(clip = false)
+                }
+            },
+            label    = "dynamicLayer",
+            modifier = Modifier.fillMaxSize(),
+        ) { dest ->
+            if (dest is Destination.PlayDetail) {
+                dynamicContent(dest)
+            } else {
+                SafeAreaLayout {
+                    dynamicContent(dest)
+                }
+            }
         }
     }
 }

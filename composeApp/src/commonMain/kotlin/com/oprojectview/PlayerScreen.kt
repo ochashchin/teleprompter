@@ -3,17 +3,23 @@ package com.oprojectview
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -24,27 +30,48 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.unit.dp
+import com.oprojectview.core.LocalPlatformContext
+import com.oprojectview.core.camera.CalibrationData
+import com.oprojectview.core.camera.CalibrationOverlay
+import com.oprojectview.core.camera.CameraCalibrationBottomSheet
+import com.oprojectview.core.camera.CameraControlState
+import com.oprojectview.core.camera.DraggableCameraOverlay
+import com.oprojectview.core.camera.ExportGalleryOverlay
+import com.oprojectview.core.camera.exportVideoToGallery
+import com.oprojectview.core.camera.rememberCameraCalibrator
+import com.oprojectview.core.camera.rememberPermissionHelper
 import com.oprojectview.features.player.LocalPlayerViewModel
 import com.oprojectview.features.player.PlayerIntent
 import com.oprojectview.frame.FrameViewModel
 import com.oprojectview.frame.FrameVmIntent
+import com.oprojectview.navigation.PlatformBackHandler
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.cd_back
 import kotlinmultiplatform.composeapp.generated.resources.cd_close
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format.*
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
+import com.oprojectview.core.camera.getUniqueExportFileName
 
 @Composable
 fun PlayerScreenStatic(
@@ -71,11 +98,13 @@ fun PlayerScreenStatic(
             exit     = fadeOut(tween(200)),
             modifier = if (isHorizontal) {
                 Modifier
-                    .fillMaxHeight()
+                    .statusBarsPadding()
                     .width(64.dp)
+                    .fillMaxHeight()
                     .align(Alignment.CenterEnd)
             } else {
                 Modifier
+                    .statusBarsPadding()
                     .fillMaxWidth()
                     .height(64.dp)
                     .align(Alignment.TopCenter)
@@ -110,7 +139,9 @@ fun PlayerScreenStatic(
             visible = toolbarVisible,
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200)),
-            modifier = Modifier.align(if (isHorizontal) Alignment.CenterStart else Alignment.BottomCenter)
+            modifier = Modifier
+                .align(if (isHorizontal) Alignment.CenterStart else Alignment.BottomCenter)
+                .navigationBarsPadding()
         ) {
             PlayBar(
                 isPlaying = isPlaying,
@@ -179,6 +210,193 @@ fun PlayerScreenBody(
     val countdownDone  = playerState.countdownDone
     val scrollFraction = playerState.scrollFraction
 
+    val settings = LocalSettings.current
+    val context = LocalPlatformContext.current ?: Unit
+    val scope = rememberCoroutineScope()
+
+    val overlayItem = DisplayTaskList.first { it.id == 8 }
+    val selectedOverlayIndex = displayState.selectedIndex(overlayItem) ?: overlayItem.defaultIndex
+
+    var recordedVideoPath by remember(task.id) { mutableStateOf<String?>(null) }
+    var showExportDialog by remember(task.id) { mutableStateOf(false) }
+    var isExporting by remember(task.id) { mutableStateOf(false) }
+    var isReadingFinished by remember(task.id) { mutableStateOf(false) }
+    var cameraOffsetX by remember(task.id) { mutableStateOf(0f) }
+    var cameraOffsetY by remember(task.id) { mutableStateOf(0f) }
+
+    var pendingExitAction by remember(task.id) { mutableStateOf<(() -> Unit)?>(null) }
+    var exportFilename by remember(task.id) { mutableStateOf("") }
+
+    val triggerExportFlow = {
+        val topicName = (playerState.task?.title ?: task.title).trim()
+        val sanitizedTopic = topicName
+            .lowercase()
+            .replace(Regex("[\\\\/:*?\"<>|\\x00-\\x1F\\x7F]"), "-")
+            .replace(Regex("[\\s_]+"), "-")
+            .replace(Regex("-+"), "-")
+            .trim('-')
+        val finalTopic = sanitizedTopic.ifEmpty { "recorded_video" }
+
+        // Get the current local system time
+        val currentMoment = Clock.System.now()
+        val localDateTime = currentMoment.toLocalDateTime(TimeZone.currentSystemDefault())
+
+        val dateFormatter = LocalDate.Format {
+            monthNumber(padding = Padding.ZERO)
+            char('-')
+            day(padding = Padding.ZERO)
+            char('-')
+            year()
+        }
+        val dateString = dateFormatter.format(localDateTime.date)
+
+        val baseName = "$finalTopic-$dateString.mp4"
+        var name = getUniqueExportFileName(context, baseName)
+
+        val exportedNamesStr = settings.getString("exported_video_filenames", "")
+        val exportedNames = exportedNamesStr.split(",").filter { it.isNotEmpty() }.toSet()
+
+        val dotIndex = name.lastIndexOf('.')
+        val nameWithoutExtension = if (dotIndex != -1) name.substring(0, dotIndex) else name
+        val extension = if (dotIndex != -1) name.substring(dotIndex) else ""
+
+        var counter = 1
+        while (name in exportedNames) {
+            name = "$nameWithoutExtension ($counter)$extension"
+            counter++
+        }
+
+        exportFilename = name
+        isReadingFinished = true
+        vm.onIntent(PlayerIntent.SetPlaying(false))
+    }
+
+    // Track calibration completion
+    var calibrationPending by remember(task.id) {
+        val isCameraOverlay = selectedOverlayIndex == 1
+        val isCalibrated = settings.getBoolean("task_${task.id}_calibrated_active", false)
+        mutableStateOf(isCameraOverlay && !isCalibrated)
+    }
+
+    var showCalibrationWarning by remember { mutableStateOf(false) }
+    var isCalibrationActive by remember { mutableStateOf(false) }
+    val isCameraOverlayActive = selectedOverlayIndex == 1 && (!calibrationPending || isCalibrationActive)
+    var tempSaveSettings by remember { mutableStateOf(false) }
+
+    // The export interception is only needed while the camera is actively recording
+    // (i.e. before the UpNext screen is shown). Once the UpNext list is visible the
+    // recording has already stopped and any export was already handled, so the system
+    // back gesture must be allowed to reach the normal BackClicked handler directly.
+    PlatformBackHandler(enabled = isCameraOverlayActive && countdownDone && !isReadingFinished && !playerState.isShowingUpNext) {
+        pendingExitAction = { vm.onIntent(PlayerIntent.BackClicked) }
+        triggerExportFlow()
+    }
+
+    // Block back navigation while export dialog is visible
+    PlatformBackHandler(enabled = showExportDialog || isExporting) {
+        // Intentionally consume back press — dialog is modal
+    }
+
+    val cameraControlState = remember(task.id) {
+        CameraControlState().apply {
+            val isCalibrated = settings.getBoolean("task_${task.id}_calibrated_active", false)
+            if (isCalibrated) {
+                zoomRatio = settings.getFloat("task_${task.id}_calibrated_zoom", 1.0f)
+                flashEnabled = settings.getBoolean("task_${task.id}_calibrated_flash", false)
+                isFrontCamera = settings.getBoolean("task_${task.id}_calibrated_is_front", true)
+            } else {
+                zoomRatio = 1.0f
+                flashEnabled = false
+                isFrontCamera = true
+            }
+        }
+    }
+
+    val calibrator = rememberCameraCalibrator(
+        onCancel = {
+            vm.onIntent(PlayerIntent.BackClicked)
+        },
+        onLaunch = {
+            calibrationPending = true
+        },
+        onCalibrationCompleted = { calibrationData ->
+            settings.putFloat("task_${task.id}_calibrated_zoom", calibrationData.zoomRatio)
+            settings.putFloat("task_${task.id}_calibrated_exposure", calibrationData.exposureBias)
+            settings.putBoolean("task_${task.id}_calibrated_is_front", calibrationData.isFrontCamera)
+            settings.putInt("task_${task.id}_calibrated_width", calibrationData.width)
+            settings.putInt("task_${task.id}_calibrated_height", calibrationData.height)
+            settings.putInt("task_${task.id}_calibrated_orientation", calibrationData.orientation)
+            settings.putBoolean("task_${task.id}_calibrated_flash", calibrationData.flashEnabled)
+            settings.putBoolean("task_${task.id}_calibrated_active", tempSaveSettings)
+
+            cameraControlState.zoomRatio = calibrationData.zoomRatio
+            cameraControlState.flashEnabled = calibrationData.flashEnabled
+            cameraControlState.isFrontCamera = calibrationData.isFrontCamera
+
+            calibrationPending = false
+            // Trigger manual replay to run the 5-second countdown spinner before starting
+            vm.onIntent(PlayerIntent.ReplayClicked(isManual = true))
+        }
+    )
+
+    val proceedToCalibration = {
+        showCalibrationWarning = false
+
+        // Reset camera control state to defaults for clean recalibration
+        cameraControlState.zoomRatio = 1.0f
+        cameraControlState.flashEnabled = false
+        cameraControlState.isFrontCamera = true
+        cameraControlState.zoomOptions = listOf(1.0f)
+        cameraControlState.currentZoomIndex = 0
+
+        isCalibrationActive = true
+        calibrator.launch()
+    }
+
+    var requestAudioPermissionFn by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var hasAudioPermissionFn by remember { mutableStateOf<(() -> Boolean)?>(null) }
+
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
+    val permissionHelper = rememberPermissionHelper(
+        onCameraResult = { granted, permanentlyDenied ->
+            if (granted) {
+                val hasAudio = hasAudioPermissionFn?.invoke() ?: false
+                if (hasAudio) {
+                    proceedToCalibration()
+                } else {
+                    requestAudioPermissionFn?.invoke()
+                }
+            } else {
+                if (permanentlyDenied) {
+                    showSettingsDialog = true
+                }
+            }
+        },
+        onAudioResult = { granted ->
+            proceedToCalibration()
+        }
+    )
+
+    LaunchedEffect(permissionHelper) {
+        requestAudioPermissionFn = { permissionHelper.requestAudioPermission() }
+        hasAudioPermissionFn = { permissionHelper.hasAudioPermission() }
+    }
+
+    // Intercept/Pause task transition playback if calibration is pending
+    LaunchedEffect(task.id, calibrationPending) {
+        if (calibrationPending) {
+            if (playerState.isPlaying) {
+                vm.onIntent(PlayerIntent.SetPlaying(false))
+            }
+            delay(500)
+            showCalibrationWarning = true
+        } else {
+            showCalibrationWarning = false
+            isCalibrationActive = false
+        }
+    }
+
     var wasPipActive by remember { mutableStateOf(false) }
     LaunchedEffect(playerState.pipActive) {
         if (wasPipActive && !playerState.pipActive) {
@@ -186,25 +404,30 @@ fun PlayerScreenBody(
         }
         wasPipActive = playerState.pipActive
     }
-    
+
+    LaunchedEffect(playerState.scrollFraction) {
+        if (playerState.scrollFraction == 0f && !showExportDialog && !isExporting) {
+            showExportDialog = false
+            isReadingFinished = false
+        }
+    }
+
     val hPadding = if (playerState.pipActive) 10.dp else 46.dp
     val vPadding = if (playerState.pipActive) 5.dp else 32.dp
-    val contentPadding = androidx.compose.foundation.layout.PaddingValues(start = hPadding, end = hPadding, top = vPadding, bottom = vPadding)
+    val contentPadding = PaddingValues(start = hPadding, end = hPadding, top = vPadding, bottom = vPadding)
 
     val isShowingUpNext = playerState.isShowingUpNext
     val upNextSelectedIndex = playerState.upNextSelectedIndex
     val upNextTasks = playerState.upNextTasks
     val allTasks = playerState.allTasks
-    
+
     val fontFamilyResolver = LocalFontFamilyResolver.current
     val frameStateFlow = frameViewModel?.frameStateFlow?.collectAsState()
     LaunchedEffect(fontFamilyResolver, frameViewModel) {
-        if (frameViewModel != null) {
-            frameViewModel.onIntent(FrameVmIntent.SetFontFamilyResolver(fontFamilyResolver))
-        }
+        frameViewModel?.onIntent(FrameVmIntent.SetFontFamilyResolver(fontFamilyResolver))
     }
 
-    val defaultFill = MaterialTheme.colorScheme.surface.value.toLong()
+    MaterialTheme.colorScheme.surface.value.toLong()
     // Sync play position, options, and duration to FrameViewModel
     LaunchedEffect(
         playerState.task?.id,
@@ -258,7 +481,7 @@ fun PlayerScreenBody(
             progress.snapTo(remainingMs.toFloat() / countdownDurationMs.toFloat())
             progress.animateTo(
                 targetValue   = 0f,
-                animationSpec = androidx.compose.animation.core.tween(durationMillis = remainingMs, easing = androidx.compose.animation.core.LinearEasing),
+                animationSpec = tween(durationMillis = remainingMs, easing = LinearEasing),
             )
         } else {
             progress.snapTo(0f)
@@ -269,7 +492,7 @@ fun PlayerScreenBody(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { size ->
@@ -292,13 +515,13 @@ fun PlayerScreenBody(
         contentAlignment = Alignment.Center,
     ) {
 
-        val textAlpha by androidx.compose.animation.core.animateFloatAsState(
+        val textAlpha by animateFloatAsState(
             targetValue = if (playerState.isTransitioningToNextTask) 0f else if (isShowingUpNext) 0.5f else 1f,
-            animationSpec = if (playerState.isTransitioningToNextTask) androidx.compose.animation.core.tween(200) else if (isShowingUpNext) androidx.compose.animation.core.tween(200) else androidx.compose.animation.core.snap()
+            animationSpec = if (playerState.isTransitioningToNextTask) tween(200) else if (isShowingUpNext) tween(200) else androidx.compose.animation.core.snap()
         )
         Box(
             modifier = Modifier
-                .graphicsLayer { alpha = if (countdownDone) textAlpha else 0f }
+                .graphicsLayer { alpha = if (calibrationPending) 0f else if (!playerState.isPlaying || countdownDone) textAlpha else 0f }
                 .fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
@@ -318,13 +541,22 @@ fun PlayerScreenBody(
                 countdownDone       = countdownDone,
                 initialScrollFraction = scrollFraction,
                 onScrollFraction    = { vm.onIntent(PlayerIntent.ScrollProgress(it)) },
-                modifier            = Modifier.fillMaxSize(),
+                modifier            = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
                 onAnimationComplete = {
                     if (displayState.isAnimationLoopEnabled()) {
                         val skipDelay = animationMode != AnimationMode.Inline
                         vm.onIntent(PlayerIntent.ReplayClicked(isManual = false, skipDelay = skipDelay))
                     } else {
-                        onReadingComplete()
+                        if (isCameraOverlayActive) {
+                            triggerExportFlow()
+                            vm.onIntent(PlayerIntent.ScrollProgress(1f))
+                            vm.onIntent(PlayerIntent.SetPlaying(false))
+                        } else {
+                            onReadingComplete()
+                        }
                     }
                 },
             )
@@ -337,7 +569,7 @@ fun PlayerScreenBody(
             modifier = Modifier.align(Alignment.Center)
         ) {
             val isLastTask = task.id == allTasks.lastOrNull()?.id
-            val showCountdown = !isLastTask || playerState.hasManuallySelectedUpNext
+            val showCountdown = (!isLastTask || playerState.hasManuallySelectedUpNext) && playerState.isUpNextCountdownActive
             RotatedLayout(
                 rotate90 = isHorizontal
             ) {
@@ -356,12 +588,222 @@ fun PlayerScreenBody(
             progress = { progress.value },
             modifier = Modifier.size(100.dp)
                 .graphicsLayer {
-                    alpha = if (countdownDone || progress.value == 0f || isShowingUpNext) 0f else 1f
+                    alpha = if (calibrationPending || countdownDone || progress.value == 0f || isShowingUpNext) 0f else 1f
                     rotationZ = if (isHorizontal) 90f else 0f
                 },
             color = MaterialTheme.colorScheme.primary,
             trackColor = MaterialTheme.colorScheme.surfaceVariant,
             strokeWidth = 8.dp,
+        )
+
+        if (!playerState.pipActive && !calibrationPending) {
+            PlayerScreenStatic(
+                taskId         = task.id,
+                toolbarVisible = playerState.toolbarVisible,
+                onToolbarTap   = { vm.onIntent(PlayerIntent.ScreenTapped) },
+                onBack         = {
+                    if (isCameraOverlayActive && countdownDone && !isReadingFinished && !showExportDialog && !isShowingUpNext) {
+                        pendingExitAction = { vm.onIntent(PlayerIntent.BackClicked) }
+                        triggerExportFlow()
+                    } else if (!showExportDialog && !isExporting) {
+                        vm.onIntent(PlayerIntent.BackClicked)
+                    }
+                },
+                onClose        = {
+                    if (isCameraOverlayActive && countdownDone && !isReadingFinished && !showExportDialog && !isShowingUpNext) {
+                        pendingExitAction = { vm.onIntent(PlayerIntent.CloseClicked) }
+                        triggerExportFlow()
+                    } else if (!showExportDialog && !isExporting) {
+                        vm.onIntent(PlayerIntent.CloseClicked)
+                    }
+                },
+                isPlaying      = playerState.isPlaying,
+                isFinished     = scrollFraction >= 1f,
+                onPlayPauseClick = { vm.onIntent(PlayerIntent.SetPlaying(!playerState.isPlaying)) },
+                onReplayClick  = { vm.onIntent(PlayerIntent.ReplayClicked(isManual = true)) },
+                fillColor      = fillColor,
+            )
+        }
+
+        // Draggable camera preview PiP overlay
+        val isTransitioning = playerState.isTransitioningToNextTask
+        if (isCameraOverlayActive) {
+            val isRecording = countdownDone && !isShowingUpNext && !isReadingFinished
+            val isOverlayVisible = !showCalibrationWarning && !isShowingUpNext && !showExportDialog && !isTransitioning
+            DraggableCameraOverlay(
+                calibrationData = CalibrationData(
+                    zoomRatio = cameraControlState.zoomRatio,
+                    exposureBias = 0.0f,
+                    isFrontCamera = cameraControlState.isFrontCamera,
+                    width = 1920,
+                    height = 1080,
+                    orientation = 0,
+                    flashEnabled = cameraControlState.flashEnabled
+                ),
+                isRecording = isRecording,
+                onVideoSaved = { path ->
+                    recordedVideoPath = path
+                    if (isReadingFinished) {
+                        if (path.isNotEmpty()) {
+                            showExportDialog = true
+                        } else {
+                            isReadingFinished = false
+                            val exitAction = pendingExitAction
+                            if (exitAction != null) {
+                                exitAction()
+                                pendingExitAction = null
+                            } else {
+                                onReadingComplete()
+                            }
+                        }
+                    }
+                },
+                parentWidth = maxWidth,
+                parentHeight = maxHeight,
+                isExpanded = calibrationPending,
+                offsetX = cameraOffsetX,
+                offsetY = cameraOffsetY,
+                onDrag = { dx, dy ->
+                    cameraOffsetX += dx
+                    cameraOffsetY += dy
+                },
+                onZoomStateAvailable = { minZoom, maxZoom ->
+                    val dynamicZooms = mutableListOf<Float>()
+                    if (minZoom < 1.0f) dynamicZooms.add(0.5f)
+                    dynamicZooms.add(1f)
+                    if (maxZoom >= 2.0f) dynamicZooms.add(2f)
+                    if (maxZoom >= 5.0f) dynamicZooms.add(5f)
+                    cameraControlState.zoomOptions = dynamicZooms
+
+                    val selectedZoom = cameraControlState.zoomOptions.getOrNull(cameraControlState.currentZoomIndex) ?: 1f
+                    val newIndex = dynamicZooms.indexOf(selectedZoom)
+                    cameraControlState.currentZoomIndex = if (newIndex >= 0) newIndex else dynamicZooms.indexOf(1f).coerceAtLeast(0)
+                    cameraControlState.zoomRatio = dynamicZooms.getOrNull(cameraControlState.currentZoomIndex) ?: 1f
+                },
+                taskId = task.id,
+                visible = isOverlayVisible,
+                modifier = Modifier.align(Alignment.BottomStart)
+            )
+        }
+
+        // Export Dialog
+        ExportGalleryOverlay(
+            visible = showExportDialog,
+            onConfirm = {
+                isExporting = true
+                scope.launch {
+                    recordedVideoPath?.let { path ->
+                        exportVideoToGallery(path, context, exportFilename)
+                        
+                        // Add exportFilename to persisted list of exported files
+                        val exportedNamesStr = settings.getString("exported_video_filenames", "")
+                        val exportedNames = exportedNamesStr.split(",").filter { it.isNotEmpty() }.toMutableSet()
+                        if (exportedNames.add(exportFilename)) {
+                            settings.putString("exported_video_filenames", exportedNames.joinToString(","))
+                        }
+                    }
+                    isExporting = false
+                    showExportDialog = false
+                    isReadingFinished = false
+                    val exitAction = pendingExitAction
+                    if (exitAction != null) {
+                        exitAction()
+                        pendingExitAction = null
+                    } else {
+                        onReadingComplete()
+                    }
+                }
+            },
+            onDismiss = {
+                showExportDialog = false
+                isReadingFinished = false
+                val exitAction = pendingExitAction
+                if (exitAction != null) {
+                    exitAction()
+                    pendingExitAction = null
+                } else {
+                    onReadingComplete()
+                }
+            },
+            isExporting = isExporting,
+            exportFilename = exportFilename,
+            fillColor = fillColor,
+            isHorizontal = isHorizontal
+        )
+
+        AnimatedVisibility(
+            visible = showCalibrationWarning,
+            enter = fadeIn(tween(500)),
+            exit = fadeOut(tween(300))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            )
+        }
+
+        // Camera calibration bottom sheet warning
+        if (showCalibrationWarning) {
+            CameraCalibrationBottomSheet(
+                expanded = true,
+                onDismissRequest = {
+                    showCalibrationWarning = false
+                    isCalibrationActive = false
+                    vm.onIntent(PlayerIntent.BackClicked) // Back gesture/cancel skips calibration, goes back to display screen
+                },
+                onConfirm = { saveChecked ->
+                    tempSaveSettings = saveChecked
+                    if (permissionHelper.hasCameraPermission()) {
+                        if (permissionHelper.hasAudioPermission()) {
+                            proceedToCalibration()
+                        } else {
+                            permissionHelper.requestAudioPermission()
+                        }
+                    } else {
+                        permissionHelper.requestCameraPermission()
+                    }
+                }
+            )
+        }
+
+        if (showSettingsDialog) {
+            CameraPermissionRequiredDialog(
+                onDismissRequest = { showSettingsDialog = false },
+                onSettings = {
+                    showSettingsDialog = false
+                    permissionHelper.openSettings()
+                }
+            )
+        }
+
+        CalibrationOverlay(
+            visible = calibrationPending && isCalibrationActive,
+            onDismiss = {
+                calibrationPending = false
+                isCalibrationActive = false
+                vm.onIntent(PlayerIntent.BackClicked)
+            },
+            onCalibrationCompleted = { calibrationData ->
+                settings.putFloat("task_${task.id}_calibrated_zoom", calibrationData.zoomRatio)
+                settings.putFloat("task_${task.id}_calibrated_exposure", calibrationData.exposureBias)
+                settings.putBoolean("task_${task.id}_calibrated_is_front", calibrationData.isFrontCamera)
+                settings.putInt("task_${task.id}_calibrated_width", calibrationData.width)
+                settings.putInt("task_${task.id}_calibrated_height", calibrationData.height)
+                settings.putInt("task_${task.id}_calibrated_orientation", calibrationData.orientation)
+                settings.putBoolean("task_${task.id}_calibrated_flash", calibrationData.flashEnabled)
+                settings.putBoolean("task_${task.id}_calibrated_active", tempSaveSettings)
+
+                cameraControlState.zoomRatio = calibrationData.zoomRatio
+                cameraControlState.flashEnabled = calibrationData.flashEnabled
+                cameraControlState.isFrontCamera = calibrationData.isFrontCamera
+
+                calibrationPending = false
+                isCalibrationActive = false
+                vm.onIntent(PlayerIntent.ReplayClicked(isManual = true))
+            },
+            cameraControlState = cameraControlState,
+            modifier = Modifier.fillMaxSize()
         )
 
     }
@@ -373,7 +815,7 @@ fun RotatedLayout(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    androidx.compose.ui.layout.Layout(
+    Layout(
         content = content,
         modifier = modifier.graphicsLayer {
             rotationZ = if (rotate90) 90f else 0f
@@ -390,7 +832,7 @@ fun RotatedLayout(
             constraints
         }
         val placeable = measurables.first().measure(childConstraints)
-        
+
         if (rotate90) {
             layout(placeable.height, placeable.width) {
                 val x = -(placeable.width - placeable.height) / 2

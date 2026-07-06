@@ -34,6 +34,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.oprojectview.theme.AppTheme
 import kotlinmultiplatform.composeapp.generated.resources.Res
+import kotlinmultiplatform.composeapp.generated.resources.camera_permission_cancel
+import kotlinmultiplatform.composeapp.generated.resources.camera_permission_settings
+import kotlinmultiplatform.composeapp.generated.resources.camera_permission_supporting_text
+import kotlinmultiplatform.composeapp.generated.resources.camera_permission_title
 import kotlinmultiplatform.composeapp.generated.resources.rate_us_later
 import kotlinmultiplatform.composeapp.generated.resources.rate_us_rate_now
 import kotlinmultiplatform.composeapp.generated.resources.rate_us_supporting_text
@@ -116,6 +120,86 @@ fun ReviewDialog(
                         modifier = Modifier.fillMaxHeight(),
                         onClick = {
                             onRateNow()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CameraPermissionRequiredDialog(
+    onDismissRequest: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(38.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .width(380.dp)
+                .wrapContentHeight()
+        ) {
+            val H = 28.dp
+            val fontSize = fontSize(H)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp)
+                    .padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(Res.string.camera_permission_title),
+                    fontSize = fontSize(24.dp),
+                    lineHeight = fontSize(28.dp),
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = stringResource(Res.string.camera_permission_supporting_text),
+                    fontSize = fontSize(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Row(
+                    modifier = Modifier
+                        .height(48.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    DialogButton(
+                        text = stringResource(Res.string.camera_permission_cancel),
+                        hovered = false,
+                        modifier = Modifier.fillMaxHeight(),
+                        onClick = {
+                            onDismissRequest()
+                        }
+                    )
+
+                    Spacer(Modifier.width(16.dp))
+
+                    DialogButton(
+                        text = stringResource(Res.string.camera_permission_settings),
+                        hovered = true,
+                        modifier = Modifier.fillMaxHeight(),
+                        onClick = {
+                            onSettings()
                         }
                     )
                 }

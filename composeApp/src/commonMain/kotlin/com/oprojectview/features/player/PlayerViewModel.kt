@@ -66,6 +66,7 @@ data class PlayerState(
     val isShowingUpNext: Boolean    = false,
     val wasAutoSwitched: Boolean    = false,
     val isTransitioningToNextTask: Boolean = false,
+    val isUpNextCountdownActive: Boolean = true,
 ) : UiState
 
 // ── Events ────────────────────────────────────────────────────────────────────
@@ -218,7 +219,9 @@ class PlayerViewModel(
                 upNextSelectedIndex = upNextIndex,
                 hasManuallySelectedUpNext = false,
                 isShowingUpNext = false,
-                isTransitioningToNextTask = false
+                wasAutoSwitched = false,
+                isTransitioningToNextTask = false,
+                isUpNextCountdownActive = true
             )
         }
         checkCountdown()
@@ -318,11 +321,20 @@ class PlayerViewModel(
      * If the player is finished, a tap triggers a replay.
      */
     private fun onTap() {
+        if (currentState.isShowingUpNext) {
+            stopUpNextCountdown()
+            return
+        }
         if (currentState.scrollFraction >= 1f) {
             updateState { it.copy(toolbarVisible = !it.toolbarVisible) }
             return
         }
         onSetPlaying(!currentState.isPlaying)
+    }
+
+    private fun stopUpNextCountdown() {
+        upNextJob?.cancel()
+        updateState { it.copy(isUpNextCountdownActive = false) }
     }
 
     private fun onReadingComplete() {
@@ -337,6 +349,7 @@ class PlayerViewModel(
     private fun checkUpNextCountdown() {
         upNextJob?.cancel()
         val state = currentState
+        if (!state.isUpNextCountdownActive) return
         val isLastTask = state.task?.id == state.allTasks.lastOrNull()?.id
         val shouldCountdown = !isLastTask || state.hasManuallySelectedUpNext
         if (shouldCountdown && state.upNextTasks.isNotEmpty()) {
@@ -349,6 +362,15 @@ class PlayerViewModel(
     
     private fun onUpNextItemSelected(index: Int) {
         val state = currentState
+        if (!state.isUpNextCountdownActive) {
+            updateState { it.copy(upNextSelectedIndex = index) }
+            viewModelScope.launch {
+                delay(150) // Allow Material ripple/wave effect to play and be visible
+                onUpNextCountdownDone()
+            }
+            return
+        }
+
         if (index == state.upNextSelectedIndex && state.hasManuallySelectedUpNext) return
         updateState { it.copy(upNextSelectedIndex = index, hasManuallySelectedUpNext = true) }
         checkUpNextCountdown()
@@ -398,10 +420,13 @@ class PlayerViewModel(
         val state = currentState
         val taskId = state.task?.id ?: return
         resetPlaybackState()
+        // Always pass wasAutoSwitched = false when the user manually presses Back.
+        // wasAutoSwitched = true is only meaningful for the automatic UpNext transition
+        // (handled in onUpNextCountdownDone) and must not affect user-initiated navigation.
         emitEvent(PlayerEvent.NavigateToDetail(
             taskId = taskId,
             isPreview = state.isPreview,
-            wasAutoSwitched = state.wasAutoSwitched
+            wasAutoSwitched = false
         ))
     }
 }
