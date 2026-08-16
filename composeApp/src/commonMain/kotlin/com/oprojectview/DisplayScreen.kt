@@ -35,6 +35,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
@@ -384,6 +387,9 @@ fun DisplayScreenBody(
     val previewPaddingH = 16.dp
     val previewPaddingV = 8.dp
 
+    val playButtonFocusRequester = remember { FocusRequester() }
+    val lastListItemFocusRequester = remember { FocusRequester() }
+
     Box(modifier = modifier
         .padding(top = 64.dp)
         .fillMaxWidth()
@@ -425,6 +431,8 @@ fun DisplayScreenBody(
                 items         = DisplayTaskList,
                 displayState  = displayState,
                 modifier      = Modifier.padding(top = 12.dp),
+                playButtonFocusRequester = playButtonFocusRequester,
+                lastListItemFocusRequester = lastListItemFocusRequester,
                 onSelectionChanged = { item, index ->
                     when (item.id) {
                         1 -> selectedSizeIndex        = index
@@ -444,6 +452,10 @@ fun DisplayScreenBody(
         FabBarLayout(
             text    = stringResource(Res.string.fab_play),
             onClick = { onPlayClick(selectedOverlayIndex == 2) },
+            focusRequester = playButtonFocusRequester,
+            buttonModifier = Modifier.focusProperties {
+                up = lastListItemFocusRequester
+            },
             modifier = Modifier.fillMaxSize(),
             icon = {
                 Icon(
@@ -635,6 +647,8 @@ fun SegmentedList(
     items: List<DisplayTaskItem>,
     displayState: DisplayTaskState,
     modifier: Modifier = Modifier,
+    playButtonFocusRequester: FocusRequester? = null,
+    lastListItemFocusRequester: FocusRequester? = null,
     onSelectionChanged: (DisplayTaskItem, Int) -> Unit = { _, _ -> },
 ) {
     LazyColumn(
@@ -662,10 +676,28 @@ fun SegmentedList(
             } else {
                 RoundedCornerShape(8.dp)
             }
+
+            val isLastItem = index == items.lastIndex
+            var itemModifier = if (playButtonFocusRequester != null) {
+                Modifier.focusProperties {
+                    right = playButtonFocusRequester
+                    if (isLastItem) {
+                        down = playButtonFocusRequester
+                    }
+                }
+            } else {
+                Modifier
+            }
+
+            if (isLastItem && lastListItemFocusRequester != null) {
+                itemModifier = itemModifier.focusRequester(lastListItemFocusRequester)
+            }
+
             SegmentedListItem(
                 item               = item,
                 displayState       = displayState,
                 shape              = itemShape,
+                modifier           = itemModifier,
                 onSelectionChanged = onSelectionChanged,
             )
         }

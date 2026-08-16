@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.oprojectview.theme.AppTheme
@@ -28,6 +30,8 @@ fun FabBarLayout(
     modifier: Modifier = Modifier,
     text: String,
     onClick: () -> Unit = {},
+    focusRequester: FocusRequester? = null,
+    buttonModifier: Modifier = Modifier,
     icon: @Composable () -> Unit
 ) {
     fun percentToBias(percent: Float): Float = (percent * 2f) - 1f
@@ -57,7 +61,13 @@ fun FabBarLayout(
                         modifier = Modifier
                             .fillMaxHeight()
                             .padding(end = 36.dp)
-                            .align(Alignment.CenterEnd),
+                            .align(Alignment.CenterEnd)
+                            .then(buttonModifier)
+                            .then(
+                                if (focusRequester != null)
+                                    Modifier.focusRequester(focusRequester)
+                                else Modifier
+                            ),
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         shape = RoundedCornerShape(25),
                         icon = icon,
