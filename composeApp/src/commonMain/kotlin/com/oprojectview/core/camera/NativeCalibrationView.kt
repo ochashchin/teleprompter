@@ -22,13 +22,22 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FlashOff
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinmultiplatform.composeapp.generated.resources.Res
@@ -36,6 +45,7 @@ import kotlinmultiplatform.composeapp.generated.resources.calibration_capture_de
 import kotlinmultiplatform.composeapp.generated.resources.calibration_close_desc
 import kotlinmultiplatform.composeapp.generated.resources.calibration_flip_camera_desc
 import kotlinmultiplatform.composeapp.generated.resources.calibration_toggle_flash_desc
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -53,6 +63,18 @@ fun NativeCalibrationView(
     isHorizontal: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val checkFocusRequester = remember { FocusRequester() }
+    val flashFocusRequester = remember { FocusRequester() }
+    val flipFocusRequester = remember { FocusRequester() }
+    val closeFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        try {
+            checkFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -62,12 +84,20 @@ fun NativeCalibrationView(
             .fillMaxSize()
             .systemBarsPadding()) {
 
+            var isCloseFocused by remember { mutableStateOf(false) }
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 8.dp, end = 16.dp)
                     .size(48.dp)
                     .padding(4.dp)
+                    .focusRequester(closeFocusRequester)
+                    .onFocusChanged { isCloseFocused = it.isFocused }
+                    .then(
+                        if (isCloseFocused)
+                            Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        else Modifier
+                    )
                     .clip(CircleShape)
                     .clickable { onDismiss() }
                     .background(Color.White.copy(alpha = 0.25f)),
@@ -76,7 +106,7 @@ fun NativeCalibrationView(
                 Icon(
                     imageVector = Icons.Rounded.Close,
                     contentDescription = stringResource(Res.string.calibration_close_desc),
-                    tint = Color.White,
+                    tint = if (isCloseFocused) MaterialTheme.colorScheme.primary else Color.White,
                     modifier = Modifier.scale(1.2f)
                 )
             }
@@ -98,9 +128,16 @@ fun NativeCalibrationView(
                     ) {
                         zoomOptions.forEachIndexed { index, zoom ->
                             val isSelected = index == currentZoomIndex
+                            var isZoomFocused by remember { mutableStateOf(false) }
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
+                                    .onFocusChanged { isZoomFocused = it.isFocused }
+                                    .then(
+                                        if (isZoomFocused)
+                                            Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                        else Modifier
+                                    )
                                     .clip(CircleShape)
                                     .background(if (isSelected) Color(0xFFF7C8D0) else Color.Transparent)
                                     .clickable {
@@ -126,10 +163,18 @@ fun NativeCalibrationView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    var isFlashFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .rotate(if (isHorizontal) 90f else 0f)
+                            .focusRequester(flashFocusRequester)
+                            .onFocusChanged { isFlashFocused = it.isFocused }
+                            .then(
+                                if (isFlashFocused)
+                                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                else Modifier
+                            )
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.25f))
                             .clickable(enabled = isTorchSupported) {
@@ -140,15 +185,23 @@ fun NativeCalibrationView(
                         Icon(
                             imageVector = if (isTorchSupported && isTorchOn) Icons.Rounded.FlashOn else Icons.Rounded.FlashOff,
                             contentDescription = stringResource(Res.string.calibration_toggle_flash_desc),
-                            tint = Color.White
+                            tint = if (isFlashFocused) MaterialTheme.colorScheme.primary else Color.White
                         )
                     }
 
+                    var isCheckFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .size(80.dp)
                             .rotate(if (isHorizontal) 90f else 0f)
-                            .border(4.dp, Color.White, CircleShape)
+                            .focusRequester(checkFocusRequester)
+                            .onFocusChanged { isCheckFocused = it.isFocused }
+                            .then(
+                                if (isCheckFocused)
+                                    Modifier.border(4.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                else
+                                    Modifier.border(4.dp, Color.White, CircleShape)
+                            )
                             .clip(CircleShape)
                             .clickable {
                                 val zoomRatio = zoomOptions.getOrElse(currentZoomIndex) { 1f }
@@ -176,15 +229,23 @@ fun NativeCalibrationView(
                                 modifier = Modifier
                                     .size(80.dp)
                                     .padding(4.dp),
-                                tint = Color.White
+                                tint = if (isCheckFocused) MaterialTheme.colorScheme.primary else Color.White
                             )
                         }
                     }
 
+                    var isFlipFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .rotate(if (isHorizontal) 90f else 0f)
+                            .focusRequester(flipFocusRequester)
+                            .onFocusChanged { isFlipFocused = it.isFocused }
+                            .then(
+                                if (isFlipFocused)
+                                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                else Modifier
+                            )
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.25f))
                             .clickable { onFlipCamera() },
@@ -193,7 +254,7 @@ fun NativeCalibrationView(
                         Icon(
                             Icons.Rounded.Cached,
                             contentDescription = stringResource(Res.string.calibration_flip_camera_desc),
-                            tint = Color.White,
+                            tint = if (isFlipFocused) MaterialTheme.colorScheme.primary else Color.White,
                             modifier = Modifier.scale(1.2f)
                         )
                     }

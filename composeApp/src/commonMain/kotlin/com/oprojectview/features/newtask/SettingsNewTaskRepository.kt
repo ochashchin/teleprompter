@@ -36,20 +36,9 @@ class SettingsNewTaskRepository(
 
     override fun ensureSeeded(seedTasks: List<SeedTask>) {
         val ids = loadIds()
-        if (settings.getBoolean(KEY_POPULATED, false)) {
-            // Update existing installations to localized titles/descriptions on language changes
-            // The first 5 tasks are the mock tasks, originally assigned IDs 1 to 5.
-            seedTasks.forEachIndexed { idx, s ->
-                val mockTaskId = idx + 1
-                if (ids.contains(mockTaskId)) {
-                    settings[keyTitle(mockTaskId)] = s.title
-                    settings[keyDesc(mockTaskId)]  = s.desc
-                }
-            }
-            
+        if (ids.isNotEmpty()) {
+            // Tasks already exist — do not re-seed or overwrite user tasks.
             // Migrate any old user task where overlay was 1 (Enabled in old setup) to 2 (PiP in new setup).
-            // We use a flag to ensure this migration only happens once per app installation,
-            // so we don't accidentally migrate users who intentionally choose 1 (Window) in the new setup.
             if (!settings.getBoolean("migrated_overlay_1_to_2", false)) {
                 ids.forEach { id ->
                     val isOldEnabled = settings.getBoolean("display_task_${id}_item_8_itemOpt_1", false)

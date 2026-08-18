@@ -114,6 +114,7 @@ sealed interface PlayerIntent : UiIntent {
     // UpNext Intents
     data class OnUpNextItemSelected(val index: Int) : PlayerIntent
     data object UpNextCountdownDone : PlayerIntent
+    data object StopUpNextCountdown : PlayerIntent
 }
 
 // ── Repository interface ──────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ class PlayerViewModel(
             is PlayerIntent.SetPlaying    -> onSetPlaying(intent.playing)
             is PlayerIntent.OnUpNextItemSelected -> onUpNextItemSelected(intent.index)
             is PlayerIntent.UpNextCountdownDone -> onUpNextCountdownDone()
+            is PlayerIntent.StopUpNextCountdown -> stopUpNextCountdown()
             is PlayerIntent.SetTotalDurationMs  -> updateState { it.copy(totalDurationMs = intent.durationMs) }
             else                          -> Unit
         }

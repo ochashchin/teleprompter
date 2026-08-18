@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -43,12 +44,24 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -64,8 +77,6 @@ import kotlinmultiplatform.composeapp.generated.resources.search_hint
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
-// ── data ──────────────────────────────────────────────────────────────────────
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 enum class LeadingShapeType {
     ARCH, FAN, ARROW, SLANTED, OVAL, PILL, TRIANGLE, DIAMOND,
@@ -76,36 +87,36 @@ enum class LeadingShapeType {
     GHOSTISH, CLOVER_4, CLOVER_8;
 
     fun polygon() = when (this) {
-        ARCH         -> MaterialShapes.Arch
-        FAN          -> MaterialShapes.Fan
-        ARROW        -> MaterialShapes.Arrow
-        SLANTED      -> MaterialShapes.Slanted
-        OVAL         -> MaterialShapes.Oval
-        PILL         -> MaterialShapes.Pill
-        TRIANGLE     -> MaterialShapes.Triangle
-        DIAMOND      -> MaterialShapes.Diamond
-        CLAM_SHELL   -> MaterialShapes.ClamShell
-        PENTAGON     -> MaterialShapes.Pentagon
-        GEM          -> MaterialShapes.Gem
-        SUNNY        -> MaterialShapes.Sunny
-        VERY_SUNNY   -> MaterialShapes.VerySunny
-        COOKIE_4     -> MaterialShapes.Cookie4Sided
-        COOKIE_6     -> MaterialShapes.Cookie6Sided
-        COOKIE_7     -> MaterialShapes.Cookie7Sided
-        COOKIE_9     -> MaterialShapes.Cookie9Sided
-        COOKIE_12    -> MaterialShapes.Cookie12Sided
-        BURST        -> MaterialShapes.Burst
-        SOFT_BURST   -> MaterialShapes.SoftBurst
-        BOOM         -> MaterialShapes.Boom
-        SOFT_BOOM    -> MaterialShapes.SoftBoom
-        FLOWER       -> MaterialShapes.Flower
-        PUFFY        -> MaterialShapes.Puffy
+        ARCH          -> MaterialShapes.Arch
+        FAN           -> MaterialShapes.Fan
+        ARROW         -> MaterialShapes.Arrow
+        SLANTED       -> MaterialShapes.Slanted
+        OVAL          -> MaterialShapes.Oval
+        PILL          -> MaterialShapes.Pill
+        TRIANGLE      -> MaterialShapes.Triangle
+        DIAMOND       -> MaterialShapes.Diamond
+        CLAM_SHELL    -> MaterialShapes.ClamShell
+        PENTAGON      -> MaterialShapes.Pentagon
+        GEM           -> MaterialShapes.Gem
+        SUNNY         -> MaterialShapes.Sunny
+        VERY_SUNNY    -> MaterialShapes.VerySunny
+        COOKIE_4      -> MaterialShapes.Cookie4Sided
+        COOKIE_6      -> MaterialShapes.Cookie6Sided
+        COOKIE_7      -> MaterialShapes.Cookie7Sided
+        COOKIE_9      -> MaterialShapes.Cookie9Sided
+        COOKIE_12     -> MaterialShapes.Cookie12Sided
+        BURST         -> MaterialShapes.Burst
+        SOFT_BURST    -> MaterialShapes.SoftBurst
+        BOOM          -> MaterialShapes.Boom
+        SOFT_BOOM     -> MaterialShapes.SoftBoom
+        FLOWER        -> MaterialShapes.Flower
+        PUFFY         -> MaterialShapes.Puffy
         PUFFY_DIAMOND -> MaterialShapes.PuffyDiamond
-        CIRCLE -> MaterialShapes.Circle
-        HEART        -> MaterialShapes.Heart
-        GHOSTISH     -> MaterialShapes.Ghostish
-        CLOVER_4     -> MaterialShapes.Clover4Leaf
-        CLOVER_8     -> MaterialShapes.Clover8Leaf
+        CIRCLE        -> MaterialShapes.Circle
+        HEART         -> MaterialShapes.Heart
+        GHOSTISH      -> MaterialShapes.Ghostish
+        CLOVER_4      -> MaterialShapes.Clover4Leaf
+        CLOVER_8      -> MaterialShapes.Clover8Leaf
     }
 
     companion object {
@@ -130,6 +141,8 @@ fun TaskScreenStatic(
     onClear: () -> Unit,
     onBack: () -> Unit,
     onSearchOpen: () -> Unit,
+    searchFocusRequester: FocusRequester? = null,
+    firstItemFocusRequester: FocusRequester? = null,
 ) {
     AnimatedContent(
         targetState = searchActive,
@@ -146,6 +159,24 @@ fun TaskScreenStatic(
                 onBack = onBack,
             )
         } else {
+            val trailingMod = if (searchFocusRequester != null) {
+                Modifier
+                    .focusRequester(searchFocusRequester)
+                    .focusProperties {
+                        if (firstItemFocusRequester != null) {
+                            down = firstItemFocusRequester
+                        }
+                    }
+                    .onKeyEvent { keyEvent ->
+                        if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionDown) {
+                            if (firstItemFocusRequester != null) {
+                                firstItemFocusRequester.requestFocus()
+                                true
+                            } else false
+                        } else false
+                    }
+            } else Modifier
+
             ToolBar(
                 title = stringResource(Res.string.screen_tasks),
                 onTrailingClick = onSearchOpen,
@@ -156,6 +187,7 @@ fun TaskScreenStatic(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
+                trailingModifier = trailingMod,
             )
         }
     }
@@ -168,23 +200,65 @@ fun TaskScreenBody(
     visibleTasks: List<Task>,
     onDismiss   : (Task) -> Unit,
     onItemClick : (Task) -> Unit,
-    onNewClick : () -> Unit,
+    onNewClick  : () -> Unit,
+    searchFocusRequester: FocusRequester? = null,
+    firstItemFocusRequester: FocusRequester? = null,
+    lastItemFocusRequester: FocusRequester? = null,
+    newButtonFocusRequester: FocusRequester? = null,
     modifier    : Modifier = Modifier,
 ) {
+    var hasFocus by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .padding(top = 64.dp)
             .fillMaxSize()
+            .onFocusChanged { hasFocus = it.hasFocus }
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    if (!hasFocus && keyEvent.key == Key.DirectionDown) {
+                        if (visibleTasks.isNotEmpty() && firstItemFocusRequester != null) {
+                            firstItemFocusRequester.requestFocus()
+                            true
+                        } else if (newButtonFocusRequester != null) {
+                            newButtonFocusRequester.requestFocus()
+                            true
+                        } else false
+                    } else false
+                } else false
+            }
     ) {
         SegmentedSwipeableList(
             tasks = visibleTasks,
             onDismiss = onDismiss,
             onItemClick = onItemClick,
+            searchFocusRequester = searchFocusRequester,
+            firstItemFocusRequester = firstItemFocusRequester,
+            lastItemFocusRequester = lastItemFocusRequester,
+            newButtonFocusRequester = newButtonFocusRequester,
             modifier = modifier,
         )
         FabBarLayout(
             text = stringResource(Res.string.fab_new),
             onClick = onNewClick,
+            focusRequester = newButtonFocusRequester,
+            buttonModifier = Modifier.focusProperties {
+                if (visibleTasks.isNotEmpty() && lastItemFocusRequester != null) {
+                    up = lastItemFocusRequester
+                } else if (searchFocusRequester != null) {
+                    up = searchFocusRequester
+                }
+            }.onKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionUp) {
+                    if (visibleTasks.isNotEmpty() && lastItemFocusRequester != null) {
+                        lastItemFocusRequester.requestFocus()
+                        true
+                    } else if (searchFocusRequester != null) {
+                        searchFocusRequester.requestFocus()
+                        true
+                    } else false
+                } else false
+            },
             modifier = modifier,
             icon = {
                 Icon(
@@ -197,7 +271,6 @@ fun TaskScreenBody(
             }
         )
     }
-
 }
 
 // ── swipeable item ────────────────────────────────────────────────────────────
@@ -205,12 +278,13 @@ fun TaskScreenBody(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun <T> SwipeableListItem(
-    item       : T,
-    onDismiss  : (T) -> Unit,
-    modifier   : Modifier = Modifier,
-    onItemClick: (T) -> Unit = {},
-    shape      : Shape = MaterialTheme.shapes.medium,
-    content    : @Composable (T) -> Unit,
+    item        : T,
+    onDismiss   : (T) -> Unit,
+    modifier    : Modifier = Modifier,
+    itemModifier: Modifier = Modifier,
+    onItemClick : (T) -> Unit = {},
+    shape       : Shape = MaterialTheme.shapes.medium,
+    content     : @Composable (T) -> Unit,
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         initialValue        = SwipeToDismissBoxValue.Settled,
@@ -286,8 +360,18 @@ fun <T> SwipeableListItem(
             }
         },
     ) {
+        var isDpadFocused by remember { mutableStateOf(false) }
+
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isDpadFocused = it.isFocused }
+                .then(
+                    if (isDpadFocused)
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+                    else Modifier
+                )
+                .then(itemModifier),
             shape    = shape,
             onClick  = { onItemClick(item) },
             color    = MaterialTheme.colorScheme.surface,
@@ -380,6 +464,10 @@ fun SegmentedSwipeableList(
     tasks      : List<Task>,
     onDismiss  : (Task) -> Unit,
     onItemClick: (Task) -> Unit = {},
+    searchFocusRequester: FocusRequester? = null,
+    firstItemFocusRequester: FocusRequester? = null,
+    lastItemFocusRequester: FocusRequester? = null,
+    newButtonFocusRequester: FocusRequester? = null,
     modifier   : Modifier = Modifier,
 ) {
     LazyColumn(
@@ -412,11 +500,49 @@ fun SegmentedSwipeableList(
                 RoundedCornerShape(8.dp)
             }
 
+            val isFirst = index == 0
+            val isLast = index == tasks.lastIndex
+
+            var itemModifier = Modifier.focusProperties {
+                if (isFirst && searchFocusRequester != null) {
+                    up = searchFocusRequester
+                }
+                if (isLast && newButtonFocusRequester != null) {
+                    down = newButtonFocusRequester
+                }
+            }.onKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    when (keyEvent.key) {
+                        Key.DirectionUp -> {
+                            if (isFirst && searchFocusRequester != null) {
+                                searchFocusRequester.requestFocus()
+                                true
+                            } else false
+                        }
+                        Key.DirectionDown -> {
+                            if (isLast && newButtonFocusRequester != null) {
+                                newButtonFocusRequester.requestFocus()
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+
+            if (isFirst && firstItemFocusRequester != null) {
+                itemModifier = itemModifier.focusRequester(firstItemFocusRequester)
+            }
+            if (isLast && lastItemFocusRequester != null) {
+                itemModifier = itemModifier.focusRequester(lastItemFocusRequester)
+            }
+
             SwipeableListItem(
                 item        = task,
                 onDismiss   = { onDismiss(task) },
                 onItemClick = { onItemClick(task) },
                 shape       = itemShape,
+                itemModifier = itemModifier,
                 modifier    = Modifier.animateItem(
                     fadeInSpec     = tween(250),
                     fadeOutSpec    = tween(200),

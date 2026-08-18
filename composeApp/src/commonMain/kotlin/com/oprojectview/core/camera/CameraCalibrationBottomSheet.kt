@@ -1,5 +1,7 @@
 package com.oprojectview.core.camera
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,8 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.rounded.CheckCircleOutline
@@ -29,12 +35,25 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -76,7 +95,20 @@ fun CameraCalibrationBottomSheet(
 ) {
     if (expanded) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scrollState = rememberScrollState()
+        val coroutineScope = rememberCoroutineScope()
         var saveChecked by remember { mutableStateOf(false) }
+
+        val continueButtonFocusRequester = remember { FocusRequester() }
+        val cancelButtonFocusRequester = remember { FocusRequester() }
+        val saveSettingsFocusRequester = remember { FocusRequester() }
+
+        LaunchedEffect(Unit) {
+            delay(100)
+            try {
+                continueButtonFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
 
         ModalBottomSheet(
             onDismissRequest = onDismissRequest,
@@ -85,6 +117,26 @@ fun CameraCalibrationBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .onPreviewKeyEvent { keyEvent ->
+                        if (keyEvent.type == KeyEventType.KeyDown) {
+                            when (keyEvent.key) {
+                                Key.DirectionDown -> {
+                                    coroutineScope.launch {
+                                        scrollState.animateScrollTo(scrollState.maxValue)
+                                    }
+                                    false
+                                }
+                                Key.DirectionUp -> {
+                                    coroutineScope.launch {
+                                        scrollState.animateScrollTo(0)
+                                    }
+                                    false
+                                }
+                                else -> false
+                            }
+                        } else false
+                    }
                     .padding(24.dp)
             ) {
                 Text(
@@ -214,12 +266,26 @@ fun CameraCalibrationBottomSheet(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
+                var isCheckboxFocused by remember { mutableStateOf(false) }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .focusRequester(saveSettingsFocusRequester)
+                        .onFocusChanged {
+                            isCheckboxFocused = it.isFocused
+                            if (it.isFocused) {
+                                coroutineScope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                            }
+                        }
+                        .then(
+                            if (isCheckboxFocused)
+                                Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                            else Modifier
+                        )
                         .clickable { saveChecked = !saveChecked }
-                        .padding(vertical = 8.dp)
+                        .padding(horizontal = 4.dp, vertical = 8.dp)
                 ) {
                     Checkbox(
                         checked = saveChecked,
@@ -233,19 +299,46 @@ fun CameraCalibrationBottomSheet(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                var isCancelFocused by remember { mutableStateOf(false) }
+                var isContinueFocused by remember { mutableStateOf(false) }
+                val pillShape = CircleShape
+
                 Row(
                     horizontalArrangement = Arrangement.End,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    TextButton(onClick = onDismissRequest) {
+                    TextButton(
+                        onClick = onDismissRequest,
+                        shape = pillShape,
+                        border = if (isCancelFocused) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                        modifier = Modifier
+                            .focusRequester(cancelButtonFocusRequester)
+                            .onFocusChanged {
+                                isCancelFocused = it.isFocused
+                                if (it.isFocused) {
+                                    coroutineScope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                                }
+                            }
+                    ) {
                         Text(
                             text = stringResource(Res.string.calibration_action_cancel),
                             fontSize = MaterialTheme.typography.titleMedium.fontSize
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = { onConfirm(saveChecked) }) {
+                    Button(
+                        onClick = { onConfirm(saveChecked) },
+                        shape = pillShape,
+                        border = if (isContinueFocused) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                        modifier = Modifier
+                            .focusRequester(continueButtonFocusRequester)
+                            .onFocusChanged {
+                                isContinueFocused = it.isFocused
+                                if (it.isFocused) {
+                                    coroutineScope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                                }
+                            }
+                    ) {
                         Text(
                             text = stringResource(Res.string.calibration_action_continue),
                             fontSize = MaterialTheme.typography.titleMedium.fontSize

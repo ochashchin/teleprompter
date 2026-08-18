@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,6 +42,19 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
@@ -89,6 +104,9 @@ fun PlayerScreenStatic(
     onPlayPauseClick: () -> Unit,
     onReplayClick: () -> Unit,
     fillColor: Color = Color.Transparent,
+    leadingModifier: Modifier = Modifier,
+    trailingModifier: Modifier = Modifier,
+    playBarButtonModifier: Modifier = Modifier,
 ) {
     val displayState    = rememberDisplayTaskState(taskId)
     val orientationItem = DisplayTaskList.first { it.id == 2 }
@@ -122,20 +140,21 @@ fun PlayerScreenStatic(
                     Icon(
                         imageVector        = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = stringResource(Res.string.cd_back),
-                        tint               = MaterialTheme.colorScheme.onSurface,
                     )
                 },
                 trailingIcon = {
                     Icon(
                         imageVector        = Icons.Rounded.Close,
                         contentDescription = stringResource(Res.string.cd_close),
-                        tint               = MaterialTheme.colorScheme.onSurface,
                     )
                 },
-                focusedLeading  = true,
-                focusedTrailing = true,
+                focusedLeading  = false,
+                focusedTrailing = false,
                 isHorizontal    = isHorizontal,
                 fillColor       = fillColor,
+                hasContainer    = true,
+                leadingModifier = leadingModifier,
+                trailingModifier = trailingModifier,
             )
         }
 
@@ -153,7 +172,8 @@ fun PlayerScreenStatic(
                 onPlayPauseClick = onPlayPauseClick,
                 onReplayClick = onReplayClick,
                 isHorizontal = isHorizontal,
-                fillColor = fillColor
+                fillColor = fillColor,
+                buttonModifier = playBarButtonModifier,
             )
         }
     }
@@ -211,11 +231,29 @@ fun PlayerScreenBody(
 
     val wpm            = speedIndexToWpm(selectedSpeedIndex)
 
+    val backButtonFocusRequester = remember { FocusRequester() }
+    val closeButtonFocusRequester = remember { FocusRequester() }
+    val firstListItemFocusRequester = remember { FocusRequester() }
+    val lastListItemFocusRequester = remember { FocusRequester() }
+    val restartButtonFocusRequester = remember { FocusRequester() }
+    val playerScreenFocusRequester = remember { FocusRequester() }
+
     val vm             = LocalPlayerViewModel.current
     val playerState    by vm.state.collectAsState()
     val countdownDone  = playerState.countdownDone
     val scrollFraction = playerState.scrollFraction
     val isShowingUpNext = playerState.isShowingUpNext
+
+    LaunchedEffect(isShowingUpNext) {
+        delay(50)
+        try {
+            if (isShowingUpNext) {
+                firstListItemFocusRequester.requestFocus()
+            } else {
+                playerScreenFocusRequester.requestFocus()
+            }
+        } catch (_: Exception) {}
+    }
 
     val settings = LocalSettings.current
     val context = LocalPlatformContext.current ?: Unit
@@ -554,11 +592,28 @@ fun PlayerScreenBody(
                     )
                 }
             }
-            .clickable(
+            .focusRequester(playerScreenFocusRequester)
+            .focusable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication        = null,
-                onClick           = { vm.onIntent(PlayerIntent.ScreenTapped) },
-            ),
+            )
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    when (keyEvent.key) {
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.Spacebar, Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> {
+                            if (!isShowingUpNext && !showExportDialog && !showCalibrationWarning && !calibrationPending) {
+                                vm.onIntent(PlayerIntent.SetPlaying(!playerState.isPlaying))
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+            .pointerInput(Unit) {
+                detectTapGestures {
+                    vm.onIntent(PlayerIntent.ScreenTapped)
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
 
@@ -626,7 +681,16 @@ fun PlayerScreenBody(
                     onItemSelected = { vm.onIntent(PlayerIntent.OnUpNextItemSelected(it)) },
                     onCountdownFinished = { vm.onIntent(PlayerIntent.UpNextCountdownDone) },
                     showCountdown = showCountdown,
-                    fillColor = fillColor
+                    fillColor = fillColor,
+                    onFocus = {
+                        vm.onIntent(PlayerIntent.StopUpNextCountdown)
+                    },
+                    firstItemFocusRequester = firstListItemFocusRequester,
+                    lastItemFocusRequester = if (upNextTasks.size == 1) firstListItemFocusRequester else lastListItemFocusRequester,
+                    backButtonFocusRequester = backButtonFocusRequester,
+                    closeButtonFocusRequester = closeButtonFocusRequester,
+                    playBarFocusRequester = restartButtonFocusRequester,
+                    isHorizontal = isHorizontal,
                 )
             }
         }
@@ -644,6 +708,128 @@ fun PlayerScreenBody(
         )
 
         if (!playerState.pipActive && !calibrationPending) {
+            val leadingModifier = if (isShowingUpNext) {
+                Modifier
+                    .onFocusChanged { if (it.isFocused) vm.onIntent(PlayerIntent.StopUpNextCountdown) }
+                    .focusProperties {
+                        if (isHorizontal) {
+                            down = closeButtonFocusRequester
+                            left = firstListItemFocusRequester
+                        } else {
+                            right = closeButtonFocusRequester
+                            down = firstListItemFocusRequester
+                        }
+                    }
+                    .onKeyEvent { keyEvent ->
+                        if (keyEvent.type == KeyEventType.KeyDown) {
+                            vm.onIntent(PlayerIntent.StopUpNextCountdown)
+                            when (keyEvent.key) {
+                                Key.DirectionDown -> {
+                                    if (isHorizontal) {
+                                        closeButtonFocusRequester.requestFocus()
+                                        true
+                                    } else {
+                                        firstListItemFocusRequester.requestFocus()
+                                        true
+                                    }
+                                }
+                                Key.DirectionRight -> {
+                                    if (!isHorizontal) {
+                                        closeButtonFocusRequester.requestFocus()
+                                        true
+                                    } else false
+                                }
+                                Key.DirectionLeft -> {
+                                    if (isHorizontal) {
+                                        firstListItemFocusRequester.requestFocus()
+                                        true
+                                    } else false
+                                }
+                                else -> false
+                            }
+                        } else false
+                    }
+                    .focusRequester(backButtonFocusRequester)
+            } else Modifier
+
+            val trailingModifier = if (isShowingUpNext) {
+                Modifier
+                    .onFocusChanged { if (it.isFocused) vm.onIntent(PlayerIntent.StopUpNextCountdown) }
+                    .focusProperties {
+                        if (isHorizontal) {
+                            up = backButtonFocusRequester
+                            left = firstListItemFocusRequester
+                        } else {
+                            left = backButtonFocusRequester
+                            down = firstListItemFocusRequester
+                        }
+                    }
+                    .onKeyEvent { keyEvent ->
+                        if (keyEvent.type == KeyEventType.KeyDown) {
+                            vm.onIntent(PlayerIntent.StopUpNextCountdown)
+                            when (keyEvent.key) {
+                                Key.DirectionDown -> {
+                                    if (!isHorizontal) {
+                                        firstListItemFocusRequester.requestFocus()
+                                        true
+                                    } else false
+                                }
+                                Key.DirectionLeft -> {
+                                    if (isHorizontal) {
+                                        firstListItemFocusRequester.requestFocus()
+                                        true
+                                    } else {
+                                        backButtonFocusRequester.requestFocus()
+                                        true
+                                    }
+                                }
+                                Key.DirectionUp -> {
+                                    if (isHorizontal) {
+                                        backButtonFocusRequester.requestFocus()
+                                        true
+                                    } else false
+                                }
+                                else -> false
+                            }
+                        } else false
+                    }
+                    .focusRequester(closeButtonFocusRequester)
+            } else Modifier
+
+            val targetListFocus = if (upNextTasks.size <= 1) firstListItemFocusRequester else lastListItemFocusRequester
+            val playBarButtonModifier = if (isShowingUpNext) {
+                Modifier
+                    .onFocusChanged { if (it.isFocused) vm.onIntent(PlayerIntent.StopUpNextCountdown) }
+                    .focusProperties {
+                        if (isHorizontal) {
+                            right = targetListFocus
+                        } else {
+                            up = targetListFocus
+                        }
+                    }
+                    .onKeyEvent { keyEvent ->
+                        if (keyEvent.type == KeyEventType.KeyDown) {
+                            vm.onIntent(PlayerIntent.StopUpNextCountdown)
+                            when (keyEvent.key) {
+                                Key.DirectionUp -> {
+                                    if (!isHorizontal) {
+                                        targetListFocus.requestFocus()
+                                        true
+                                    } else false
+                                }
+                                Key.DirectionRight -> {
+                                    if (isHorizontal) {
+                                        targetListFocus.requestFocus()
+                                        true
+                                    } else false
+                                }
+                                else -> false
+                            }
+                        } else false
+                    }
+                    .focusRequester(restartButtonFocusRequester)
+            } else Modifier
+
             PlayerScreenStatic(
                 taskId         = task.id,
                 toolbarVisible = playerState.toolbarVisible,
@@ -669,6 +855,9 @@ fun PlayerScreenBody(
                 onPlayPauseClick = { vm.onIntent(PlayerIntent.SetPlaying(!playerState.isPlaying)) },
                 onReplayClick  = { vm.onIntent(PlayerIntent.ReplayClicked(isManual = true)) },
                 fillColor      = fillColor,
+                leadingModifier = leadingModifier,
+                trailingModifier = trailingModifier,
+                playBarButtonModifier = playBarButtonModifier,
             )
         }
 

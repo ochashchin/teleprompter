@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,12 +41,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import kotlinx.coroutines.delay
 import com.oprojectview.theme.AppTheme
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.cd_more_options
@@ -86,6 +97,16 @@ private fun ColorPickerPopup(
     onDismiss:   () -> Unit,
     defaultSwatchColor: Color,
 ) {
+    val focusRequesters = remember(colors.size) { List(colors.size) { FocusRequester() } }
+    val initialIndex = if (activeIndex in colors.indices) activeIndex else 0
+
+    LaunchedEffect(Unit) {
+        delay(50)
+        try {
+            focusRequesters.getOrNull(initialIndex)?.requestFocus()
+        } catch (_: Exception) {}
+    }
+
     Popup(
         alignment        = Alignment.BottomCenter,
         properties       = PopupProperties(focusable = true, dismissOnClickOutside = true),
@@ -106,17 +127,56 @@ private fun ColorPickerPopup(
             ) {
                 colors.forEachIndexed { index, color ->
                     val isActive = index == activeIndex
+                    val isFirst = index == 0
+                    val isLast = index == colors.lastIndex
                     val renderColor = color ?: defaultSwatchColor
+                    var isDpadFocused by remember { mutableStateOf(false) }
+
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .shadow(elevation = 3.dp, shape = CircleShape)
+                            .focusRequester(focusRequesters[index])
+                            .onFocusChanged { isDpadFocused = it.isFocused }
+                            .focusProperties {
+                                if (!isFirst) left = focusRequesters[index - 1]
+                                if (!isLast) right = focusRequesters[index + 1]
+                            }
+                            .onKeyEvent { keyEvent ->
+                                if (keyEvent.type == KeyEventType.KeyDown) {
+                                    when (keyEvent.key) {
+                                        Key.DirectionLeft -> {
+                                            if (!isFirst) {
+                                                focusRequesters[index - 1].requestFocus()
+                                                true
+                                            } else false
+                                        }
+                                        Key.DirectionRight -> {
+                                            if (!isLast) {
+                                                focusRequesters[index + 1].requestFocus()
+                                                true
+                                            } else false
+                                        }
+                                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter, Key.Spacebar -> {
+                                            if (isActive) onColorPick(-1) else onColorPick(index)
+                                            onDismiss()
+                                            true
+                                        }
+                                        Key.Back, Key.Escape -> {
+                                            onDismiss()
+                                            true
+                                        }
+                                        else -> false
+                                    }
+                                } else false
+                            }
+                            .shadow(elevation = if (isDpadFocused) 6.dp else 3.dp, shape = CircleShape)
                             .background(renderColor, CircleShape)
                             .then(
-                                if (isActive)
-                                    Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                                else
-                                    Modifier
+                                when {
+                                    isDpadFocused -> Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                    isActive -> Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                    else -> Modifier
+                                }
                             )
                             .clickable(
                                 indication        = null,
@@ -233,7 +293,7 @@ fun ScriptStyleBar(
                         showFillColorPicker = !showFillColorPicker
                     },
                     isActive  = activeFillColorIndex != -1,
-                    tintColor = if (activeFillColorIndex != -1) getScriptFillColors()[activeFillColorIndex] else null,
+                    tintColor = null,
                 ),
             )
 
@@ -269,11 +329,21 @@ fun ScriptStyleBar(
                         modifier          = Modifier.size(minBoxSize),
                         contentAlignment  = Alignment.Center,
                     ) {
-                        IconButton(onClick = action.onClick) {
+                        var isActionFocused by remember { mutableStateOf(false) }
+                        IconButton(
+                            onClick = action.onClick,
+                            modifier = Modifier
+                                .onFocusChanged { isActionFocused = it.isFocused }
+                                .then(
+                                    if (isActionFocused)
+                                        Modifier.border(2.dp, primary, CircleShape)
+                                    else Modifier
+                                )
+                        ) {
                             Icon(
                                 imageVector        = action.icon,
                                 contentDescription = "",
-                                tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint               = tint ?: MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -285,7 +355,17 @@ fun ScriptStyleBar(
                         modifier         = Modifier.size(minBoxSize),
                         contentAlignment = Alignment.Center,
                     ) {
-                        IconButton(onClick = { menuExpanded = true }) {
+                        var isMoreFocused by remember { mutableStateOf(false) }
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            modifier = Modifier
+                                .onFocusChanged { isMoreFocused = it.isFocused }
+                                .then(
+                                    if (isMoreFocused)
+                                        Modifier.border(2.dp, primary, CircleShape)
+                                    else Modifier
+                                )
+                        ) {
                             Icon(
                                 imageVector        = Icons.Default.MoreVert,
                                 contentDescription = stringResource(Res.string.cd_more_options),

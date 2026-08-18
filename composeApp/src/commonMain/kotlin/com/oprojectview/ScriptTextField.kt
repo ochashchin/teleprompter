@@ -27,7 +27,9 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldLabelPosition
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -93,6 +95,14 @@ fun ScriptTextField(
         animationSpec = tween(durationMillis = 200),
         label = "containerColor",
     )
+
+    LaunchedEffect(state, styleState) {
+        styleState?.initText(state.text.toString())
+        snapshotFlow { state.text.toString() }
+            .collect { newText ->
+                styleState?.onTextChanged(newText)
+            }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Row(
@@ -184,7 +194,8 @@ fun ScriptTextField(
 
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor   = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = Color.Transparent,
+                        disabledBorderColor  = Color.Transparent,
                         focusedContainerColor   = containerColor,
                         unfocusedContainerColor = containerColor,
                         errorBorderColor        = MaterialTheme.colorScheme.error,

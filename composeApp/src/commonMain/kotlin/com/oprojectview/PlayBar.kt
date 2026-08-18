@@ -1,5 +1,6 @@
 package com.oprojectview
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -19,9 +21,13 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,6 +47,7 @@ fun PlayBar(
     onReplayClick: () -> Unit,
     isHorizontal: Boolean = false,
     fillColor: Color? = null,
+    buttonModifier: Modifier = Modifier,
 ) {
     val toolbarModifier = if (isHorizontal) {
         Modifier
@@ -87,9 +94,10 @@ fun PlayBar(
                     )
                 },
                 onClick = onClick,
-                focused = true,
+                focused = false,
                 rotation = iconRotation,
-                fillColor = fillColor
+                fillColor = fillColor,
+                modifier = buttonModifier,
             )
         }
     }
@@ -102,15 +110,13 @@ private fun PlayBarIcon(
     focused: Boolean,
     rotation: Float = 0f,
     fillColor: Color? = null,
+    modifier: Modifier = Modifier,
 ) {
     if (icon != null) {
+        var isDpadFocused by remember { mutableStateOf(false) }
         val inverseOnSurface = MaterialTheme.colorScheme.inverseOnSurface
-        val containerColor = remember(focused, inverseOnSurface) {
-            if (focused) {
-                inverseOnSurface.copy(alpha = 0.5f)
-            } else {
-                Color.Transparent
-            }
+        val containerColor = remember(inverseOnSurface) {
+            inverseOnSurface.copy(alpha = 0.5f)
         }
 
         IconButton(
@@ -118,11 +124,22 @@ private fun PlayBarIcon(
                 .aspectRatio(1f)
                 .fillMaxHeight()
                 .padding(4.dp)
-                .graphicsLayer { rotationZ = rotation },
+                .graphicsLayer { rotationZ = rotation }
+                .onFocusChanged { isDpadFocused = it.isFocused }
+                .then(
+                    if (isDpadFocused || focused)
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    else Modifier
+                )
+                .then(modifier),
             onClick = onClick,
             colors = IconButtonDefaults.iconButtonColors(
                 containerColor = containerColor,
-                contentColor = MaterialTheme.colorScheme.onSurface
+                contentColor =
+                    if (isDpadFocused || focused)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface
             )
         ) {
             icon()

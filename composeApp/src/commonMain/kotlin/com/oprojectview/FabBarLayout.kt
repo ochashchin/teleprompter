@@ -1,5 +1,6 @@
 package com.oprojectview
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -16,11 +17,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.oprojectview.theme.AppTheme
@@ -55,13 +61,21 @@ fun FabBarLayout(
                         .aspectRatio(216f / 80f)
                         .align(Alignment.CenterStart)
                 ) {
+                    var isDpadFocused by remember { mutableStateOf(false) }
                     val fontSize = fontSize(20.dp)
+                    val fabShape = RoundedCornerShape(25)
                     ExtendedFloatingActionButton(
                         onClick = onClick,
                         modifier = Modifier
                             .fillMaxHeight()
                             .padding(end = 36.dp)
                             .align(Alignment.CenterEnd)
+                            .onFocusChanged { isDpadFocused = it.isFocused }
+                            .then(
+                                if (isDpadFocused)
+                                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, fabShape)
+                                else Modifier
+                            )
                             .then(buttonModifier)
                             .then(
                                 if (focusRequester != null)
@@ -69,7 +83,7 @@ fun FabBarLayout(
                                 else Modifier
                             ),
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(25),
+                        shape = fabShape,
                         icon = icon,
                         text = {
                             Text(

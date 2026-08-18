@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import com.oprojectview.core.WindowModeObserver
 import com.oprojectview.features.display.DisplayEvent
@@ -225,6 +226,7 @@ fun AppRoot(
                     scriptFieldState.edit { replace(0, length, event.script) }
                     val editId = newTaskState.editingTaskId
                     if (editId != null) scriptStyleState.loadForTaskId(editId)
+                    scriptStyleState.initText(event.script)
                 }
                 is NewTaskEvent.ClearFields -> {
                     topicFieldState.edit  { replace(0, length, "") }
@@ -352,8 +354,8 @@ fun AppRoot(
             when (event) {
                 is PlayerEvent.NavigateToDetail -> {
                     displayVm.onIntent(DisplayIntent.Load(event.taskId, event.isPreview))
+                    newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = event.taskId, isPreviewReturn = false))
                     if (event.wasAutoSwitched) {
-                        newTaskVm.onIntent(NewTaskIntent.Init(editingTaskId = event.taskId, isPreviewReturn = false))
                         viewModel.navStack.reset()
                         viewModel.goToNewTask()
                         viewModel.goToDisplay()
@@ -388,6 +390,11 @@ fun AppRoot(
 
     // ── Screen layout ─────────────────────────────────────────────────────────
 
+    val taskSearchFocusRequester = remember { FocusRequester() }
+    val taskFirstItemFocusRequester = remember { FocusRequester() }
+    val taskLastItemFocusRequester = remember { FocusRequester() }
+    val taskNewButtonFocusRequester = remember { FocusRequester() }
+
     ScreenLayout(
         screen           = screen,
         prevScreen       = prevScreen,
@@ -401,6 +408,8 @@ fun AppRoot(
                     onClear       = { taskListVm.onIntent(TaskListIntent.QueryChanged("")) },
                     onBack        = { taskListVm.onIntent(TaskListIntent.SearchClosed) },
                     onSearchOpen  = { taskListVm.onIntent(TaskListIntent.SearchOpened) },
+                    searchFocusRequester = taskSearchFocusRequester,
+                    firstItemFocusRequester = taskFirstItemFocusRequester,
                 )
                 is Screen.DisplayScreen -> DisplayScreenStatic(
                     onBack = { displayVm.onIntent(DisplayIntent.BackClicked) },
@@ -436,6 +445,10 @@ fun AppRoot(
                         ))
                     },
                     onNewClick  = { taskListVm.onIntent(TaskListIntent.NewTaskClicked) },
+                    searchFocusRequester = taskSearchFocusRequester,
+                    firstItemFocusRequester = taskFirstItemFocusRequester,
+                    lastItemFocusRequester = taskLastItemFocusRequester,
+                    newButtonFocusRequester = taskNewButtonFocusRequester,
                     modifier    = Modifier.fillMaxSize(),
                 )
                 is Screen.NewTaskScreen -> {

@@ -1,5 +1,7 @@
 package com.oprojectview
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -23,8 +26,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -216,11 +224,14 @@ private fun DialogButton(
     hovered: Boolean = true,
     onClick: () -> Unit
 ) {
+    var isDpadFocused by remember { mutableStateOf(false) }
+
     TextButton(
-        modifier = modifier,
+        modifier = modifier.onFocusChanged { isDpadFocused = it.isFocused },
         onClick = onClick,
         contentPadding = PaddingValues(horizontal = 24.dp),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = CircleShape,
+        border = if (isDpadFocused) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
         colors = ButtonDefaults.textButtonColors(
             containerColor =
                 if (hovered)
@@ -229,7 +240,7 @@ private fun DialogButton(
                     Color.Transparent,
 
             contentColor =
-                if (hovered)
+                if (hovered || isDpadFocused)
                     MaterialTheme.colorScheme.onPrimaryContainer
                 else
                     MaterialTheme.colorScheme.primary

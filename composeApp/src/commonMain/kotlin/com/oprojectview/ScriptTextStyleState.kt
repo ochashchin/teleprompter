@@ -16,20 +16,11 @@ import com.russhwolf.settings.Settings
 import com.russhwolf.settings.set
 
 // ── Settings key helpers ──────────────────────────────────────────────────────
-//
-// Mirror the DisplayTaskState pattern:
-//   "script_style_${taskId}_spans"
-//   "script_style_${taskId}_fill"
-//
-// taskId == NEW_TASK_ID (-1) is used while the task hasn't been saved yet.
-// Once saved, the caller migrates the keys via migrateToTaskId().
 
 const val NEW_TASK_ID = -1
 
 fun scriptStyleSpansKey(taskId: Int) = "script_style_${taskId}_spans"
 fun scriptStyleFillKey(taskId: Int)  = "script_style_${taskId}_fill"
-
-
 
 // ── Span model ────────────────────────────────────────────────────────────────
 
@@ -44,12 +35,12 @@ fun scriptStyleFillKey(taskId: Int)  = "script_style_${taskId}_fill"
  * @param textColorIndex  index of the active text colour, or -1 for default
  */
 data class StyleSpan(
-    val start:       Int,
-    val end:         Int,
-    val isBold:      Boolean = false,
-    val isItalic:    Boolean = false,
-    val isUnderline: Boolean = false,
-    val textColorIndex: Int = -1,
+    val start:          Int,
+    val end:            Int,
+    val isBold:         Boolean = false,
+    val isItalic:       Boolean = false,
+    val isUnderline:    Boolean = false,
+    val textColorIndex: Int     = -1,
 ) {
     val hasAnyStyle: Boolean
         get() = isBold || isItalic || isUnderline || textColorIndex != -1
@@ -76,11 +67,11 @@ internal fun String.deserializeSpans(): List<StyleSpan> {
         if (p.size != 6) return@mapNotNull null
         runCatching {
             StyleSpan(
-                start       = p[0].toInt(),
-                end         = p[1].toInt(),
-                isBold      = p[2] == "1",
-                isItalic    = p[3] == "1",
-                isUnderline = p[4] == "1",
+                start          = p[0].toInt(),
+                end            = p[1].toInt(),
+                isBold         = p[2] == "1",
+                isItalic       = p[3] == "1",
+                isUnderline    = p[4] == "1",
                 textColorIndex = run {
                     val raw = p[5].toLong()
                     if (raw > 10L || raw < -1L) raw.toScriptTextColorIndex() else raw.toInt()
@@ -101,7 +92,7 @@ fun getScriptTextColors(): List<Color?> {
         Color(0xFFE50D9A), // Pink
         Color(0xFFCA00FF), // Purple
         Color(0xFF0FD821), // Bright Green
-        null // Default state rendered as onSurfaceVariant
+        null               // Default state rendered as onSurfaceVariant
     )
 }
 
@@ -118,66 +109,216 @@ fun getScriptFillColors(): List<Color?> {
     )
 }
 
-// ── ScriptTextStyleState ──────────────────────────────────────────────────────
-
 fun Long.toScriptTextColorIndex(): Int {
     if (this == 0L) return -1
     return when (this) {
-        // Legacy colors
         0xFF1E88E5 -> 1
         0xFF43A047 -> 2
         0xFFFFB300 -> 3
         0xFF8E24AA -> 4
         0xFF077F12 -> 1
-        // Current colors
         0xFFE53935 -> 0
         0xFF3F9943 -> 1
         0xFFE50D9A -> 2
         0xFFCA00FF -> 3
         0xFF0FD821 -> 4
-        else -> -1
+        else       -> -1
     }
 }
 
+// ── Centralized Text Edit & Range Transformations ────────────────────────────
+
+/**
+ * Synchronizes character-level style spans when text is edited (inserted, deleted, or replaced).
+ */
+fun applyTextChange(oldText: String, newText: String, spans: List<StyleSpan>): List<StyleSpan> {
+    if (oldText == newText) return spans
+    if (spans.isEmpty()) return emptyList()
+
+    val oldLen = oldText.length
+    val newLen = newText.length
+
+    // Common prefix
+    var prefix = 0
+    while (prefix < oldLen && prefix < newLen && oldText[prefix] == newText[prefix]) {
+        prefix++
+    }
+
+    // Common suffix
+    var suffix = 0
+    while (suffix < (oldLen - prefix) && suffix < (newLen - prefix) &&
+        oldText[oldLen - 1 - suffix] == newText[newLen - 1 - suffix]
+    ) {
+        suffix++
+    }
+
+    val editStart = prefix
+    val deletedLen = oldLen - prefix - suffix
+    val insertedLen = newLen - prefix - suffix
+
+    var updated = spans
+
+    // 1. Process deletion
+    if (deletedLen > 0) {
+        val editEnd = editStart + deletedLen
+        val afterDeletion = mutableListOf<StyleSpan>()
+        for (span in updated) {
+            when {
+                // Completely before deletion
+                span.end <= editStart -> {
+                    afterDeletion.add(span)
+                }
+                // Completely after deletion -> shift backward
+                span.start >= editEnd -> {
+                    afterDeletion.add(span.copy(
+                        start = span.start - deletedLen,
+                        end   = span.end - deletedLen
+                    ))
+                }
+                // Completely inside deleted range -> remove
+                span.start >= editStart && span.end <= editEnd -> {}
+                // Deletion is strictly inside span -> shrink
+                span.start < editStart && span.end > editEnd -> {
+                    afterDeletion.add(span.copy(
+                        end = span.end - deletedLen
+                    ))
+                }
+                // Overlaps end of span -> clip end
+                span.start < editStart && span.end > editStart -> {
+                    afterDeletion.add(span.copy(
+                        end = editStart
+                    ))
+                }
+                // Overlaps start of span -> clip start
+                span.start >= editStart && span.start < editEnd && span.end > editEnd -> {
+                    afterDeletion.add(span.copy(
+                        start = editStart,
+                        end   = span.end - deletedLen
+                    ))
+                }
+            }
+        }
+        updated = afterDeletion
+    }
+
+    // 2. Process insertion
+    if (insertedLen > 0) {
+        val afterInsertion = mutableListOf<StyleSpan>()
+        for (span in updated) {
+            when {
+                // Completely before insertion point
+                span.end <= editStart -> {
+                    afterInsertion.add(span)
+                }
+                // Completely after insertion point -> shift forward
+                span.start >= editStart -> {
+                    afterInsertion.add(span.copy(
+                        start = span.start + insertedLen,
+                        end   = span.end + insertedLen
+                    ))
+                }
+                // Insertion point strictly inside span -> expand
+                else -> {
+                    afterInsertion.add(span.copy(
+                        end = span.end + insertedLen
+                    ))
+                }
+            }
+        }
+        updated = afterInsertion
+    }
+
+    // 3. Clamp and sanitize
+    return mergeAndSanitize(updated, newLen)
+}
+
+/**
+ * Splits and transforms style spans on a sub-range [start..end] without corrupting surrounding text.
+ */
+fun applyStyleToRange(
+    start: Int,
+    end: Int,
+    textLength: Int,
+    currentSpans: List<StyleSpan>,
+    transform: (StyleSpan) -> StyleSpan
+): List<StyleSpan> {
+    val s = start.coerceIn(0, textLength)
+    val e = end.coerceIn(s, textLength)
+    if (s >= e) return currentSpans
+
+    val boundaries = sortedSetOf(s, e)
+    for (span in currentSpans) {
+        if (span.start in s..e) boundaries.add(span.start)
+        if (span.end in s..e) boundaries.add(span.end)
+    }
+
+    val result = mutableListOf<StyleSpan>()
+    for (span in currentSpans) {
+        when {
+            span.end <= s   -> result.add(span)
+            span.start >= e -> result.add(span)
+            else -> {
+                if (span.start < s) result.add(span.copy(end = s))
+                if (span.end > e)   result.add(span.copy(start = e))
+            }
+        }
+    }
+
+    val boundaryList = boundaries.toList()
+    for (i in 0 until boundaryList.size - 1) {
+        val segStart = boundaryList[i]
+        val segEnd = boundaryList[i + 1]
+        if (segStart >= segEnd) continue
+
+        val existing = currentSpans.firstOrNull { it.start <= segStart && it.end >= segEnd }
+        val base = existing?.copy(start = segStart, end = segEnd) ?: StyleSpan(segStart, segEnd)
+        val transformed = transform(base).copy(start = segStart, end = segEnd)
+        if (transformed.hasAnyStyle) {
+            result.add(transformed)
+        }
+    }
+
+    return mergeAndSanitize(result, textLength)
+}
+
+fun mergeAndSanitize(spans: List<StyleSpan>, textLength: Int): List<StyleSpan> {
+    val valid = spans.mapNotNull { span ->
+        val s = span.start.coerceIn(0, textLength)
+        val e = span.end.coerceIn(s, textLength)
+        if (s < e && span.hasAnyStyle) span.copy(start = s, end = e) else null
+    }.sortedWith(compareBy({ it.start }, { it.end }))
+
+    if (valid.isEmpty()) return emptyList()
+
+    val merged = mutableListOf(valid[0])
+    for (i in 1 until valid.size) {
+        val prev = merged.last()
+        val cur = valid[i]
+        if (prev.end == cur.start &&
+            prev.isBold         == cur.isBold         &&
+            prev.isItalic       == cur.isItalic       &&
+            prev.isUnderline    == cur.isUnderline    &&
+            prev.textColorIndex == cur.textColorIndex
+        ) {
+            merged[merged.lastIndex] = prev.copy(end = cur.end)
+        } else {
+            merged.add(cur)
+        }
+    }
+    return merged
+}
+
+// ── ScriptTextStyleState ──────────────────────────────────────────────────────
+
 /**
  * Holds rich-text style state for [ScriptTextField].
- *
- * ### Key design
- *
- * Keys are scoped by [taskId]:
- *   - `script_style_${taskId}_spans`  — serialized span list
- *   - `script_style_${taskId}_fill`   — fill-colour toggle
- *
- * While a task has not been saved yet, [taskId] == [NEW_TASK_ID] (-1).
- * After the task is first saved, call [migrateToTaskId] to move the data
- * to the permanent key; the in-memory state is preserved unchanged.
- *
- * ### Write strategy
- *
- * All style mutations are **memory-only**. Settings are written to disk
- * only when the user confirms saving, via [migrateToTaskId] (new task /
- * edit-then-save) or [flushToDisk] (called internally by those paths).
- * This means Discard never leaves stale data on disk for either new or
- * existing tasks — [clear] simply resets in-memory state and removes the
- * temporary NEW_TASK_ID draft keys.
- *
- * ### Unsaved-changes tracking
- *
- * [hasUnsavedChanges] becomes true as soon as any style toggle is applied
- * and is reset to false by [markSaved] / [clear].
- * The NewTaskScreen uses this flag to show the "Save changes?" dialog even
- * when the text fields themselves haven't been modified.
  */
 class ScriptTextStyleState(
     private val settings: Settings,
     initialTaskId: Int = NEW_TASK_ID,
 ) {
-    // ── Task identity ─────────────────────────────────────────────────────────
-
     var taskId: Int = initialTaskId
         private set
-
-    // ── Span list ─────────────────────────────────────────────────────────────
 
     private var _spans by mutableStateOf(
         settings.getStringOrNull(scriptStyleSpansKey(initialTaskId))?.deserializeSpans()
@@ -186,8 +327,8 @@ class ScriptTextStyleState(
 
     val spans: List<StyleSpan> get() = _spans
 
-    // ── Fill colour ───────────────────────────────────────────────────────────
-    // Stored as a packed ARGB Long (0L = no fill active).
+    var lastObservedText: String = ""
+        private set
 
     private var _fillColorIndex: Int by mutableStateOf(
         settings.getInt(scriptStyleFillKey(initialTaskId), -1)
@@ -195,33 +336,29 @@ class ScriptTextStyleState(
 
     val activeFillColorIndex: Int get() = _fillColorIndex
 
-    // ── Dirty flag ────────────────────────────────────────────────────────────
-
-    /** True once any style change has been applied since the last [markSaved] / [clear]. */
     var hasUnsavedChanges: Boolean by mutableStateOf(false)
         private set
 
-    // ── Task ID migration ─────────────────────────────────────────────────────
+    fun initText(text: String) {
+        lastObservedText = text
+        _spans = mergeAndSanitize(_spans, text.length)
+    }
 
-    /**
-     * Called after a new task is first saved to disk.
-     * Flushes the current in-memory style state to Settings under [newTaskId],
-     * removes the temporary [NEW_TASK_ID] draft keys if applicable, and
-     * updates the internal [taskId].
-     * No-op (flush only) if [taskId] already equals [newTaskId].
-     */
+    fun onTextChanged(newText: String) {
+        if (lastObservedText == newText) return
+        val prevText = lastObservedText
+        lastObservedText = newText
+        _spans = applyTextChange(oldText = prevText, newText = newText, spans = _spans)
+    }
+
     fun migrateToTaskId(newTaskId: Int) {
         if (taskId == newTaskId) {
-            // Already on the right key — flush current in-memory state to disk
-            // in case styles were modified since the last loadForTaskId.
             flushToDisk(newTaskId)
             return
         }
 
-        // Flush under the new key
         flushToDisk(newTaskId)
 
-        // Remove the old temporary draft key (never remove a real task key here)
         if (taskId == NEW_TASK_ID) {
             settings.remove(scriptStyleSpansKey(NEW_TASK_ID))
             settings.remove(scriptStyleFillKey(NEW_TASK_ID))
@@ -230,10 +367,6 @@ class ScriptTextStyleState(
         taskId = newTaskId
     }
 
-    /**
-     * Switch to an existing task's style data (called when entering edit mode).
-     * Loads from disk and resets the dirty flag.
-     */
     fun loadForTaskId(newTaskId: Int) {
         taskId          = newTaskId
         _spans          = settings.getStringOrNull(scriptStyleSpansKey(newTaskId))
@@ -242,7 +375,6 @@ class ScriptTextStyleState(
         hasUnsavedChanges = false
     }
 
-    /** Mark the current state as saved (clears the dirty flag without wiping data). */
     fun markSaved() {
         hasUnsavedChanges = false
     }
@@ -251,40 +383,45 @@ class ScriptTextStyleState(
 
     fun toggleBold(start: Int, end: Int) {
         if (start >= end) return
-        val allBold = spansInRange(start, end).all { it.isBold }
-        applyStyle(start, end) { it.copy(isBold = !allBold) }
+        val allBold = isRangeBold(start, end)
+        val textLen = lastObservedText.length.coerceAtLeast(end)
+        _spans = applyStyleToRange(start, end, textLen, _spans) {
+            it.copy(isBold = !allBold)
+        }
+        hasUnsavedChanges = true
     }
 
     fun toggleItalic(start: Int, end: Int) {
         if (start >= end) return
-        val allItalic = spansInRange(start, end).all { it.isItalic }
-        applyStyle(start, end) { it.copy(isItalic = !allItalic) }
+        val allItalic = isRangeItalic(start, end)
+        val textLen = lastObservedText.length.coerceAtLeast(end)
+        _spans = applyStyleToRange(start, end, textLen, _spans) {
+            it.copy(isItalic = !allItalic)
+        }
+        hasUnsavedChanges = true
     }
 
     fun toggleUnderline(start: Int, end: Int) {
         if (start >= end) return
-        val allUnderline = spansInRange(start, end).all { it.isUnderline }
-        applyStyle(start, end) { it.copy(isUnderline = !allUnderline) }
+        val allUnderline = isRangeUnderline(start, end)
+        val textLen = lastObservedText.length.coerceAtLeast(end)
+        _spans = applyStyleToRange(start, end, textLen, _spans) {
+            it.copy(isUnderline = !allUnderline)
+        }
+        hasUnsavedChanges = true
     }
 
     fun toggleTextColor(index: Int, start: Int, end: Int) {
         if (start >= end) return
-        val currentIdx = spansInRange(start, end).firstOrNull()?.textColorIndex ?: -1
-        val nextIdx = if (currentIdx == index) -1 else index
-        applyStyle(start, end) { it.copy(textColorIndex = nextIdx) }
+        val currentColor = rangeTextColorIndex(start, end)
+        val nextColor = if (currentColor == index) -1 else index
+        val textLen = lastObservedText.length.coerceAtLeast(end)
+        _spans = applyStyleToRange(start, end, textLen, _spans) {
+            it.copy(textColorIndex = nextColor)
+        }
+        hasUnsavedChanges = true
     }
 
-    /** The active text color index in the given range, or -1 if default. */
-    fun rangeTextColorIndex(start: Int, end: Int): Int {
-        if (start >= end) return -1
-        return spansInRange(start, end).firstOrNull()?.textColorIndex ?: -1
-    }
-
-    /**
-     * Set the fill colour index. Pass -1 to clear fill.
-     *
-     * Memory-only — disk write is deferred to [migrateToTaskId] on save.
-     */
     fun toggleFillColor(index: Int) {
         _fillColorIndex = index
         hasUnsavedChanges = true
@@ -292,112 +429,71 @@ class ScriptTextStyleState(
 
     // ── Selection query helpers ───────────────────────────────────────────────
 
-    fun isRangeBold(start: Int, end: Int): Boolean =
-        start < end && spansInRange(start, end).all { it.isBold }
+    fun isRangeBold(start: Int, end: Int): Boolean {
+        if (start >= end) return false
+        val segs = getSegmentStyles(start, end)
+        return segs.isNotEmpty() && segs.all { it.isBold }
+    }
 
-    fun isRangeItalic(start: Int, end: Int): Boolean =
-        start < end && spansInRange(start, end).all { it.isItalic }
+    fun isRangeItalic(start: Int, end: Int): Boolean {
+        if (start >= end) return false
+        val segs = getSegmentStyles(start, end)
+        return segs.isNotEmpty() && segs.all { it.isItalic }
+    }
 
-    fun isRangeUnderline(start: Int, end: Int): Boolean =
-        start < end && spansInRange(start, end).all { it.isUnderline }
+    fun isRangeUnderline(start: Int, end: Int): Boolean {
+        if (start >= end) return false
+        val segs = getSegmentStyles(start, end)
+        return segs.isNotEmpty() && segs.all { it.isUnderline }
+    }
 
-    
+    fun rangeTextColorIndex(start: Int, end: Int): Int {
+        if (start >= end) return -1
+        val segs = getSegmentStyles(start, end)
+        if (segs.isEmpty()) return -1
+        val firstColor = segs.first().textColorIndex
+        return if (firstColor != -1 && segs.all { it.textColorIndex == firstColor }) firstColor else -1
+    }
 
-    /**
-     * Wipe all style data and reset the dirty flag (discard / new task).
-     *
-     * For new tasks ([taskId] == [NEW_TASK_ID]): removes the temporary draft
-     * keys from disk.
-     * For existing tasks: reloads the last-saved state from disk, so any
-     * in-progress (unsaved) style changes are rolled back cleanly.
-     */
+    private fun getSegmentStyles(start: Int, end: Int): List<StyleSpan> {
+        if (start >= end) return emptyList()
+        val overlapping = _spans.filter { it.start < end && it.end > start }
+        if (overlapping.isEmpty()) return listOf(StyleSpan(start, end))
+
+        val boundaries = sortedSetOf(start, end)
+        for (span in overlapping) {
+            if (span.start in start..end) boundaries.add(span.start)
+            if (span.end in start..end) boundaries.add(span.end)
+        }
+
+        val list = boundaries.toList()
+        return (0 until list.size - 1).mapNotNull { i ->
+            val s = list[i]
+            val e = list[i + 1]
+            if (s >= e) null
+            else {
+                val span = overlapping.firstOrNull { it.start <= s && it.end >= e }
+                span?.copy(start = s, end = e) ?: StyleSpan(s, e)
+            }
+        }
+    }
+
     fun clear() {
         if (taskId == NEW_TASK_ID) {
-            // Remove the temporary draft keys — nothing permanent to restore.
             settings.remove(scriptStyleSpansKey(NEW_TASK_ID))
             settings.remove(scriptStyleFillKey(NEW_TASK_ID))
             _spans          = emptyList()
             _fillColorIndex = -1
         } else {
-            // Existing task: reload the last persisted state so the on-disk
-            // data is unchanged and in-memory reflects what was actually saved.
             _spans          = settings.getStringOrNull(scriptStyleSpansKey(taskId))
                 ?.deserializeSpans() ?: emptyList()
             _fillColorIndex = settings.getInt(scriptStyleFillKey(taskId), -1)
         }
+        lastObservedText = ""
         hasUnsavedChanges = false
         taskId = NEW_TASK_ID
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    private fun spansInRange(start: Int, end: Int): List<StyleSpan> {
-        val overlapping = _spans.filter { it.start < end && it.end > start }
-        if (overlapping.isEmpty()) return listOf(StyleSpan(start, end))
-        return buildList {
-            var cur = start
-            while (cur < end) {
-                val span = overlapping.firstOrNull { it.start <= cur && it.end > cur }
-                if (span != null) {
-                    add(span); cur = span.end
-                } else {
-                    val nextSpanStart = overlapping.filter { it.start > cur }
-                        .minOfOrNull { it.start } ?: end
-                    add(StyleSpan(cur, minOf(nextSpanStart, end)))
-                    cur = minOf(nextSpanStart, end)
-                }
-            }
-        }
-    }
-
-    private fun applyStyle(start: Int, end: Int, transform: (StyleSpan) -> StyleSpan) {
-        val result = mutableListOf<StyleSpan>()
-        for (existing in _spans) {
-            when {
-                existing.end <= start -> result.add(existing)
-                existing.start >= end -> result.add(existing)
-                else -> {
-                    if (existing.start < start) result.add(existing.copy(end = start))
-                    if (existing.end   > end)   result.add(existing.copy(start = end))
-                }
-            }
-        }
-        val existingInRange = _spans.filter { it.start < end && it.end > start }
-        val base = existingInRange.fold(StyleSpan(start, end)) { acc, s ->
-            acc.copy(
-                isBold      = acc.isBold      || s.isBold,
-                isItalic    = acc.isItalic    || s.isItalic,
-                isUnderline = acc.isUnderline || s.isUnderline,
-                textColorIndex = if (acc.textColorIndex != -1) acc.textColorIndex else s.textColorIndex,
-            )
-        }
-        val newSpan = transform(base)
-        if (newSpan.hasAnyStyle) result.add(newSpan)
-        // Memory-only: disk write is deferred to migrateToTaskId on save.
-        _spans = mergeSame(result.sortedWith(compareBy({ it.start }, { it.end })))
-        hasUnsavedChanges = true
-    }
-
-    private fun mergeSame(sorted: List<StyleSpan>): List<StyleSpan> {
-        if (sorted.isEmpty()) return emptyList()
-        val out = mutableListOf(sorted[0])
-        for (i in 1 until sorted.size) {
-            val prev = out.last(); val cur = sorted[i]
-            if (prev.end == cur.start &&
-                prev.isBold      == cur.isBold      &&
-                prev.isItalic    == cur.isItalic     &&
-                prev.isUnderline == cur.isUnderline  &&
-                prev.textColorIndex == cur.textColorIndex
-            ) {
-                out[out.lastIndex] = prev.copy(end = cur.end)
-            } else {
-                out.add(cur)
-            }
-        }
-        return out
-    }
-
-    /** Write current in-memory state to Settings under [id]. */
     private fun flushToDisk(id: Int) {
         settings[scriptStyleSpansKey(id)] = _spans.serialize()
         settings[scriptStyleFillKey(id)]  = _fillColorIndex

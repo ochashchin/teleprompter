@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +35,9 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +49,15 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import com.oprojectview.features.player.PlayerTask
 import kotlinmultiplatform.composeapp.generated.resources.Res
 import kotlinmultiplatform.composeapp.generated.resources.cd_open
@@ -60,6 +74,13 @@ fun UpNextList(
     showCountdown: Boolean,
     modifier: Modifier = Modifier,
     fillColor: Color? = null,
+    onFocus: () -> Unit = {},
+    firstItemFocusRequester: FocusRequester? = null,
+    lastItemFocusRequester: FocusRequester? = null,
+    backButtonFocusRequester: FocusRequester? = null,
+    closeButtonFocusRequester: FocusRequester? = null,
+    playBarFocusRequester: FocusRequester? = null,
+    isHorizontal: Boolean = false,
 ) {
     val countdownDurationMs = 5000L
     val progress = remember(showCountdown, selectedIndex) { Animatable(if (showCountdown) 1f else 0f) }
@@ -76,10 +97,14 @@ fun UpNextList(
         // to ensure it still functions perfectly while the app is backgrounded in PiP mode.
     }
 
-    val baseColor = fillColor ?: MaterialTheme.colorScheme.surface
-    val surfaceColor = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.5f)
-        .compositeOver(baseColor)
-    
+    val itemSurfaceColor = if (fillColor != null) {
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.75f).compositeOver(fillColor)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    val hasMoreThan3 = tasks.size >= 3
+
     Box(
         modifier = modifier.aspectRatio(1f),
         contentAlignment = Alignment.Center
@@ -96,7 +121,6 @@ fun UpNextList(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            val hasMoreThan3 = tasks.size >= 3
             Box(modifier = Modifier.fillMaxWidth().heightIn(max = 234.dp)) {
                 LazyColumn(
                     modifier = Modifier
@@ -139,15 +163,100 @@ fun UpNextList(
                         }
 
                         val isSelected = index == selectedIndex
-                        
+                        val isFirst = index == 0
+                        val isLast = index == tasks.lastIndex
+
+                        // Mirror TaskScreen.SegmentedSwipeableList exactly:
+                        // focusProperties tells the traversal engine where to go at boundaries,
+                        // onKeyEvent + requestFocus() is the belt-and-suspenders fallback.
+                        // Both are applied to this Box which is the ACTUAL focus target node,
+                        // wrapping Surface so our modifiers sit on the focusable layer.
+                        var itemModifier: Modifier = Modifier
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused && index != 0) {
+                                    onFocus()
+                                }
+                            }
+                            .focusProperties {
+                                if (isFirst) {
+                                    if (backButtonFocusRequester != null) {
+                                        if (isHorizontal) right = backButtonFocusRequester
+                                        else up = backButtonFocusRequester
+                                    }
+                                }
+                                if (isLast) {
+                                    if (playBarFocusRequester != null) {
+                                        if (isHorizontal) left = playBarFocusRequester
+                                        else down = playBarFocusRequester
+                                    }
+                                }
+                            }
+                            .onKeyEvent { keyEvent ->
+                                if (keyEvent.type == KeyEventType.KeyDown) {
+                                    when (keyEvent.key) {
+                                        Key.DirectionUp -> {
+                                            if (isFirst && !isHorizontal && backButtonFocusRequester != null) {
+                                                onFocus()
+                                                backButtonFocusRequester.requestFocus()
+                                                true
+                                            } else {
+                                                onFocus()
+                                                false
+                                            }
+                                        }
+                                        Key.DirectionRight -> {
+                                            if (isFirst && isHorizontal && backButtonFocusRequester != null) {
+                                                onFocus()
+                                                backButtonFocusRequester.requestFocus()
+                                                true
+                                            } else {
+                                                onFocus()
+                                                false
+                                            }
+                                        }
+                                        Key.DirectionDown -> {
+                                            if (isLast && !isHorizontal && playBarFocusRequester != null) {
+                                                onFocus()
+                                                playBarFocusRequester.requestFocus()
+                                                true
+                                            } else {
+                                                onFocus()
+                                                false
+                                            }
+                                        }
+                                        Key.DirectionLeft -> {
+                                            if (isLast && isHorizontal && playBarFocusRequester != null) {
+                                                onFocus()
+                                                playBarFocusRequester.requestFocus()
+                                                true
+                                            } else {
+                                                onFocus()
+                                                false
+                                            }
+                                        }
+                                        else -> false
+                                    }
+                                } else false
+                            }
+
+                        if (isFirst && firstItemFocusRequester != null) {
+                            itemModifier = itemModifier.focusRequester(firstItemFocusRequester)
+                        }
+                        if (isLast && lastItemFocusRequester != null && !isFirst) {
+                            itemModifier = itemModifier.focusRequester(lastItemFocusRequester)
+                        }
+
                         UpNextListItem(
                             task = task,
                             shape = itemShape,
-                            surfaceColor = surfaceColor,
                             isSelected = isSelected,
                             showProgress = isSelected && showCountdown,
                             progressProvider = { progress.value },
-                            onClick = { onItemSelected(index) }
+                            modifier = itemModifier,
+                            onClick = {
+                                onFocus()
+                                onItemSelected(index)
+                            }
                         )
                     }
                 }
@@ -156,25 +265,38 @@ fun UpNextList(
     }
 }
 
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun UpNextListItem(
     task: PlayerTask,
     shape: androidx.compose.ui.graphics.Shape,
-    surfaceColor: Color,
     isSelected: Boolean,
     showProgress: Boolean,
     progressProvider: () -> Float,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    var isDpadFocused by remember { mutableStateOf(false) }
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { isDpadFocused = it.isFocused }
+            .then(
+                if (isDpadFocused)
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+                else Modifier
+            ),
         shape = shape,
         onClick = onClick,
-        color = surfaceColor,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         BoxWithConstraints(
-            modifier = Modifier.fillMaxWidth().height(78.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(78.dp)
         ) {
             val W = maxWidth.value
             Row(
@@ -219,7 +341,7 @@ fun UpNextListItem(
                     Text(
                         text = task.description,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Ellipsis,

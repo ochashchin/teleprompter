@@ -112,19 +112,19 @@ fun NewTaskScreenBody(
     // TextFieldState.selection is a SnapshotState — read it inside a
     // derivedStateOf so recompositions stay scoped to the bar only.
 
-    val selStart by remember {
-        derivedStateOf { state.scriptState.selection.start }
+    val selMin by remember {
+        derivedStateOf { state.scriptState.selection.min }
     }
-    val selEnd by remember {
-        derivedStateOf { state.scriptState.selection.end }
+    val selMax by remember {
+        derivedStateOf { state.scriptState.selection.max }
     }
 
     // Derive active-state flags for the style bar from the current selection
-    val hasSelection   by remember { derivedStateOf { selStart < selEnd } }
-    val isBoldActive   by remember { derivedStateOf { styleState?.isRangeBold(selStart, selEnd) == true } }
-    val isItalicActive by remember { derivedStateOf { styleState?.isRangeItalic(selStart, selEnd) == true } }
-    val isUnderActive  by remember { derivedStateOf { styleState?.isRangeUnderline(selStart, selEnd) == true } }
-    val activeColorIndex by remember { derivedStateOf { styleState?.rangeTextColorIndex(selStart, selEnd) ?: -1 } }
+    val hasSelection   by remember { derivedStateOf { selMin < selMax } }
+    val isBoldActive   by remember { derivedStateOf { hasSelection && styleState?.isRangeBold(selMin, selMax) == true } }
+    val isItalicActive by remember { derivedStateOf { hasSelection && styleState?.isRangeItalic(selMin, selMax) == true } }
+    val isUnderActive  by remember { derivedStateOf { hasSelection && styleState?.isRangeUnderline(selMin, selMax) == true } }
+    val activeColorIndex by remember { derivedStateOf { if (hasSelection) styleState?.rangeTextColorIndex(selMin, selMax) ?: -1 else -1 } }
 
     Box(
         modifier = Modifier
@@ -144,17 +144,17 @@ fun NewTaskScreenBody(
 
             ScriptStyleBar(
                 onBoldClick      = {
-                    if (hasSelection) styleState?.toggleBold(selStart, selEnd)
+                    if (hasSelection) styleState?.toggleBold(selMin, selMax)
                 },
                 onItalicClick    = {
-                    if (hasSelection) styleState?.toggleItalic(selStart, selEnd)
+                    if (hasSelection) styleState?.toggleItalic(selMin, selMax)
                 },
                 onUnderlineClick = {
-                    if (hasSelection) styleState?.toggleUnderline(selStart, selEnd)
+                    if (hasSelection) styleState?.toggleUnderline(selMin, selMax)
                 },
                 // Text colour: pick directly from the colour palette
                 onTextColorPick  = { index ->
-                    if (hasSelection) styleState?.toggleTextColor(index, selStart, selEnd)
+                    if (hasSelection) styleState?.toggleTextColor(index, selMin, selMax)
                 },
                 onFillColorPick  = { index -> styleState?.toggleFillColor(index) },
                 // Active state reflects current selection

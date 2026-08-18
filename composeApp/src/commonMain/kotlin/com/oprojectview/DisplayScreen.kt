@@ -1,5 +1,6 @@
 package com.oprojectview
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,15 +30,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.delay
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
@@ -389,6 +393,14 @@ fun DisplayScreenBody(
 
     val playButtonFocusRequester = remember { FocusRequester() }
     val lastListItemFocusRequester = remember { FocusRequester() }
+    val firstItemFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        try {
+            firstItemFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
 
     Box(modifier = modifier
         .padding(top = 64.dp)
@@ -431,6 +443,7 @@ fun DisplayScreenBody(
                 items         = DisplayTaskList,
                 displayState  = displayState,
                 modifier      = Modifier.padding(top = 12.dp),
+                firstItemFocusRequester = firstItemFocusRequester,
                 playButtonFocusRequester = playButtonFocusRequester,
                 lastListItemFocusRequester = lastListItemFocusRequester,
                 onSelectionChanged = { item, index ->
@@ -485,9 +498,17 @@ fun SegmentedListItem(
     var menuExpanded by remember { mutableStateOf(false) }
 
     val leadingPainter: Painter = painterResource(item.leadingIconRes)
+    var isDpadFocused by remember { mutableStateOf(false) }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { isDpadFocused = it.isFocused }
+            .then(
+                if (isDpadFocused)
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+                else Modifier
+            ),
         onClick  = { menuExpanded = true },
         shape    = shape,
         color    = MaterialTheme.colorScheme.surface,
@@ -647,6 +668,7 @@ fun SegmentedList(
     items: List<DisplayTaskItem>,
     displayState: DisplayTaskState,
     modifier: Modifier = Modifier,
+    firstItemFocusRequester: FocusRequester? = null,
     playButtonFocusRequester: FocusRequester? = null,
     lastListItemFocusRequester: FocusRequester? = null,
     onSelectionChanged: (DisplayTaskItem, Int) -> Unit = { _, _ -> },
@@ -687,6 +709,10 @@ fun SegmentedList(
                 }
             } else {
                 Modifier
+            }
+
+            if (index == 0 && firstItemFocusRequester != null) {
+                itemModifier = itemModifier.focusRequester(firstItemFocusRequester)
             }
 
             if (isLastItem && lastListItemFocusRequester != null) {

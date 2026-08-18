@@ -1,5 +1,6 @@
 package com.oprojectview
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,15 +11,21 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +46,9 @@ fun ToolBar(
     focusedTrailing: Boolean = false,
     isHorizontal: Boolean = false,
     fillColor: Color? = null,
+    hasContainer: Boolean = false,
+    leadingModifier: Modifier = Modifier,
+    trailingModifier: Modifier = Modifier,
 ) {
     val toolbarModifier = if (isHorizontal) {
         Modifier
@@ -51,7 +61,7 @@ fun ToolBar(
     }
 
     Box(
-        modifier = toolbarModifier
+        modifier = toolbarModifier.then(modifier)
     ) {
         val titleFontSize = fontSize(24.dp)
 
@@ -93,7 +103,9 @@ fun ToolBar(
                     onClick = onLeadingClick ?: {},
                     focused = focusedLeading,
                     rotation = iconRotation,
-                    fillColor = fillColor
+                    fillColor = fillColor,
+                    hasContainer = hasContainer,
+                    modifier = leadingModifier,
                 )
                 Spacer(Modifier.weight(1f))
                 ToolbarIcon(
@@ -101,7 +113,9 @@ fun ToolBar(
                     onClick = onTrailingClick,
                     focused = focusedTrailing,
                     rotation = iconRotation,
-                    fillColor = fillColor
+                    fillColor = fillColor,
+                    hasContainer = hasContainer,
+                    modifier = trailingModifier,
                 )
             }
         } else {
@@ -114,7 +128,9 @@ fun ToolBar(
                     onClick = onLeadingClick ?: {},
                     focused = focusedLeading,
                     rotation = iconRotation,
-                    fillColor = fillColor
+                    fillColor = fillColor,
+                    hasContainer = hasContainer,
+                    modifier = leadingModifier,
                 )
                 Spacer(Modifier.weight(1f))
                 ToolbarIcon(
@@ -122,7 +138,9 @@ fun ToolBar(
                     onClick = onTrailingClick,
                     focused = focusedTrailing,
                     rotation = iconRotation,
-                    fillColor = fillColor
+                    fillColor = fillColor,
+                    hasContainer = hasContainer,
+                    modifier = trailingModifier,
                 )
             }
         }
@@ -136,11 +154,14 @@ private fun ToolbarIcon(
     focused: Boolean,
     rotation: Float = 0f,
     fillColor: Color? = null,
+    hasContainer: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     if (icon != null) {
+        var isDpadFocused by remember { mutableStateOf(false) }
         val inverseOnSurface = MaterialTheme.colorScheme.inverseOnSurface
-        val containerColor = remember(focused, inverseOnSurface) {
-            if (focused) {
+        val containerColor = remember(hasContainer, inverseOnSurface) {
+            if (hasContainer) {
                 inverseOnSurface.copy(alpha = 0.5f)
             } else {
                 Color.Transparent
@@ -152,15 +173,29 @@ private fun ToolbarIcon(
                 .aspectRatio(1f)
                 .padding(4.dp)
                 .fillMaxHeight()
-                .graphicsLayer { rotationZ = rotation },
+                .graphicsLayer { rotationZ = rotation }
+                .onFocusChanged { isDpadFocused = it.isFocused }
+                .then(
+                    if (isDpadFocused || focused)
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                    else Modifier
+                )
+                .then(modifier),
             onClick = onClick,
             colors = IconButtonDefaults.iconButtonColors(
                 containerColor = containerColor,
                 contentColor =
-                    if (focused)
-                        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.25f)
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                    if (hasContainer) {
+                        if (isDpadFocused || focused)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurface
+                    } else {
+                        if (isDpadFocused || focused)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                    }
             )
         ) {
             icon()

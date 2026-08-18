@@ -3,7 +3,10 @@ package com.oprojectview.core.camera
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -16,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.unit.Dp
@@ -180,12 +184,15 @@ private fun DialogButton(
     onClick: () -> Unit,
     leadingIcon: @Composable (() -> Unit)? = null
 ) {
+    var isDpadFocused by remember { mutableStateOf(false) }
+
     TextButton(
-        modifier = modifier,
+        modifier = modifier.onFocusChanged { isDpadFocused = it.isFocused },
         onClick = onClick,
         enabled = enabled,
         contentPadding = PaddingValues(horizontal = 24.dp),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = CircleShape,
+        border = if (isDpadFocused) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
         colors = ButtonDefaults.textButtonColors(
             containerColor =
                 if (hovered)
@@ -194,25 +201,21 @@ private fun DialogButton(
                     Color.Transparent,
 
             contentColor =
-                if (hovered)
+                if (hovered || isDpadFocused)
                     MaterialTheme.colorScheme.onPrimaryContainer
                 else
                     MaterialTheme.colorScheme.primary
         )
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (leadingIcon != null) {
-                leadingIcon()
-            }
-            Text(
-                fontSize = fontSize,
-                text = text,
-                style = MaterialTheme.typography.titleMedium
-            )
+        if (leadingIcon != null) {
+            leadingIcon()
+            Spacer(Modifier.width(8.dp))
         }
+        Text(
+            fontSize = fontSize,
+            text = text,
+            style = MaterialTheme.typography.titleMedium
+        )
     }
 }
 
